@@ -848,8 +848,9 @@ export default function KalaniPlanner() {
   // V4: courses fetched from Supabase, falls back to local COURSES if unavailable
   const { courses: liveCourses, gradReqs: liveGradReqs, loading: dataLoading } = useCourseData();
 
-  // Override getCourse to use live data within this component
-  function getCourseL(id) { return liveCourses.find(c => c.id === id); }
+  // Override getCourse to use live Supabase data inside this component
+  // This shadows the global getCourse() for all component code below
+  function getCourse(id) { return liveCourses.find(c => c.id === id); }
   const { announcements } = useAnnouncements();
 
   const [page, setPage] = useState("home");
