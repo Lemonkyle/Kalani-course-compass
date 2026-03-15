@@ -3,11 +3,67 @@ import { supabase } from "./src/supabase.js";
 
 // ─── BACKEND ADAPTER ─────────────────────────────────────────────────────────────────────────────────
 // V2: data is hardcoded below. V3: swap useCourseData() to fetch from Supabase/Firebase.
-// DATA_SOURCE: "local" | "firebase"
-const DATA_SOURCE = "local";
+// DATA_SOURCE: "local" | "supabase" — now fetching from Supabase with local fallback
+const DATA_SOURCE = "supabase";
+
+function normalizeCourse(row) {
+  // Convert Supabase row (snake_case, pg arrays) back to the shape the app expects
+  return {
+    id:                  row.id,
+    code:                row.code || "",
+    name:                row.name,
+    subtitle:            row.subtitle || "",
+    dept:                row.dept,
+    ctePath:             row.cte_path || "",
+    fineArtsType:        row.fine_arts_type || "",
+    miscType:            row.misc_type || "",
+    credits:             row.credits,
+    gradeLevel:          row.grade_level || [],
+    prereqs:             row.prereqs || [],
+    concurrentOk:        row.concurrent_ok || [],
+    gradCategory:        row.grad_category || null,
+    gradCredits:         row.grad_credits ?? null,
+    isAP:                row.is_ap || false,
+    repeatable:          row.repeatable || false,
+    teacherSigRequired:  row.teacher_sig_required || false,
+    isOffCampus:         row.is_off_campus || false,
+    desc:                row.desc || "",
+    tips:                row.tips || "",
+    gradeReqs:           row.grade_reqs || {},
+  };
+}
 
 function useCourseData() {
-  return { courses: COURSES, gradReqs: GRAD_REQUIREMENTS, loading: false, error: null };
+  const [courses, setCourses] = useState(COURSES);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchCourses() {
+      const { data, error } = await supabase
+        .from("courses")
+        .select("*")
+        .eq("archived", false)
+        .order("dept")
+        .limit(500);
+
+      if (error) {
+        console.error("[Kalani Compass] fetchCourses error:", error.message);
+        // Fallback: keep using local COURSES array
+        setLoading(false);
+        return;
+      }
+      if (data && data.length > 0) {
+        console.log("[Kalani Compass] fetchCourses: got", data.length, "courses from Supabase");
+        setCourses(data.map(normalizeCourse));
+      } else {
+        console.warn("[Kalani Compass] fetchCourses: empty response, using local fallback");
+      }
+      setLoading(false);
+    }
+    fetchCourses();
+  }, []);
+
+  return { courses, gradReqs: GRAD_REQUIREMENTS, loading, error: null };
 }
 function useAnnouncements() {
   const [announcements, setAnnouncements] = useState([]);
@@ -789,9 +845,11 @@ function calcPlannerCredits(plan) {
 }
 
 export default function KalaniPlanner() {
-  // V3: courses & gradReqs will come from Supabase via useCourseData()
-  // For now they resolve instantly from local hardcoded data
+  // V4: courses fetched from Supabase, falls back to local COURSES if unavailable
   const { courses: liveCourses, gradReqs: liveGradReqs, loading: dataLoading } = useCourseData();
+
+  // Override getCourse to use live data within this component
+  function getCourseL(id) { return liveCourses.find(c => c.id === id); }
   const { announcements } = useAnnouncements();
 
   const [page, setPage] = useState("home");
@@ -930,7 +988,7 @@ export default function KalaniPlanner() {
   const { cats, total } = useMemo(() => calcPlannerCredits(plan), [plan]);
 
   const filteredCourses = useMemo(() => {
-    let list = COURSES;
+    let list = liveCourses;
     if (filterDept !== "All") list = list.filter(c => c.dept === filterDept);
     if (filterDept === "CTE" && filterCtePath !== "All CTE")
       list = list.filter(c => c.ctePath === filterCtePath);
@@ -950,12 +1008,12 @@ export default function KalaniPlanner() {
       );
     }
     return list;
-  }, [filterDept, filterCtePath, filterFineArts, filterMisc, searchQuery]);
+  }, [filterDept, filterCtePath, filterFineArts, filterMisc, searchQuery, liveCourses]);
 
   const homeSearchResults = useMemo(() => {
     if (!homeSearch.trim()) return [];
     const q = homeSearch.toLowerCase();
-    return COURSES.filter(c =>
+    return liveCourses.filter(c =>
       c.name.toLowerCase().includes(q) ||
       (c.subtitle||"").toLowerCase().includes(q) ||
       c.code.toLowerCase().includes(q) ||
@@ -963,12 +1021,12 @@ export default function KalaniPlanner() {
       (c.ctePath||c.fineArtsType||c.miscType||"").toLowerCase().includes(q) ||
       (c.desc||"").toLowerCase().includes(q)
     ).slice(0, 4);
-  }, [homeSearch]);
+  }, [homeSearch, liveCourses]);
 
   const addSearchResults = useMemo(() => {
-    if (!addSearch.trim()) return COURSES.slice(0, 14);
+    if (!addSearch.trim()) return liveCourses.slice(0, 14);
     const q = addSearch.toLowerCase();
-    return COURSES.filter(c =>
+    return liveCourses.filter(c =>
       c.name.toLowerCase().includes(q) ||
       (c.subtitle||"").toLowerCase().includes(q) ||
       c.code.toLowerCase().includes(q) ||
@@ -976,7 +1034,7 @@ export default function KalaniPlanner() {
       (c.ctePath||c.fineArtsType||c.miscType||"").toLowerCase().includes(q) ||
       (c.desc||"").toLowerCase().includes(q)
     ).slice(0, 16);
-  }, [addSearch]);
+  }, [addSearch, liveCourses]);
 
   const honorsProgress = useMemo(() => computeHonorsProgress(plan), [plan]);
 
@@ -1051,7 +1109,7 @@ export default function KalaniPlanner() {
     <>
       <style>{`
         ${FONTS}
-        @keyframes annSlideDown{from{opacity:0;transform:translateY(-100%)}to{opacity:1;transform:translateY(0)}}
+        @keyframes annSlideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
         @keyframes starPop{0%{opacity:0;transform:scale(0) rotate(-20deg)}60%{transform:scale(1.35) rotate(4deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
         @keyframes ratingPopIn{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
         @keyframes confirmSlideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
@@ -1149,6 +1207,7 @@ export default function KalaniPlanner() {
               background:palBg, borderBottom:`2px solid ${palBar}`,
               padding:"9px 20px", display:"flex", alignItems:"center", gap:"10px",
               animation:`annSlideDown 0.32s cubic-bezier(.25,.46,.45,.94) ${i*0.06}s both`,
+              position:"sticky", top:`${58 + i * 42}px`, zIndex: 99 - i,
             }}>
               <span style={{ fontSize:"14px", flexShrink:0 }}>{icon}</span>
               <div style={{ flex:1, fontSize:"13px", lineHeight:1.4 }}>
@@ -1907,7 +1966,7 @@ export default function KalaniPlanner() {
                   </div>
                 )}
                 {!selectedCourse.isOffCampus && (()=>{
-                  const unlocks=COURSES.filter(c=>c.prereqs.includes(selectedCourse.id));
+                  const unlocks=liveCourses.filter(c=>c.prereqs.includes(selectedCourse.id));
                   return unlocks.length>0?(
                     <div style={{ marginBottom:"14px" }}>
                       <h3 style={{ fontSize:"11px",fontWeight:800,color:"var(--muted)",textTransform:"uppercase",
