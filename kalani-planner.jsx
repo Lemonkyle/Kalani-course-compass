@@ -1,0 +1,2160 @@
+import { useState, useMemo, useEffect } from "react";
+import { supabase } from "./src/supabase.js";
+
+// ─── BACKEND ADAPTER ─────────────────────────────────────────────────────────────────────────────────
+// V2: data is hardcoded below. V3: swap useCourseData() to fetch from Supabase/Firebase.
+// DATA_SOURCE: "local" | "firebase"
+const DATA_SOURCE = "local";
+
+function useCourseData() {
+  return { courses: COURSES, gradReqs: GRAD_REQUIREMENTS, loading: false, error: null };
+}
+function useAnnouncements() {
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAnnouncements() {
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("announcements")
+        .select("*")
+        .eq("visible", true)
+        .or(`ends_at.is.null,ends_at.gte.${now}`)
+        .order("created_at", { ascending: false });
+      if (!error && data) setAnnouncements(data);
+      setLoading(false);
+    }
+    fetchAnnouncements();
+  }, []);
+
+  return { announcements, loading };
+}
+// ─────────────────────────────────────────────────────────────────────────────────
+
+const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');`;
+
+const GRAD_REQUIREMENTS = [
+  { id:"english",  label:"English",           required:4.0, color:"#C84B31",
+    breakdown:["ELA 1 (1.0)","ELA 2 (1.0)","ELA 3 or AP English 3 (1.0)","ELA 4 or AP English 4 (1.0)"] },
+  { id:"ss",       label:"Social Studies",    required:4.0, color:"#7C3AED",
+    breakdown:["Participation in Democracy (0.5)","Modern History of Hawaiʻi (0.5)","US History/Gov (1.0)","World History (1.0)","Grade 12 SS elective (1.0)"] },
+  { id:"math",     label:"Mathematics",       required:3.0, color:"#059669",
+    breakdown:["Geometry (1.0)","Algebra 1 (1.0)","Algebra 2 or other math elective (1.0)"] },
+  { id:"science",  label:"Science",           required:3.0, color:"#D97706",
+    breakdown:["Biology 1 (1.0)","Science electives (2.0)"] },
+  { id:"wlfa",     label:"World Lang / Fine Arts / CTE", required:2.0, color:"#0891B2",
+    breakdown:["2 credits in one area: World Language, Fine Arts, or CTE pathway sequence"] },
+  { id:"pe",       label:"Physical Education",required:1.0, color:"#10B981",
+    breakdown:["PE Lifetime Fitness (0.5) — required","PE Lifetime Activities (0.5) — required"] },
+  { id:"health",   label:"Health",            required:0.5, color:"#EC4899",
+    breakdown:["Health Today & Tomorrow (0.5)"] },
+  { id:"ptp",      label:"Personal Transition Plan",required:0.5, color:"#84CC16",
+    breakdown:["Personal Transition Plan (0.5)"] },
+  { id:"electives",label:"Electives",         required:6.0, color:"#F97316",
+    breakdown:["Any subject area — overflow from subject buckets also counts (6.0 credits)"] },
+];
+
+const COURSES = [
+
+  // ── ENGLISH ────────────────────────────────────────────────────────────────
+  { id:"ELA1",    code:"LCY1010", name:"English Language Arts 1",             dept:"English", credits:1.0, gradeLevel:[9],       prereqs:[],           gradCategory:"english",  gradCredits:1.0,
+    desc:"Year course. Foundation reading, writing, oral communication, literature, and language study. All high school content standards and benchmarks are addressed. Heterogeneous class.",
+    tips:"Required for all 9th graders. Builds your core literacy skills for everything that follows." },
+  { id:"ELA2",    code:"LCY2010", name:"English Language Arts 2",             dept:"English", credits:1.0, gradeLevel:[10],      prereqs:["ELA1"],      gradCategory:"english",  gradCredits:1.0,
+    desc:"Year course. Balanced reading, writing, oral communication. World literature focus. All Hawaiʻi state benchmarks addressed. Heterogeneous class.",
+    tips:"World literature focus. Great opportunity to explore diverse writing styles and global voices." },
+  { id:"ELA3",    code:"LCY3010", name:"English Language Arts 3",             dept:"English", credits:1.0, gradeLevel:[11],      prereqs:["ELA2"],      gradCategory:"english",  gradCredits:1.0,
+    desc:"Year course. Strategic language use; informational and literary texts. Research, critical reading, and analytical writing. All 11th-grade benchmarks addressed.",
+    tips:"Heavy research component. Strong note-taking habits help. AP English Language is the honors alternative." },
+  { id:"ELA4",    code:"LCY4010", name:"English Language Arts 4",             dept:"English", credits:1.0, gradeLevel:[12],      prereqs:["ELA3"],      gradCategory:"english",  gradCredits:1.0,
+    desc:"Year course. Precision in written and spoken language, argumentation, and debate. British, European, African, and local works. Multiple learning opportunities and assessment choices.",
+    tips:"Argumentation skills transfer directly to college essays. AP English Literature is the honors alternative." },
+  { id:"AP_ENG3", code:"LAY6010", name:"AP English Language Arts 3", subtitle:"AP English Language & Composition",   dept:"English", credits:1.0, gradeLevel:[11],      prereqs:["ELA2"],      gradCategory:"english",  gradCredits:1.0, isAP:true,
+    desc:"Year course. College-level writing, rhetoric, and composition. Taken instead of ELA 3. AP exam required in May (~$96). Parent/guardian info session required. Cannot be taken concurrently with AP Seminar. Once enrolled, student must remain for the year.",
+    tips:"Excellent preparation for college writing. Requires strong commitment — you cannot drop after starting." },
+  { id:"AP_ENG4", code:"LAY6100", name:"AP English Language Arts 4", subtitle:"AP English Literature & Composition",  dept:"English", credits:1.0, gradeLevel:[12],      prereqs:["ELA3"],      gradCategory:"english",  gradCredits:1.0, isAP:true,
+    desc:"Year course. College-level literature and composition. World and British literature focus, rhetorical theory. AP exam required in May. Open to any willing senior. Once enrolled, must remain for the year.",
+    tips:"Great pairing if you took AP Language junior year. Deepens literary analysis skills." },
+  { id:"AP_SEM",  code:"XAP1000", name:"AP Seminar",                          dept:"English", credits:1.0, gradeLevel:[10,11],   prereqs:[],            gradCategory:"electives", gradCredits:1.0, isAP:true,
+    desc:"Year course. Critical thinking, research, problem-solving, argumentation, and multimedia communication. Part of AP Capstone diploma program. Leads to AP Research. Categorized as a General Elective at Kalani. Cannot be taken concurrently with AP English Language. Must remain for full year.",
+    tips:"Take this before AP Research — it is the required first step. Strong preparation for any research-intensive major." },
+  { id:"AP_RES",  code:"XAP1100", name:"AP Research",                         dept:"English", credits:1.0, gradeLevel:[11,12],   prereqs:["AP_SEM"],    gradCategory:"electives", gradCredits:1.0, isAP:true,
+    desc:"Year course. Design and conduct a year-long independent research investigation. Students demonstrate scholarly understanding through three performance tasks. AP Capstone diploma program. Must remain for full year.",
+    tips:"Requires AP Seminar as prerequisite. Strong independent work ethic and time management essential." },
+
+  // ── SOCIAL STUDIES ─────────────────────────────────────────────────────────
+  { id:"PID",      code:"CGU1100",  name:"Participation in Democracy",         dept:"Social Studies", credits:0.5, gradeLevel:[9],  prereqs:[],          gradCategory:"ss", gradCredits:0.5,
+    desc:"Semester course (Semester 1, Grade 9). Required for graduation. Democratic government, federal/state/local structures, rights and responsibilities. Students practice contacting public officials and applying political science tools.",
+    tips:"Taken Semester 1 of 9th grade, paired with Modern History of Hawaiʻi." },
+  { id:"MHH",      code:"CHR1100",  name:"Modern History of Hawaiʻi",          dept:"Social Studies", credits:0.5, gradeLevel:[9],  prereqs:[],          gradCategory:"ss", gradCredits:0.5,
+    desc:"Semester course (Semester 2, Grade 9). Required for graduation. Hawaiʻi history since 1898: monarchy, annexation, sugar industry, Martial Law, statehood, and current events.",
+    tips:"Taken Semester 2 of 9th grade, paired with Participation in Democracy." },
+  { id:"USH",      code:"CHU1100",  name:"United States History & Government", dept:"Social Studies", credits:1.0, gradeLevel:[10], prereqs:["PID","MHH"],gradCategory:"ss", gradCredits:1.0,
+    desc:"Year course. Chronological survey of U.S. history from 1877 to the present. Major events, geography, individuals, and ideas of American heritage.",
+    tips:"10th grade core social studies. AP US History is the honors alternative." },
+  { id:"AP_USH",   code:"CHA6100",  name:"AP United States History",           dept:"Social Studies", credits:1.0, gradeLevel:[10], prereqs:["PID","MHH"],gradCategory:"ss", gradCredits:1.0, isAP:true,
+    desc:"Year course. College-level two-semester survey of U.S. history, analytical skills, and evidence-based argumentation. AP exam required in May. Essay submission and Kalani AP contact required.",
+    tips:"Writing-intensive. Strong essay skills essential. One of the most essay-demanding AP courses offered." },
+  { id:"WH",       code:"CHW1100",  name:"World History & Culture",            dept:"Social Studies", credits:1.0, gradeLevel:[11], prereqs:["USH"],     gradCategory:"ss", gradCredits:1.0,
+    desc:"Year course. Political, economic, geographic, and social events shaping world history. Early civilizations through current world events. Primary and secondary source analysis.",
+    tips:"11th grade core. AP World History is the honors alternative." },
+  { id:"AP_WH",    code:"CHA6300",  name:"AP World History",                   dept:"Social Studies", credits:1.0, gradeLevel:[11], prereqs:["USH"],     gradCategory:"ss", gradCredits:1.0, isAP:true,
+    desc:"Year course. College-level world history from 8000 BCE to present. Six historical periods. AP exam required in May. Kalani AP contact required.",
+    tips:"Writing-intensive. Great if you enjoy history and can manage college-level reading demands." },
+  { id:"ECON",     code:"CSD2500",  name:"Economics",                          dept:"Social Studies", credits:0.5, gradeLevel:[12], prereqs:["WH"],     gradCategory:"ss", gradCredits:0.5,
+    desc:"Semester course (Grade 12). Concepts and analytical tools to understand major economic problems facing the nation and world. Economic skills for post-high school life. Must be paired with Psychology or AP Macroeconomics (both taken same year).",
+    tips:"⚠️ Must be taken alongside Psychology OR AP Macroeconomics — they share the same year as a two-semester pair." },
+  { id:"PSYCH",    code:"CSD2200",  name:"Psychology",                         dept:"Social Studies", credits:0.5, gradeLevel:[12], prereqs:["WH"],     gradCategory:"ss", gradCredits:0.5,
+    desc:"Semester course (Grade 12). Why humans behave as they do. Theory vs. fact, research methods, learning theories, behavior disorders. Paired with Economics as the standard Grade 12 social studies year course.",
+    tips:"⚠️ Must be taken alongside Economics — both are required as a two-semester pairing." },
+  { id:"AP_MACRO", code:"CSA6200",  name:"AP Macroeconomics",                  dept:"Social Studies", credits:0.5, gradeLevel:[12], prereqs:["WH"],     gradCategory:"ss", gradCredits:0.5, isAP:true, concurrentOk:["ECON"],
+    desc:"Two-semester AP course (0.5/0.5 credits). College-level economics: understanding economic systems, international trade, finance, and government policies. AP exam required in May (~$96). Must be paired with (taken alongside) Economics (CSD2500A).",
+    tips:"⚠️ Must be taken alongside Economics. AP Macro + Economics together fulfill the Grade 12 SS requirement." },
+  { id:"AP_PSYCH", code:"CSA2500",  name:"AP Psychology",                      dept:"Social Studies", credits:1.0, gradeLevel:[12], prereqs:["WH"],     gradCategory:"ss", gradCredits:1.0, isAP:true,
+    desc:"Year course. Equivalent to introductory college psychology. Biological, behavioral, cognitive, humanistic, and socio-cultural perspectives. Specific topics: methodology, neuroscience, development, intelligence, disorders. AP exam required in May.",
+    tips:"One of the most popular AP courses at Kalani. Excellent for medicine, social work, or education majors." },
+
+  // ── MATHEMATICS ────────────────────────────────────────────────────────────
+  { id:"GEO",     code:"MGX1150", name:"Geometry",                             dept:"Mathematics", credits:1.0, gradeLevel:[9],      prereqs:[],              gradCategory:"math", gradCredits:1.0,
+    desc:"Year course. All incoming Kalani freshmen enroll in Geometry (SY 2022-23+). Plane and solid Euclidean geometry. Compass and straightedge required. Upperclassmen who have Algebra 1 credit but not yet Geometry also take this course.",
+    tips:"Compass and straightedge required from day one. Teacher or department chair recommendation needed for all math courses." },
+  { id:"ALG1",    code:"MAX1155", name:"Algebra 1",                            dept:"Mathematics", credits:1.0, gradeLevel:[10],     prereqs:["GEO"],         gradCategory:"math", gradCredits:1.0,
+    desc:"Year course. Basic algebraic structure and mathematical problem solving. Foundation for all subsequent math courses and other department subjects. All Algebra 1 students are concurrently enrolled in Algebra 1 Workshop on alternating days.",
+    tips:"Algebra 1 Workshop (co-requisite) provides alternating-day support. If you received a C or below in Geometry, Workshop enrollment is mandatory." },
+  { id:"ALG1W",   code:"MSW10091", name:"Algebra 1 Workshop",                 dept:"Mathematics", credits:1.0, gradeLevel:[10],     prereqs:["GEO"],         gradCategory:"math", gradCredits:1.0,
+    desc:"Co-requisite course taken alongside Algebra 1. Meets on alternating days to provide support, remediation, reinforcement, and enrichment. Mandatory for students who received a C or below in Geometry, or by teacher recommendation. Credit awarded by semester.",
+    tips:"⚠️ This is a co-requisite — you cannot take it independently. It is automatically assigned alongside Algebra 1. Add it to your plan only if you expect to need it." },
+  { id:"ALG2",    code:"MAX1200", name:"Algebra 2",                            dept:"Mathematics", credits:1.0, gradeLevel:[10,11],  prereqs:["ALG1"],  gradCategory:"math", gradCredits:1.0,
+    desc:"Year course. Builds upon and extends Algebra 1. Required for UH Mānoa admission and most comparable 4-year universities. Students with 8th grade Algebra 1 credit may take this after completing Geometry.",
+    tips:"Need credit in Algebra 1 and Geometry. If you completed Algebra 1 in 8th grade, you can take this in 10th grade right after Geometry." },
+  { id:"TRIG",    code:"MCX1010", name:"Trigonometry / Pre-Calculus",          dept:"Mathematics", credits:1.0, gradeLevel:[11,12],  prereqs:["ALG2"],        gradCategory:"math", gradCredits:1.0,
+    gradeReqs:{"ALG2":"B or better"},
+    desc:"Two-semester year course (0.5 cr each semester). Trigonometry in Semester 1, Pre-Calculus in Semester 2. For students highly proficient in algebra and geometry. Placement test required.",
+    tips:"B or better in Algebra 2 recommended. Strongly recommended for students planning STEM or pre-med majors. Prerequisite for Calculus and AP Calculus." },
+  { id:"ALG3",    code:"MAX1310", name:"Algebra 3 / Statistics",               dept:"Mathematics", credits:1.0, gradeLevel:[11,12],  prereqs:["ALG2"],        gradCategory:"math", gradCredits:1.0,
+    gradeReqs:{"ALG2":"C or better"},
+    desc:"Two-semester year course (0.5 cr per semester). Advanced algebra of real and complex numbers (Semester 1), then descriptive and inferential statistics (Semester 2). Placement test required.",
+    tips:"Good alternative to Trig/PreCal for non-STEM paths. C or better in Algebra 2. Counts toward Academic and STEM Honors beyond-Algebra 2 requirement." },
+  { id:"CALC",    code:"MCX1040", name:"Calculus",                             dept:"Mathematics", credits:1.0, gradeLevel:[12],     prereqs:["TRIG"],        gradCategory:"math", gradCredits:1.0,
+    gradeReqs:{"TRIG":"B or better"},
+    desc:"Year course. Limits as the foundation of calculus, differentiation, and integration. Signed AP-style contract required. Placement test required.",
+    tips:"B or better in Trig/PreCal and all previous math courses, plus teacher recommendation and placement test." },
+  { id:"AP_CALC", code:"MCA1040", name:"AP Calculus",                          dept:"Mathematics", credits:1.0, gradeLevel:[12],     prereqs:["TRIG"],        gradCategory:"math", gradCredits:1.0, isAP:true,
+    gradeReqs:{"TRIG":"B or better"},
+    desc:"Year course. College-level calculus. Students MUST take the AP Mathematics Exam in May (~$99). Placement test and signed AP contract required. One of the most valued AP courses for STEM admissions.",
+    tips:"B or better in Trig/PreCal, placement test, and teacher recommendation required. Highly regarded by college admissions." },
+  { id:"AP_STATS",code:"MCA1050", name:"AP Statistics",                        dept:"Mathematics", credits:1.0, gradeLevel:[11,12],  prereqs:["ALG2"],        gradCategory:"math", gradCredits:1.0, isAP:true,
+    gradeReqs:{"ALG2":"B or better"},
+    desc:"Year course. Collecting, analyzing, and drawing conclusions from data. Four themes: data exploration, planning a study, anticipating patterns, and statistical inference. AP exam required in May. Incoming seniors preferred; B or better in Algebra 2 and teacher recommendation required.",
+    tips:"Great for students interested in social sciences, medicine, or business. Less computation-heavy than Calculus. Counts toward Academic/STEM Honors math requirement." },
+  { id:"ICMATH",  code:"MIC1200", name:"Introduction to College Mathematics",  dept:"Mathematics", credits:1.0, gradeLevel:[12],     prereqs:["ALG2"],        gradCategory:"math", gradCredits:1.0,
+    desc:"Year course. Prepares seniors for non-STEM college math. Topics from Algebra, Functions, Geometry, and Statistics. Mathematical modeling and quantitative reasoning. Students may earn UH system placement credit based on grades and SBAC scores.",
+    tips:"For seniors on non-STEM paths. Requires Geometry + Algebra 2 credit and current math teacher recommendation. Counts toward Academic and STEM Honors beyond-Algebra 2 requirement." },
+
+  // ── SCIENCE ────────────────────────────────────────────────────────────────
+  { id:"ISCI",     code:"SAH2003",  name:"Integrated Science",                dept:"Science", credits:1.0, gradeLevel:[9],       prereqs:[],                       gradCategory:"science", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course for 9th graders. Integrates Scientific Method, Biology, and Chemistry. Energy transformations, electromagnetic waves, periodic table, cellular structure, photosynthesis, and cellular respiration. Teacher signature required.",
+    tips:"Take this if you don't yet have Algebra 1 credit. Biology 1 (Grade 9 track) is available if you already have Algebra 1." },
+  { id:"BIO1_9",   code:"SLH22039", name:"Biology 1 (Grade 9 track)",         dept:"Science", credits:1.0, gradeLevel:[9],       prereqs:["ALG1"],                 gradCategory:"science", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course for 9th graders who have already completed Algebra 1 (typically in 8th grade). Life processes, genetics, evolution, and ecology. Fulfills the required Biology 1 graduation credit. Teacher signature required.",
+    tips:"Only available to 9th graders who completed Algebra 1 in middle school. Fulfills Biology 1 graduation requirement a year early." },
+  { id:"BIO1_10",  code:"SLH2203",  name:"Biology 1",                         dept:"Science", credits:1.0, gradeLevel:[10],      prereqs:[],                       gradCategory:"science", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course. Fundamental life processes, relationships between structure and function, genetics, evolution, and ecology. Required for graduation. Teacher signature required.",
+    tips:"Required graduation credit. If you took Integrated Science in 9th grade, this is your Biology 1." },
+  { id:"CHEM",     code:"SPH3503",  name:"Chemistry",                         dept:"Science", credits:1.0, gradeLevel:[10,11],   prereqs:["ALG1"],                 gradCategory:"science", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course. College-preparatory introduction to chemistry using an interdisciplinary approach. Open to students who have completed Algebra 1. Teacher signature required.",
+    tips:"Good for students not planning science-focused careers. Opens the path to AP Environmental Science and AP Biology." },
+  { id:"HCHEM",    code:"SPH3503H", name:"Honors Chemistry",                  dept:"Science", credits:1.0, gradeLevel:[10,11],   prereqs:["ALG1"],  concurrentOk:["ALG2"], gradCategory:"science", gradCredits:1.0, teacherSigRequired:true,
+    gradeReqs:{"ALG1":"B or better"},
+    desc:"Year course. Rigorous college-prep chemistry for students planning science-related careers. Mathematical formulation, experimental problems, and independent study. Requires B or better in Algebra 1, and concurrent enrollment in (or completion of) Algebra 2. Teacher signature required.",
+    tips:"B or better in Algebra 1 required. Must be taking Algebra 2 concurrently or have already completed it. Strongly recommended before AP Chemistry." },
+  { id:"AP_BIO",   code:"SLH8003",  name:"AP Biology",                        dept:"Science", credits:1.0, gradeLevel:[11,12],   prereqs:["BIO1_10","CHEM"],       gradCategory:"science", gradCredits:1.0, isAP:true, teacherSigRequired:true,
+    gradeReqs:{"BIO1_10":"B or better"},
+    desc:"Year course. First-year college biology. Lab work equivalent to college level. Organisms, genetics, evolution, ecology, biochemistry. AP exam required in May. B or higher in Biology 1 and completion of Chemistry required.",
+    tips:"One of the most demanding AP courses. Honors Chemistry strongly recommended as preparation." },
+  { id:"AP_CHEM",  code:"SPH5003",  name:"AP Chemistry",                      dept:"Science", credits:1.0, gradeLevel:[11,12],   prereqs:["HCHEM","ALG2"],         gradCategory:"science", gradCredits:1.0, isAP:true, teacherSigRequired:true,
+    gradeReqs:{"HCHEM":"B or better"},
+    desc:"Year course. First-year college chemistry. Atomic theory, bonding, equilibrium, kinetics, thermodynamics. AP exam required. Open to students with Algebra 2 or higher and Honors Chemistry with B or better.",
+    tips:"Need B or better in Honors Chemistry. One of the most rigorous AP sciences at Kalani." },
+  { id:"PHYS",     code:"SPH5603",  name:"Physics",                           dept:"Science", credits:1.0, gradeLevel:[11,12],   prereqs:["ALG2"],    gradCategory:"science", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course. College-preparatory physics: force, mass, motion, energy, sound, light, electricity, and magnetism. Requires Geometry, Algebra 1, and Algebra 2. Teacher signature required.",
+    tips:"Good for engineering interest without full AP rigor. Need all three math prerequisites completed." },
+  { id:"AP_PHYS",  code:"SPH7505",  name:"AP Physics 1",                      dept:"Science", credits:1.0, gradeLevel:[11,12],   prereqs:[], concurrentOk:["TRIG"], gradCategory:"science", gradCredits:1.0, isAP:true, teacherSigRequired:true,
+    desc:"Year course. Algebra-based college physics. Kinematics, dynamics, energy, momentum, rotation, harmonic motion. AP exam required in May. Open to students currently enrolled in OR who have completed Trigonometry/Pre-Calculus.",
+    tips:"Can be taken while concurrently taking Trig/Pre-Calculus. Very math and reasoning intensive. Strong self-discipline is key." },
+  { id:"AP_ENVSCI",code:"SIH3903",  name:"AP Environmental Science",          dept:"Science", credits:1.0, gradeLevel:[11,12],   prereqs:["BIO1_10","CHEM"],       gradCategory:"science", gradCredits:1.0, isAP:true, teacherSigRequired:true,
+    desc:"Year course. Earth's systems and human-environment interactions. Ecosystems, populations, pollution, land/water use, global climate change. AP exam required in May.",
+    tips:"Popular AP choice. Less math-heavy than AP Chem or Physics. Great for environmentally-minded students." },
+  { id:"HPHYS",    code:"SLH7503",  name:"Human Physiology 1",                dept:"Science", credits:1.0, gradeLevel:[11,12],   prereqs:["BIO1_10"],              gradCategory:"science", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course. Second-year biology. In-depth study of human anatomy: circulation, respiration, digestion, muscular, skeletal, nervous, and reproductive systems. Teacher signature required.",
+    tips:"Great for students interested in health, nursing, or medicine careers. Completion of Biology 1 required." },
+  { id:"MARINE",   code:"SEH2503",  name:"Marine Science",                    dept:"Science", credits:1.0, gradeLevel:[10,11,12],prereqs:["BIO1_10"],              gradCategory:"science", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course. Physical and biological aspects of the marine environment. Marine animal and plant anatomy, interactions, and man's relationship with the ocean. College-preparatory. Open to grades 10–12 with Biology 1 credit.",
+    tips:"Very popular Hawaiʻi-relevant science elective. Completion of Biology 1 required." },
+  { id:"STEM_CAP", code:"XAT1000",  name:"STEM Capstone",                     dept:"Science", credits:1.0, gradeLevel:[11,12],   prereqs:[],                       gradCategory:"electives", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course. Self-directed, project-based. Students research, design, build, test, and deliver a solution to a community need. Required for STEM Honors Recognition Certificate (class of 2016 and beyond). Teacher signature required.",
+    tips:"Required for STEM Honors. Demands strong self-direction and time management. Great for college applications." },
+
+  // ── HEALTH & PE ────────────────────────────────────────────────────────────
+  { id:"HEALTH",       code:"HLE1000", name:"Health: Today and Tomorrow",     dept:"Health & PE", credits:0.5, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"health", gradCredits:0.5,
+    desc:"Semester course. Required 0.5 credit for graduation. Promoting safety, mental/emotional health, personal health and wellness, healthy eating and physical activity, tobacco-free lifestyle, alcohol and drug-free lifestyle, and sexual health.",
+    tips:"Required for graduation. Usually taken in 9th or 10th grade." },
+  { id:"PE_LF",        code:"PEP1005", name:"PE Lifetime Fitness",            dept:"Health & PE", credits:0.5, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"pe",     gradCredits:0.5,
+    desc:"Semester course. Required 0.5 credit for graduation. Aquatics, aerobics, spinning/cycling, running/walking, circuit training, core functional training, and weight training. Cardio test/heart rate monitor assessments.",
+    tips:"Required for graduation (one of two required PE credits). Usually taken 9th or 10th grade." },
+  { id:"PE_LA",        code:"PEP1010", name:"PE Lifetime Activities",         dept:"Health & PE", credits:0.5, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"pe",     gradCredits:0.5,
+    desc:"Semester course. Required 0.5 credit for graduation. Life-long recreational activities: Ultimate Frisbee, Speedball, Indoor Soccer, Water Explorations, Horseshoes, Team Handball. Biathlon fitness assessment (2-mile run + 600-yard swim).",
+    tips:"Required for graduation (second of two required PE credits). Pairs with PE Lifetime Fitness to fulfill 1.0 PE requirement." },
+  { id:"TEAM_SPORTS1", code:"PTP1640", name:"Team Sports 1",                  dept:"Health & PE", credits:0.5, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"pe",     gradCredits:0.5,
+    desc:"Semester course. NOT repeatable. Physical movement forms, team sports skills, and sportsmanship. Adventure games, basketball, volleyball, soccer, softball, water polo, flag football. Rules, strategy, and teamwork.",
+    tips:"Can only be taken once. Great PE elective if you enjoy competitive team sports." },
+  { id:"TEAM_SPORTS2", code:"PTP1650", name:"Team Sports 2",                  dept:"Health & PE", credits:0.5, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"pe",     gradCredits:0.5,
+    desc:"Semester course. NOT repeatable. Continues Team Sports 1 content with more complex team sport skills, advanced movement patterns, and competitive play. Rules, strategy, and teamwork.",
+    tips:"Can only be taken once. A separate course from Team Sports 1 — both can be planned if you enjoy team sports." },
+  { id:"WT",           code:"PWP1210", name:"Weight Training (Years 1 & 2)",  dept:"Health & PE", credits:0.5, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"pe",     gradCredits:0.5, repeatable:true,
+    desc:"Semester course (repeatable across years 1 and 2, up to 4 semesters total). Systematically introduces weight training techniques, philosophies, and safety. Each phase increases workload. Cardiac health running included.",
+    tips:"Can be added multiple times across your 4 years. Complete all 4 semesters (Years 1 and 2) before enrolling in Body Conditioning." },
+  { id:"BODY_COND",    code:"PBP1110", name:"Body Conditioning",              dept:"Health & PE", credits:0.5, gradeLevel:[11,12],       prereqs:["WT"], gradCategory:"pe", gradCredits:0.5,
+    desc:"Semester course. Year 3 of the weight training sequence. Isometric, isotonic, plyometric, aerobic, anaerobic, and resistance training. Diet, vitamins, supplements, and body composition covered.",
+    tips:"Year 3 of the WT sequence — complete Weight Training Years 1 and 2 (all 4 semesters) before enrolling." },
+
+  // ── MISCELLANEOUS ──────────────────────────────────────────────────────────
+  { id:"PTP",          code:"TGG1105", miscType:"General", name:"Personal Transition Plan",       dept:"Miscellaneous", credits:0.5, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"ptp", gradCredits:0.5,
+    desc:"Semester course. Required 0.5 credit for graduation. Career planning, life goals, and educational planning. Credit not awarded until student documents meeting Hawaii CTE Career Planning standards in Grades 9–12.",
+    tips:"Required for graduation. Best taken early so you can plan the rest of high school around your goals." },
+  { id:"COMMUNITY_SVC",code:"XLH2001", miscType:"General", name:"Community Service",             dept:"Miscellaneous", credits:0.5, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"electives", gradCredits:0.5, repeatable:true,
+    desc:"A minimum of 60 hours of verified community service with the same group/organization earns 0.5 elective credit. No letter grade assigned. May be repeated, but no more than 1.0 total credit (120 hours) may be applied toward graduation. Consult your counselor before hours begin.",
+    tips:"Max 1.0 credit toward graduation. Must consult counselor prior to starting service hours. Great for college applications." },
+  { id:"CTL",          code:"XLP1015CTL1", miscType:"General", name:"Center for Tomorrow's Leaders (CTL)", dept:"Miscellaneous", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"electives", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course (two semesters: XLP1015CTL1 + XLP1015CTL2). Statewide leadership program. Students take on real-world challenges, lead community projects, and connect with peers across Hawaiʻi. Teacher signature required.",
+    tips:"More than a class — a statewide movement. Great for students who want to lead and create community impact." },
+  { id:"LEADERSHIP",   code:"XLP2000", miscType:"General",    name:"Leadership Training",        dept:"Miscellaneous", credits:1.0, gradeLevel:[10,11,12], prereqs:[], gradCategory:"electives", gradCredits:1.0,
+    desc:"Year course (repeatable Grades 10/11/12). Group processes, leadership skills, planning and coordinating class and committee projects. Codes: Grade 10 = XLP2000, Grade 11 = XLP3000, Grade 12 = XLP4000, KAS = XLP5000.",
+    tips:"Required for class officers and KAS officers. Strongly recommended for all student leaders. Can repeat across Grade 10–12." },
+  { id:"NEWSWRITE1",   code:"LJY8210", miscType:"Journalism",    name:"Newswriting 1",              dept:"Miscellaneous", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"electives", gradCredits:1.0,
+    desc:"Year course. Introduction to school newspaper staff. Study of newspaper structure, functions, and production roles. Writing, interviewing, and publishing journalism.",
+    tips:"Year 1 of the Newswriting sequence. Great for students interested in journalism, writing, or media." },
+  { id:"NEWSWRITE2",   code:"LJY8300", miscType:"Journalism",    name:"Newswriting 2",              dept:"Miscellaneous", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["NEWSWRITE1"], gradCategory:"electives", gradCredits:1.0,
+    desc:"Year course. Advanced writing, production, and editorial responsibilities on the school newspaper staff.",
+    tips:"Build toward senior editorial roles. Each year earns another elective credit." },
+  { id:"NEWSWRITE3",   code:"LJY8400", miscType:"Journalism",    name:"Newswriting 3",              dept:"Miscellaneous", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["NEWSWRITE2"], gradCategory:"electives", gradCredits:1.0,
+    desc:"Year course. Advanced journalism: in-depth reporting, layout design, and leadership on the newspaper staff.",
+    tips:"Students begin taking on staff leadership and editorial direction." },
+  { id:"NEWSWRITE4",   code:"LJY8500", miscType:"Journalism",    name:"Newswriting 4",              dept:"Miscellaneous", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["NEWSWRITE3"], gradCategory:"electives", gradCredits:1.0,
+    desc:"Year course. Senior-level journalism. Students lead production and mentor younger staff members.",
+    tips:"Top tier of the newspaper program. Strong college application value for journalism and communication majors." },
+  { id:"PATHWAY_EXP1", code:"TGG1101", miscType:"General",    name:"Pathway Exploration 1",      dept:"Miscellaneous", credits:0.5, gradeLevel:[11,12], prereqs:[], gradCategory:"electives", gradCredits:0.5,
+    desc:"Semester course (Semester 1). Based on Project Wayfinder. Introspective work: discover personal purpose, core values, and meaning. Must be taken with Pathway Exploration 2 in the same year.",
+    tips:"Recommended for juniors and seniors. Both semesters (TGG1101 + TGG1102) must be taken together in the same year." },
+  { id:"PATHWAY_EXP2", code:"TGG1102", miscType:"General",    name:"Pathway Exploration 2",      dept:"Miscellaneous", credits:0.5, gradeLevel:[11,12], prereqs:["PATHWAY_EXP1"], gradCategory:"electives", gradCredits:0.5,
+    desc:"Semester course (Semester 2). Students implement a passion project in the community tied to purpose discovered in Semester 1.",
+    tips:"Community engagement and passion project required. Must take alongside Pathway Exploration 1 in the same year." },
+  { id:"TRANS_HS",     code:"TGG1103", miscType:"General",    name:"Transitions to High School",  dept:"Miscellaneous", credits:0.5, gradeLevel:[9], prereqs:[], gradCategory:"electives", gradCredits:0.5,
+    desc:"Semester course. Assists 9th graders' transition to high school: study habits, self-image, reading, writing, and computer literacy. DOES NOT count toward the 2-credit CTE requirement. Counts as elective credit only.",
+    tips:"Only for incoming 9th graders. Does NOT count toward CTE graduation requirement — elective credit only." },
+  { id:"TEACHER_ASST", code:"TIK5930", miscType:"General",    name:"Teacher Assistant for Technology Integration", dept:"Miscellaneous", credits:1.0, gradeLevel:[10,11,12], prereqs:[], gradCategory:"electives", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course. Students assist teacher with technology integration in the classroom. Teacher signature required.",
+    tips:"Good way to develop tech and communication skills. Teacher signature required." },
+  { id:"YEARBOOK1",    code:"XYY8610", miscType:"Journalism",    name:"Yearbook 1",                 dept:"Miscellaneous", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"electives", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course. Layout design, interviewing, caption writing, photography, and meeting deadlines. Independent thinking required. After-school work may be required. Teacher signature required.",
+    tips:"After-school work may be needed to meet deadlines. Great design and writing portfolio experience." },
+  { id:"YEARBOOK2",    code:"XYY8630", miscType:"Journalism",    name:"Yearbook 2",                 dept:"Miscellaneous", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["YEARBOOK1"], gradCategory:"electives", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course. More complex design and photography roles. Section editor responsibilities. After-school work may be required. Teacher signature required.",
+    tips:"Returning staff take on section editor and design lead roles." },
+  { id:"YEARBOOK3",    code:"XYY8650", miscType:"Journalism",    name:"Yearbook 3",                 dept:"Miscellaneous", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["YEARBOOK2"], gradCategory:"electives", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course. Senior-level yearbook production. Students lead the book's design, photography, and editorial direction. Teacher signature required.",
+    tips:"Leadership role in the yearbook. Strong portfolio piece for design and communications." },
+
+  // ── CTE — AFNR ─────────────────────────────────────────────────────────────
+  { id:"AFNR1",      code:"TAO1000", name:"Foundations of Agriculture, Food & Natural Resources", dept:"CTE", ctePath:"AFNR", credits:1.0, gradeLevel:[9,10,11], prereqs:[], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 1. Introductory course for the AFNR pathway. Informs students about agriculture careers and the role of agriculture in the 21st century. Foundation for Animal Systems, Food Systems, Natural Resources Business, and Natural Resources Management programs. Students gain foundational knowledge of ecosystems, plant systems, animal systems, and reproduction.",
+    tips:"Year 1 of AFNR pathway. Leads to two separate branches: Animal Systems or Agriculture Business." },
+  { id:"SAS",        code:"TAS2000", name:"Small Animal Systems",             dept:"CTE", ctePath:"AFNR", credits:1.0, gradeLevel:[10,11,12], prereqs:["AFNR1"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year 2 — Animal Systems branch. Anatomy and physiological systems of small and specialty animals. For students interested in veterinary, vet tech, or animal-related professions. Teacher signature/recommendation required.",
+    tips:"Together with AFNR Foundations, completes the 2-credit CTE graduation requirement." },
+  { id:"LAS",        code:"TAS3000", name:"Large Animal Systems",             dept:"CTE", ctePath:"AFNR", credits:1.0, gradeLevel:[11,12],    prereqs:["SAS"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year 3 — Animal Systems branch. Anatomy and care of large animals. For students interested in veterinary or animal-related professions. Requires Foundations of AFNR AND Small Animal Systems. Teacher signature/recommendation required.",
+    tips:"Continues the Animal Systems track. Both prerequisite courses required." },
+  { id:"WBL_ANIMAL", code:"TAS4000", name:"Animal Systems: Work-Based Learning", dept:"CTE", ctePath:"AFNR", credits:1.0, gradeLevel:[12], prereqs:["LAS"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year 4 — Animal Systems capstone. Work-based learning experience to develop professional and ethical understanding. Demonstrates mastery of academic and technical skills. Requires Foundations AND Large Animal Systems. Teacher signature/recommendation required.",
+    tips:"Capstone of the Animal Systems track. Year 4 of the sequence." },
+  { id:"AGRI_BIZ1",  code:"TAO2000", name:"Principles of Agriculture, Agri-Business & Food Systems", dept:"CTE", ctePath:"AFNR", credits:1.0, gradeLevel:[10,11,12], prereqs:["AFNR1"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year 2 — Agriculture Business branch. Plant and animal structural anatomy, systems physiology, genetics, and biotechnology. Agricultural production business practices, economics of production, Hawaiian land stewardship traditions. Teacher signature/recommendation required.",
+    tips:"Together with AFNR Foundations, completes the 2-credit CTE requirement. Leads to Agriculture Production & Agri-Business courses." },
+  { id:"AGRI_PROD",  code:"TAB3000", name:"Agriculture Production & Agri-Business", dept:"CTE", ctePath:"AFNR", credits:1.0, gradeLevel:[11,12], prereqs:["AGRI_BIZ1"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year 3 — Agriculture Business branch. Plant and animal structural anatomy, systems physiology, genetics, and biotechnology continued. Requires Foundations AND Principles of Agriculture. Teacher signature/recommendation required.",
+    tips:"Year 3 of the Agriculture Business track." },
+  { id:"AGRI_PROD2", code:"TAB4000", name:"Agriculture Production & Agri-Business 2", dept:"CTE", ctePath:"AFNR", credits:1.0, gradeLevel:[12], prereqs:["AGRI_PROD"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year 4 — Agriculture Business capstone. Prepares students for the world of natural resources business by combining finance, accounting, marketing, and ethical practices. All three prerequisite courses required. Teacher signature/recommendation required.",
+    tips:"Capstone of the Agriculture Business track. Year 4 of the sequence." },
+
+  // ── CTE — BUSINESS ─────────────────────────────────────────────────────────
+  { id:"BIZ1", code:"TBB1000", name:"Foundations of Business & Marketing",    dept:"CTE", ctePath:"Business", credits:1.0, gradeLevel:[9,10,11], prereqs:[], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 1. Introductory course about careers in various sectors of business and basic business concepts. Foundation for the Entrepreneurship program of study.",
+    tips:"Year 1 of Business pathway. Good for students interested in entrepreneurship or business careers." },
+  { id:"ENT1", code:"TBE2000", name:"Entrepreneurship 1",                     dept:"CTE", ctePath:"Business", credits:1.0, gradeLevel:[10,11,12], prereqs:["BIZ1"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 2. Management, finance, and marketing principles in an entrepreneurship context. Starting and running a business. Prerequisite: Foundations of Business and Marketing.",
+    tips:"Together with Foundations of Business, completes the 2-credit CTE requirement." },
+  { id:"ENT2", code:"TBE3000", name:"Entrepreneurship 2",                     dept:"CTE", ctePath:"Business", credits:1.0, gradeLevel:[11,12],    prereqs:["ENT1"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 3. Operations, finance, accounting, marketing, and ethical practices for small businesses. Prepares students for the world of business.",
+    tips:"Year 3 of the Business track. Requires both Foundations and Entrepreneurship 1." },
+
+  // ── CTE — ARTS & MEDIA (Digital Design branch) ─────────────────────────────
+  { id:"DIGPHOTO1",  code:"TCC1000DP", name:"Foundations of Creative Media (Digital Photography 1)", dept:"CTE", ctePath:"Arts & Media", credits:1.0, gradeLevel:[9,10,11], prereqs:[], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 1 — Digital Design branch. Visual arts and communication using photography as the medium. Covers innovation, legal/copyright issues, worldwide communication, aesthetics (composition, light, image), and problem-solving. Students must provide their own digital camera.",
+    tips:"Must have your own digital camera. Year 1 of the Digital Design branch within Arts & Media." },
+  { id:"DIGDESIGN1", code:"TCD2000",   name:"Digital Design 1 (Photography 2)", dept:"CTE", ctePath:"Arts & Media", credits:1.0, gradeLevel:[10,11,12], prereqs:["DIGPHOTO1"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 2 — Digital Design branch. Equips students with skills to support and enhance digital media technology use. Topics: creating media content, communicative abilities, the production process, and legal concerns.",
+    tips:"Completes 2-credit CTE requirement with Foundations. Great for media careers." },
+  { id:"DIGDESIGN2", code:"TCD3000",   name:"Digital Design 2 (Directed Studies)", dept:"CTE", ctePath:"Arts & Media", credits:1.0, gradeLevel:[11,12], prereqs:["DIGDESIGN1"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 3 — Digital Design branch. Advanced knowledge/skill development beyond identified Programs of Study. Investigate, design, construct, and evaluate solutions to problems in the career pathway.",
+    tips:"For students wanting deeper digital media skills beyond the core 2-course sequence." },
+
+  // ── CTE — ARTS & MEDIA (Film & Media branch) ───────────────────────────────
+  { id:"FILM_FOUND",code:"TCC1000MB", name:"Foundations of Creative Media (Film & Media)", dept:"CTE", ctePath:"Arts & Media", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 1 — Film & Media branch. Students learn tools, techniques, and terminology of television/video production. Hands-on filming, recording, and editing. Plans and produces short programs featuring topics of interest. Uses and compares nonlinear and other imaging/editing software.",
+    tips:"Year 1 of the Film & Media branch. Hands-on TV/video production from day one." },
+  { id:"FILM1",     code:"TCP2000",   name:"Film & Media Production 1 (Video Production Television 2)", dept:"CTE", ctePath:"Arts & Media", credits:1.0, gradeLevel:[10,11,12], prereqs:["FILM_FOUND"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 2 — Film & Media branch. Production of longer, more complex programs in a variety of formats. Script writing, storyboarding, taping, editing, and critical viewing and analysis. Prerequisite: Foundations of Creative Media.",
+    tips:"Completes 2-credit CTE requirement with Foundations." },
+
+  // ── CTE — ENGINEERING ──────────────────────────────────────────────────────
+  { id:"ENG_FOUND",code:"TAE1000", name:"Foundations of Engineering Tech",    dept:"CTE", ctePath:"Engineering", credits:1.0, gradeLevel:[9,10,11], prereqs:[], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 1. Teamwork, communication, ethics, and introductory industrial engineering technology. 3D printing, laser cutting, and CAD modeling in the rapid prototyping lab. Video, interactive activities, case studies, and project-based learning.",
+    tips:"Year 1 of Engineering pathway. Hands-on tech lab — great for aspiring engineers." },
+  { id:"ENG1",     code:"TAE2000", name:"Engineering Tech 1",                 dept:"CTE", ctePath:"Engineering", credits:1.0, gradeLevel:[10,11,12], prereqs:["ENG_FOUND"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 2. Drafting technology: design, spatial visualization, multi-view projection, auxiliaries, rotation, and computer-aided drafting. Prerequisite: Foundations of Engineering Tech.",
+    tips:"Completes 2-credit CTE requirement. CAD skills are highly valued in engineering fields." },
+  { id:"ENG2",     code:"TAE3000", name:"Engineering Tech 2",                 dept:"CTE", ctePath:"Engineering", credits:1.0, gradeLevel:[11,12], prereqs:["ENG1"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 3. Computer-aided design, mechanical/architectural/structural/electronics drawings and schematics. Real-world problem solving with industry-standard tools.",
+    tips:"Requires Foundations and Engineering Tech 1. Great preparation for engineering college programs." },
+  { id:"ENG3",     code:"TAE4000", name:"Engineering Technology 3",           dept:"CTE", ctePath:"Engineering", credits:1.0, gradeLevel:[12], prereqs:["ENG2"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 4. Civil, mechanical, and electrical engineering processes using hands-on real-world projects. Design innovation, manufacturing processes, and technical integration of reading/writing, math, and science.",
+    tips:"Capstone engineering course. Requires all three prior courses in sequence." },
+
+  // ── CTE — HEALTH SERVICES ──────────────────────────────────────────────────
+  { id:"HLTH_FOUND",  code:"THF1000", name:"Foundations of Health Services",  dept:"CTE", ctePath:"Health Services", credits:1.0, gradeLevel:[9,10,11], prereqs:[], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 1. Introduction to health careers, basic medical skills, and terminology. Foundation for Public Health Services, Diagnostic Services, Emergency Medical Services, Human Performance Therapeutic Services, and Nursing programs. Includes traditional Hawaiian healthcare philosophies and ethics. Students create a digital program of study portfolio.",
+    tips:"Year 1 of Health Services pathway. Great starting point for medicine, nursing, or health careers." },
+  { id:"ADV_HLTH",    code:"THA2000", name:"Advanced Health Services",        dept:"CTE", ctePath:"Health Services", credits:1.0, gradeLevel:[10,11,12], prereqs:["HLTH_FOUND"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 2. Human body structures and functions: how organs and body systems interplay. Virtual Portfolio development. Prerequisite: Foundations of Health Services.",
+    tips:"Completes 2-credit CTE requirement. Strong foundation for nursing or pre-med tracks." },
+  { id:"THERAPEUTIC", code:"THP3000", name:"Principles of Therapeutic Services", dept:"CTE", ctePath:"Health Services", credits:1.0, gradeLevel:[11,12], prereqs:["ADV_HLTH"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 3. Capstone. Work-based learning in therapeutic services. Hands-on practice in health-related fields. Students document logged clinical hours. Internship or work-placement component. Requires Foundations AND Advanced Health Services.",
+    tips:"Includes an internship or clinical placement component. Capstone for Health Services pathway." },
+
+  // ── CTE — CULINARY ARTS ────────────────────────────────────────────────────
+  { id:"CULINARY1",   code:"TTU1000", name:"Foundations of Culinary Arts",    dept:"CTE", ctePath:"Culinary Arts", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 1. Introduction to food prep and service industry careers. Basic nutritional and cooking concepts. Hawaiian cultural influence on food. Proper safety protocols, commercial kitchen safety, nutrition, and cooking techniques. Students must wear shoes when required. Digital program of study portfolio created.",
+    tips:"Year 1 of Culinary Arts pathway. Students must wear appropriate shoes in the kitchen." },
+  { id:"CULINARY2",   code:"TTP2000", name:"Culinary Arts Food Preparation",  dept:"CTE", ctePath:"Culinary Arts", credits:1.0, gradeLevel:[10,11,12], prereqs:["CULINARY1"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 2. Basic food preparation methods in commercial kitchens and restaurants. Commercial kitchen safety and sanitation, menu planning, influence of culture, basic cooking principles, and platter/table presentation. Students must wear shoes. Digital portfolio maintained.",
+    tips:"Completes 2-credit CTE requirement. Prerequisite: Foundations of Culinary." },
+  { id:"CULINARY3",   code:"TTV3000", name:"Advanced Culinary Arts: Pastry and Savory", dept:"CTE", ctePath:"Culinary Arts", credits:1.0, gradeLevel:[11,12], prereqs:["CULINARY2"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 3. Fundamentals of pastry/dessert creations and meat preparation. Safe practices in a commercial kitchen, advanced culinary industry skills, digital portfolio continued. Prerequisite: Culinary Arts Food Preparation.",
+    tips:"Year 3 of the Culinary Arts track. Focuses on pastry and savory techniques." },
+
+  // ── CTE — COMPUTER SCIENCE ─────────────────────────────────────────────────
+  { id:"CS_FOUND",code:"TIF1000", name:"Foundations of Computer Systems & Technology", dept:"CTE", ctePath:"Computer Science", credits:1.0, gradeLevel:[9,10,11], prereqs:["ALG1"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 1. Background in computer programming languages: analyze problems, write programs, prepare flow charts, and create documentation. CS's impact on society, global issues, and career exploration. Prerequisite: Credit in Algebra 1.",
+    tips:"Algebra 1 required. Year 1 of the Computer Science pathway. Great stepping stone to AP Computer Science." },
+  { id:"AP_CSA",  code:"ECS9500", name:"AP Computer Science A",               dept:"CTE", ctePath:"Computer Science", credits:1.0, gradeLevel:[10,11,12], prereqs:["CS_FOUND"], gradCategory:"wlfa", gradCredits:1.0, isAP:true,
+    gradeReqs:{"CS_FOUND":"B or better"},
+    desc:"Year 2 or 3 (offered in alternating years). Java programming, algorithms, data structures, and computer system components. AP exam required. B or better in CS Foundations (or credit in Computer A/B) AND teacher recommendation required. ⭐ CTE Honors requires both AP CSP AND AP CSA.",
+    tips:"Offered alternating years with AP CSP. B+ in Foundations + teacher recommendation. CTE Honors requires BOTH AP CSP and AP CSA." },
+  { id:"AP_CSP",  code:"ECS9800", name:"AP Computer Science Principles",      dept:"CTE", ctePath:"Computer Science", credits:1.0, gradeLevel:[10,11,12], prereqs:["CS_FOUND"], gradCategory:"wlfa", gradCredits:1.0, isAP:true,
+    gradeReqs:{"CS_FOUND":"B or better"},
+    desc:"Year 2 or 3 (offered in alternating years). Foundations of computing, data analysis, technology creation, and societal impact of CS. AP exam required. B or better in CS Foundations AND teacher recommendation required. ⭐ CTE Honors requires both AP CSP AND AP CSA.",
+    tips:"More accessible than AP CS A. Offered alternating years. CTE Honors requires BOTH AP CSP and AP CSA." },
+
+  // ── CTE — JROTC ────────────────────────────────────────────────────────────
+  { id:"JROTC1",code:"TJC1000", name:"Coast Guard JROTC Maritime Science 1", dept:"CTE", ctePath:"JROTC", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 1. Coast Guard JROTC program: rights, responsibilities, leadership, physical fitness, drill, Coast Guard history and missions, government and citizenship. Community service and extracurricular competitions (marksmanship, Color Guard, rifle team). No military obligation. Completing Maritime Science I–III may qualify for college ROTC placement credit.",
+    tips:"Two consecutive JROTC courses fulfill the 2-credit CTE graduation requirement. JROTC does NOT count toward CTE Honors." },
+  { id:"JROTC2",code:"TJC2000", name:"Coast Guard JROTC Maritime Science 2", dept:"CTE", ctePath:"JROTC", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["JROTC1"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 2. Leadership roles, oceanography, atmospheric science, maritime history. Selected cadets assist in unit instruction for Maritime Science 1. Positive SMSI/MSI Recommendation required. Uniform one school day per week.",
+    tips:"Completes the 2-credit CTE graduation requirement. JROTC does NOT count toward CTE Honors." },
+  { id:"JROTC3",code:"TJC3000", name:"Coast Guard JROTC Maritime Science 3", dept:"CTE", ctePath:"JROTC", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["JROTC2"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 3. Problem-solving and decision-making in middle-management leadership positions. Staff briefings, Coast Guard operations, Search and Rescue. Cadets lead unit initiatives and provide instruction to junior cadets. Positive SMSI/MSI recommendation required.",
+    tips:"Leadership-heavy year. Cadets take on instructional responsibilities for lower levels." },
+  { id:"JROTC4",code:"TJC4000", name:"Coast Guard JROTC Maritime Science 4", dept:"CTE", ctePath:"JROTC", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["JROTC3"], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year 4. Senior leadership and staff positions. Day-to-day unit operations, administrative and logistics files. Personal finance strategies and career readiness. Positive SMSI/MSI recommendation required regardless of service.",
+    tips:"Highest JROTC level. Strong for college applications, especially military academies." },
+
+  // ── WORLD LANGUAGE ─────────────────────────────────────────────────────────
+  { id:"JPN1",  code:"WAJ1000",  name:"Japanese 1",          dept:"World Language", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[],        gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Introductory Japanese. Basic vocabulary, grammar, social situations of daily life. K-3 benchmarks addressed. No prior experience needed.",
+    tips:"Year 1. No experience required. Teacher signature required for Level 2 and above." },
+  { id:"JPN2",  code:"WAJ2000",  name:"Japanese 2",          dept:"World Language", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["JPN1"],  gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Reinforces and builds on Japanese 1. Simple conversations, routine situations, cultural topics. Grade 4-5 benchmarks. Teacher signature required.",
+    tips:"Completes 2-credit World Language requirement with Japanese 1. Standard track continues to Japanese 3." },
+  { id:"JPN2H", code:"WAJ2000H", name:"Japanese 2 Honors",   dept:"World Language", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["JPN1"],  gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Accelerated second-year Japanese. Faster pace. Grade 4-8 benchmarks. Prepares students for Japanese 3 Honors and the AP track. Teacher/counselor approval required.",
+    tips:"Choose this over Japanese 2 if you plan to pursue AP Japanese. Leads to Japanese 3 Honors." },
+  { id:"JPN3",  code:"WAJ3000",  name:"Japanese 3",          dept:"World Language", credits:1.0, gradeLevel:[10,11,12], prereqs:["JPN2"],  gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Expands listening, speaking, reading, and writing in Japanese. Students create with language and understand cultural nuances. Stage II Standards, grade 4-8 benchmarks. Teacher signature required.",
+    tips:"Standard track. Leads to Japanese 4." },
+  { id:"JPN3H", code:"WAJ3000H", name:"Japanese 3 Honors",   dept:"World Language", credits:1.0, gradeLevel:[10,11,12], prereqs:["JPN2H"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Accelerated third-year Japanese. Oral, written, and extended conversation. Prepares students for AP Japanese. Either successful completion of Level 2 Honors or Level 2 teacher recommendation required.",
+    tips:"AP track course. Leads directly to AP Japanese. Level 2 Honors OR Level 2 teacher recommendation required." },
+  { id:"JPN4",  code:"WAJ4000",  name:"Japanese 4",          dept:"World Language", credits:1.0, gradeLevel:[11,12],   prereqs:["JPN3"],  gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Advanced Japanese. Extended conversation, narration, and description on varied topics. Stage II proficiencies, grade 6-8 benchmarks. Teacher signature required.",
+    tips:"Standard track. Highest non-AP level of Japanese at Kalani." },
+  { id:"AP_JPN",code:"WAJ6000",  name:"AP Japanese",         dept:"World Language", credits:1.0, gradeLevel:[11,12],   prereqs:["JPN3H"], gradCategory:"wlfa", gradCredits:1.0, isAP:true, teacherSigRequired:true,
+    desc:"College-level Japanese. Active communication in reading, writing, listening, and speaking. Expository and persuasive writing compositions. AP exam required in May.",
+    tips:"Requires Japanese 3 Honors. Strong grammar and vocabulary command needed." },
+  { id:"SPN1",  code:"WES1000",  name:"Spanish 1",           dept:"World Language", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[],       gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Introductory Spanish. Basic vocabulary, grammar, social situations. K-3 benchmarks. No prior experience needed.",
+    tips:"Year 1. No experience required." },
+  { id:"SPN2",  code:"WES2000",  name:"Spanish 2",           dept:"World Language", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["SPN1"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Continues Spanish 1. More complex grammar and conversation. Grade 4-5 benchmarks. Teacher signature required.",
+    tips:"Completes 2-credit World Language requirement with Spanish 1." },
+  { id:"SPN3",  code:"WES3000",  name:"Spanish 3",           dept:"World Language", credits:1.0, gradeLevel:[10,11,12], prereqs:["SPN2"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Expands Spanish proficiency in all four skills. Stage II Standards, grade 4-8 benchmarks. Teacher signature required.",
+    tips:"Good for students continuing Spanish. Teacher signature required." },
+  { id:"SPN4",  code:"WES4000",  name:"Spanish 4",           dept:"World Language", credits:1.0, gradeLevel:[11,12],   prereqs:["SPN3"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Advanced Spanish. Extended conversation, narration, and description. Grade 6-8 benchmarks. Teacher signature required.",
+    tips:"Highest level of Spanish at Kalani." },
+  { id:"CHN1",  code:"WAC1000",  name:"Chinese 1",           dept:"World Language", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[],       gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Introductory Mandarin Chinese. Basic vocabulary, grammar, social situations. K-3 benchmarks. No prior experience needed.",
+    tips:"Year 1. No experience needed." },
+  { id:"CHN2",  code:"WAC2000",  name:"Chinese 2",           dept:"World Language", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["CHN1"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Continues Mandarin Chinese. Simple conversations and cultural topics. Grade 4-5 benchmarks. Teacher signature required.",
+    tips:"Completes 2-credit World Language requirement with Chinese 1." },
+  { id:"CHN3",  code:"WAC3000",  name:"Chinese 3",           dept:"World Language", credits:1.0, gradeLevel:[10,11,12], prereqs:["CHN2"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Expands Chinese proficiency in all four skills. Stage II Standards, grade 4-8 benchmarks. Teacher signature required.",
+    tips:"Continues the Chinese sequence. Teacher signature required." },
+  { id:"KOR1",  code:"WAK1000",  name:"Korean 1",            dept:"World Language", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[],       gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Introductory Korean. Basic vocabulary, grammar, and social situations. K-3 benchmarks. No prior experience needed.",
+    tips:"Year 1. New language offering at Kalani in 26-27. No experience required." },
+  { id:"KOR2",  code:"WAK2000",  name:"Korean 2",            dept:"World Language", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["KOR1"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Continues Korean. Conversations and cultural topics. Grade 4-5 benchmarks. Teacher signature required.",
+    tips:"Completes 2-credit World Language requirement with Korean 1." },
+  { id:"KOR3",  code:"WAK3000",  name:"Korean 3",            dept:"World Language", credits:1.0, gradeLevel:[10,11,12], prereqs:["KOR2"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Advanced Korean. Proficiency in all four skills. Stage II Standards, grade 4-8 benchmarks. Teacher signature required.",
+    tips:"Continues the Korean sequence. Teacher signature required." },
+
+  // ── FINE ARTS — VISUAL ─────────────────────────────────────────────────────
+  { id:"ART1",        code:"FVB1000", name:"General Art 1",           dept:"Fine Arts", fineArtsType:"Visual", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year course. Foundation: Elements and Principles of Design. Drawing, painting, printmaking (relief and stencil), and sculpture. Reflective analysis and critique are integral. Recommended as a foundation for other art courses. Open to all grade levels.",
+    tips:"Foundation for all other visual art courses. Open to all grade levels. Highly recommended before Design 1 or other art courses." },
+  { id:"ART2",        code:"FVB2000", name:"General Art 2",           dept:"Fine Arts", fineArtsType:"Visual", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["ART1"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    gradeReqs:{"ART1":"C or better"},
+    desc:"Year course. Advanced skill refinement; self-directed projects and portfolio development. Emphasis on being a self-directed learner. C or better in General Art 1 and teacher signature required.",
+    tips:"Completes 2-credit Fine Arts requirement with General Art 1. C or better + teacher signature required." },
+  { id:"ART3",        code:"FVB3000", name:"General Art 3",           dept:"Fine Arts", fineArtsType:"Visual", credits:1.0, gradeLevel:[10,11,12], prereqs:["ART2"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    gradeReqs:{"ART2":"C or better"},
+    desc:"Year course. Further skill refinement. Emphasis on self-directed learning and portfolio expansion. C or better in General Art 2 and teacher signature required.",
+    tips:"Teacher signature required. C or better in General Art 2. Can lead to AP 2D Art & Design." },
+  { id:"DESIGN1",     code:"FVK1000", name:"Design 1",                dept:"Fine Arts", fineArtsType:"Visual", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["ART1"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    gradeReqs:{"ART1":"C or better"},
+    desc:"Year course. Study and composition of visual elements. Graphic design, poster design, printmaking, fashion design. Uses Procreate and other digital programs. C or better in General Art 1 and teacher signature required.",
+    tips:"Great for digital creatives. C or better in General Art 1 required." },
+  { id:"DP1",         code:"FVQ1000", name:"Drawing & Painting 1",    dept:"Fine Arts", fineArtsType:"Visual", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year course. Introductory drawing and painting. Art materials, techniques, and processes. Technical drawing skill development. Open to all grade levels.",
+    tips:"Alternative foundation to General Art 1. Great for students focused on drawing and painting." },
+  { id:"DP2",         code:"FVQ2000", name:"Drawing & Painting 2",    dept:"Fine Arts", fineArtsType:"Visual", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["DP1"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    gradeReqs:{"DP1":"B or better"},
+    desc:"Year course. Advanced Drawing & Painting. B or better in Drawing & Painting 1 and teacher signature required.",
+    tips:"Completes 2-credit Fine Arts requirement with Drawing & Painting 1. B or better required." },
+  { id:"DP3",         code:"FVQ3000", name:"Drawing & Painting 3",    dept:"Fine Arts", fineArtsType:"Visual", credits:1.0, gradeLevel:[10,11,12], prereqs:["DP2"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    gradeReqs:{"DP2":"B or better"},
+    desc:"Year course. Advanced high-level realism techniques. For serious and/or college-bound art majors only. B or better in Drawing & Painting 2 and teacher signature required.",
+    tips:"College-bound art majors. Prerequisite for AP 2D Art & Design (Drawing & Painting track)." },
+  { id:"AP_2D",       code:"FVA3000", name:"AP 2D Art & Design",       dept:"Fine Arts", fineArtsType:"Visual", credits:1.0, gradeLevel:[11,12], prereqs:[], gradCategory:"wlfa", gradCredits:1.0, isAP:true, teacherSigRequired:true, concurrentOk:["DP3","ART3"],
+    desc:"Year course. Highly advanced college-level 2D art and design. Portfolio submitted for AP exam. Two prerequisite tracks: Drawing & Painting 1-2-3 (can take concurrently with D&P 3, senior year), OR General Art 1-2-3 (can take concurrently with Art 3, senior year). Teacher signature required.",
+    tips:"Can take concurrently with Drawing & Painting 3 or General Art 3 in senior year. Teacher signature required." },
+  { id:"CER1",        code:"FVL1000", name:"Ceramics 1",               dept:"Fine Arts", fineArtsType:"Visual", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year course. Hand-building: pinch pots, coils, and slabs. Glazing, surface decoration, communication in design. Students must supply some tools and materials. Initiative and independent work required.",
+    tips:"No prior experience needed. Students must provide some supplies." },
+  { id:"CER2",        code:"FVL2000", name:"Ceramics 2",               dept:"Fine Arts", fineArtsType:"Visual", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["CER1"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    gradeReqs:{"CER1":"C or better"},
+    desc:"Year course. Refining ceramics skills. Wheel throwing introduced. More independent work. C or better in Ceramics 1 and teacher signature required.",
+    tips:"Completes 2-credit Fine Arts requirement with Ceramics 1. C or better required." },
+  { id:"CER3",        code:"FVL3000", name:"Ceramics 3",               dept:"Fine Arts", fineArtsType:"Visual", credits:1.0, gradeLevel:[10,11,12], prereqs:["CER2"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    gradeReqs:{"CER2":"C or better"},
+    desc:"Year course. Exploring advanced ceramics techniques. Build art portfolio and participate in art exhibitions. C or better in Ceramics 2 and teacher signature required.",
+    tips:"Portfolio-building course. Great for students pursuing art seriously." },
+  { id:"DIR_ART",     code:"FVD1000", name:"Directed Studies Art",     dept:"Fine Arts", fineArtsType:"Visual", credits:1.0, gradeLevel:[10,11,12], prereqs:[], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course. Requires successful completion of a level 2 or 3 art course and instructor consent. Serious commitment to personal growth and expression in visual arts. Thoughtful, focused, and informed decision-making. Preparation for rigorous self-direction.",
+    tips:"Requires a level 2 or 3 art course in your history. Instructor consent and signature required." },
+
+  // ── FINE ARTS — PERFORMING ─────────────────────────────────────────────────
+  { id:"BAND",       code:"FMB2000", name:"Band 1–4",                  dept:"Fine Arts", fineArtsType:"Performing", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"wlfa", gradCredits:1.0, repeatable:true, teacherSigRequired:true,
+    desc:"Year course (repeatable through 4 years). THIS IS NOT AN INTRODUCTORY COURSE. Requires two consecutive years of middle school band or 18 consecutive months of private instruction on the same instrument. Students provide their own mouthpieces, reeds, and basic percussion sticks and mallets. Three major performances + one individual/small group performance per year. Signature from current band director required.",
+    tips:"Must have prior band experience. Not for beginners. Band director signature required for enrollment." },
+  { id:"ORCH",       code:"FMV2000", name:"Orchestra 1–4",             dept:"Fine Arts", fineArtsType:"Performing", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"wlfa", gradCredits:1.0, repeatable:true, teacherSigRequired:true,
+    desc:"Year course (repeatable). THIS IS NOT AN INTRODUCTORY COURSE. Two consecutive years of orchestra or 18 consecutive months of private instruction required. Advanced techniques and orchestral literature. After-school rehearsals and proficiency assessments expected. Selected to perform with Concert Orchestra.",
+    tips:"Must have prior orchestra experience. Not for beginners. After-school performances and rehearsals required." },
+  { id:"CHORUS1",    code:"FMC1000", name:"Chorus 1",                  dept:"Fine Arts", fineArtsType:"Performing", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year course. Beginning vocal techniques: tone quality, breath support, posture, diction. Wide range of musical styles including Sacred, Classical, Folk, Hawaiian, Oldies, Rock, Hip-Hop, Opera, Pop, and Seasonal. No prerequisites. Students must perform in formal concerts.",
+    tips:"No experience needed. Great way to fulfill Fine Arts credit while performing music." },
+  { id:"CHORUS2",    code:"FMC2000", name:"Chorus 2–4",                dept:"Fine Arts", fineArtsType:"Performing", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["CHORUS1"], gradCategory:"wlfa", gradCredits:1.0, repeatable:true,
+    desc:"Year course (repeatable for years 2–4). Continues vocal development: advanced techniques, expanded tone quality, stage performance, and community service concerts. Teacher approval required to move to next level.",
+    tips:"Continues each year with more advanced performance responsibilities." },
+  { id:"DANCE",      code:"FDC1000", name:"Creative Dance 1–3",        dept:"Fine Arts", fineArtsType:"Performing", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"wlfa", gradCredits:1.0, repeatable:true,
+    desc:"Year course (repeatable for years 1–3). Students choreograph their own dance routines across styles: ballet, street dance, group/partner dancing. Two recitals per year required. Body awareness, strength, flexibility, and performance skills. Students MUST PARTICIPATE in all styles and MUST PERFORM at two recitals.",
+    tips:"Open to all students. Must perform in two recitals per year." },
+  { id:"DANCE4",     code:"FDD1100", name:"Creative Dance 4th Year (Directive Studies)", dept:"Fine Arts", fineArtsType:"Performing", credits:1.0, gradeLevel:[12], prereqs:["DANCE"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course. Fourth-year continuation of the Creative Dance program. Independent, self-directed choreography and performance work at an advanced level. Teacher signature required.",
+    tips:"Year 4 of Creative Dance. Requires completion of Creative Dance 1–3. Teacher signature required." },
+  { id:"PIANO1",     code:"FMK1000", name:"Piano 1",                   dept:"Fine Arts", fineArtsType:"Performing", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course. Basic piano knowledge and skills. Students will be involved in reading, performing, and evaluating piano music. Public performance REQUIRED at year end and possibly at semester end. Class size is limited. Teacher approval required.",
+    tips:"Teacher approval required. Public performance at year end. Limited class size — sign up early." },
+  { id:"PIANO2",     code:"FMK2000", name:"Piano 2–4",                 dept:"Fine Arts", fineArtsType:"Performing", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["PIANO1"], gradCategory:"wlfa", gradCredits:1.0, repeatable:true, teacherSigRequired:true,
+    desc:"Year course (repeatable). Continues Piano 1 with advanced music theory, technique, and performance. Concert performances required. Class size limited. Teacher approval required. Open to students who have completed Piano 1 or have prior private piano study.",
+    tips:"Teacher approval required. Limited class size. Can continue each year for additional credits." },
+  { id:"POLY_MUSIC", code:"FMP1000", name:"Polynesian Music & Dance 1–4", dept:"Fine Arts", fineArtsType:"Performing", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"wlfa", gradCredits:1.0, repeatable:true,
+    desc:"Year course (repeatable through 4 years). Music and dances of the Polynesian archipelago. Cultural, social, historical, and expressive significance. Emphasis on authentic foot and body movement, costume.",
+    tips:"Open to all students. Unique Hawaiian cultural experience. Excellent Fine Arts elective." },
+  { id:"UKULELE1",   code:"FML1000", name:"Ukulele 1",                 dept:"Fine Arts", fineArtsType:"Performing", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"wlfa", gradCredits:1.0,
+    desc:"Year course. Introductory ukulele: performing, listening to, and evaluating ukulele music. Students develop skills in reading, performing, and cultural appreciation.",
+    tips:"No prior experience needed. Great way to connect with Hawaiian culture through music." },
+  { id:"UKULELE2",   code:"FML2000", name:"Ukulele 2",                 dept:"Fine Arts", fineArtsType:"Performing", credits:1.0, gradeLevel:[9,10,11,12], prereqs:["UKULELE1"], gradCategory:"wlfa", gradCredits:1.0, teacherSigRequired:true,
+    desc:"Year course. Continues development of ukulele playing skills. Listening, performing, and evaluating at a higher level. Teacher approval required. Class size limited.",
+    tips:"Must complete Ukulele 1 first. Teacher approval required. Class size limited — sign up early." },
+
+  // ── ELL (English Language Learners) ────────────────────────────────────────
+  { id:"ELL_COMM",  code:"NEI1000", name:"Communication & Literacy Skills for Newcomers", dept:"Miscellaneous", miscType:"ESOL", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"electives", gradCredits:1.0,
+    desc:"Two-semester course (NEI1000 Semester A + NEI1010 Semester B). Designed for non-native English speakers new to the U.S. school system. Develops basic English language skills in reading, writing, speaking, and listening. Introduces American school culture and community. NOT repeatable. Placement by NEP 1.0+ ICY designation or EL Teacher recommendation.",
+    tips:"⚠️ Assigned by administration based on language screening. Not self-selected. Counts as elective credit toward graduation." },
+  { id:"ELL_ESOL1", code:"NEI1020", name:"English for Speakers of Other Languages 1A/1B", dept:"Miscellaneous", miscType:"ESOL", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"electives", gradCredits:1.0, repeatable:true,
+    desc:"Two-semester course (NEI1020 Semester 1A + NEI1025 Semester 1B). Beginning English language sequence. Social instructional English, reading, and writing fundamentals. Basic English grammar instruction. Repeatable for credit. Placement by NEP 1.0+ or EL Teacher recommendation.",
+    tips:"⚠️ Assigned by administration. Repeatable for credit. Counts as elective credit toward graduation." },
+  { id:"ELL_ESOL2", code:"NEI1030", name:"English for Speakers of Other Languages 2A/2B", dept:"Miscellaneous", miscType:"ESOL", credits:1.0, gradeLevel:[9,10,11,12], prereqs:[], gradCategory:"electives", gradCredits:1.0, repeatable:true,
+    desc:"Two-semester course (NEI1030 Semester 2A + NEI1035 Semester 2B). Second level of English language development. More challenging content, reading, writing, and academic language for integrated content courses. Repeatable for credit. Placement by LEP 3.0+ or EL Teacher recommendation.",
+    tips:"⚠️ Assigned by administration. Repeatable for credit. Counts as elective credit toward graduation." },
+
+  // ── OFF CAMPUS ──────────────────────────────────────────────────────────────
+  { id:"OFF_CAMPUS", code:"", name:"Off Campus Period", dept:"Off Campus", credits:0, gradeLevel:[12], prereqs:[],
+    gradCategory:null, gradCredits:0, repeatable:true, isOffCampus:true,
+    eligibility:[
+      "Met ALL graduation requirements (except ELA 12 & Social Studies)",
+      "Completed the Personal Transition Plan (PTP)",
+      "Have a qualifying reason (see below)",
+    ],
+    reasons:[
+      { label:"✅ Early graduation (Semester A only)", limit:"One semester maximum — Grade 12 Sem A only" },
+      { label:"🟡 Work study / employment during school day", limit:"Requires proof of employment + counselor approval" },
+    ],
+    submissions:[
+      "Google Off Campus Request Form (submitted online)",
+      "Parent/guardian signature on the request form",
+      "Counselor approval prior to off campus period",
+    ],
+    warning:"Off Campus approval is not automatic. All three eligibility conditions must be met and administrative approval granted.",
+    deadline:"See counselor for current deadline",
+    tips:"Check with your counselor early in senior year to confirm eligibility and start the approval process." },
+];
+
+const DEPTS = [
+  "All","English","Social Studies","Mathematics","Science",
+  "Health & PE","CTE","World Language","Fine Arts","Miscellaneous","Off Campus"
+];
+const CTE_PATHS = ["All CTE","AFNR","Business","Arts & Media","Engineering","Health Services","Culinary Arts","Computer Science","JROTC"];
+const FINE_ARTS_TYPES = ["All Fine Arts","Performing","Visual"];
+const MISC_TYPES = ["All Miscellaneous","General","Journalism","ESOL"];
+const DEPT_COLORS = {
+  "English":"#C84B31","Social Studies":"#7C3AED","Mathematics":"#059669",
+  "Science":"#D97706","Health & PE":"#0891B2","CTE":"#B00804",
+  "World Language":"#0284C7","Fine Arts":"#DB2777",
+  "Miscellaneous":"#6B7280","Off Campus":"#475569",
+};
+
+const DEFAULT_PLAN = {
+  9:  ["GEO","ELA1","PID","MHH","ISCI","PE_LF","HEALTH","PTP"],
+  10: ["ALG1","ELA2","USH","BIO1_10","PE_LA","JPN1"],
+  11: ["ALG2","ELA3","WH","HCHEM","JPN2"],
+  12: ["TRIG","ELA4","ECON","PSYCH","MARINE"],
+};
+
+function getCourse(id) { return COURSES.find(c => c.id === id); }
+function getCourseName(id) { const c = getCourse(id); return c ? c.name : id; }
+
+// Returns display string for a prereq, including equivalents: "Chemistry or Honors Chemistry"
+function getPrereqDisplay(prereqId) {
+  const equivs = PREREQ_EQUIV[prereqId] || [];
+  const names = [getCourseName(prereqId), ...equivs.map(getCourseName)];
+  return names.join(" or ");
+}
+
+const PREREQ_EQUIV = {
+  "BIO1_10": ["BIO1_9"],
+  "BIO1_9":  ["BIO1_10"],
+  "CHEM":    ["HCHEM"],
+  "USH":     ["AP_USH"],
+  "WH":      ["AP_WH"],
+  "ELA3":    ["AP_ENG3"],
+  "JPN2":    ["JPN2H"],
+  "JPN3":    ["JPN3H"],
+};
+
+function isPrereqSatisfied(prereqId, completedIds) {
+  if (completedIds.includes(prereqId)) return true;
+  const equivs = PREREQ_EQUIV[prereqId] || [];
+  return equivs.some(eq => completedIds.includes(eq));
+}
+
+function getCoursesBeforeGrade(plan, targetGrade) {
+  return Object.entries(plan)
+    .filter(([g]) => Number(g) < targetGrade)
+    .flatMap(([, ids]) => ids);
+}
+
+function getAllCoursesUpTo(plan, targetGrade) {
+  return Object.entries(plan)
+    .filter(([g]) => Number(g) <= targetGrade)
+    .flatMap(([, ids]) => ids);
+}
+
+// prereqs = must be completed in PREVIOUS grades
+// concurrentOk = can be in same grade OR previous grades
+function getUnmetPrereqs(courseId, completedBefore, completedUpTo) {
+  const course = getCourse(courseId);
+  if (!course) return [];
+  const strictUnmet = (course.prereqs||[]).filter(pid => !isPrereqSatisfied(pid, completedBefore));
+  const concurrentUnmet = (course.concurrentOk||[]).filter(pid => !isPrereqSatisfied(pid, completedUpTo||completedBefore));
+  return [...strictUnmet, ...concurrentUnmet];
+}
+
+const HONORS_DEFS = [
+  {
+    id: "academic",
+    label: "Academic Honors",
+    color: "#7C3AED",
+    icon: "\ud83c\udf96",
+    description: "Cumulative GPA 3.500+ required",
+    checks: [
+      { id:"math4", label:"4 credits Math (Algebra 2 + one beyond)", desc:"Algebra 2 + one of: Trig/PreCal, Alg3/Stats, Calculus, AP Calculus, AP Stats, AP CS A, AP CS Principles, Intro to College Math" },
+      { id:"sci4",  label:"4 credits Science (incl. Biology 1)",     desc:"Biology 1 + 3 other science credits" },
+      { id:"ap2",   label:"2+ AP/IB/Running Start credits",          desc:"At least 2 credits from AP, IB, or Running Start courses" },
+    ],
+  },
+  {
+    id: "stem",
+    label: "STEM Honors",
+    color: "#0891B2",
+    icon: "\ud83d\udd2c",
+    description: "Cumulative GPA 3.500+ required",
+    checks: [
+      { id:"math4",    label:"4 credits Math (Algebra 2 + one beyond)", desc:"Same math requirement as Academic Honors" },
+      { id:"sci4",     label:"4 credits Science (incl. Biology 1)",     desc:"Same science requirement as Academic Honors" },
+      { id:"stem_cap", label:"STEM Capstone Project (XAT1000)",         desc:"Successful completion of STEM Capstone. Required for class of 2016 and beyond." },
+    ],
+  },
+  {
+    id: "cte",
+    label: "CTE Honors",
+    color: "#B00804",
+    icon: "\ud83d\udee0",
+    description: "Cumulative GPA 3.0+ required",
+    checks: [
+      { id:"cte_seq",  label:"Complete 2–3 course CTE pathway sequence", desc:"2-3 courses in the same approved CTE pathway with B or better in each. \u26a0\ufe0f Computer Science pathway requires BOTH AP CSP AND AP CSA. JROTC courses do NOT count toward CTE Honors." },
+      { id:"cte_perf", label:"Meet/exceed proficiency on performance assessment", desc:"Assessed per program of study by teacher — cannot be tracked here." },
+    ],
+  },
+];
+
+const BEYOND_ALG2_IDS = ["TRIG","ALG3","CALC","AP_CALC","AP_STATS","AP_CSA","AP_CSP","ICMATH"];
+
+function computeHonorsProgress(plan) {
+  const allIds = Object.values(plan).flat();
+  const allCourses = allIds.map(id => getCourse(id)).filter(Boolean);
+
+  const mathCredits = allCourses.filter(c=>c.dept==="Mathematics").reduce((s,c)=>s+c.credits,0);
+  const sciCredits  = allCourses.filter(c=>c.dept==="Science").reduce((s,c)=>s+c.credits,0);
+  const hasAlg2     = allIds.some(id=>id==="ALG2");
+  const hasBeyondAlg2 = allIds.some(id=>BEYOND_ALG2_IDS.includes(id));
+  const hasBio1     = allIds.some(id=>["BIO1_9","BIO1_10"].includes(id));
+  const apCredits   = allCourses.filter(c=>c.isAP).reduce((s,c)=>s+c.credits,0);
+  const hasStemCap  = allIds.includes("STEM_CAP");
+
+  const CTE_PATHWAYS = {
+    "AFNR":           ["AFNR1","SAS","LAS","WBL_ANIMAL","AGRI_BIZ1","AGRI_PROD","AGRI_PROD2"],
+    "Business":       ["BIZ1","ENT1","ENT2"],
+    "Arts & Media":   ["DIGPHOTO1","DIGDESIGN1","DIGDESIGN2","FILM_FOUND","FILM1"],
+    "Engineering":    ["ENG_FOUND","ENG1","ENG2","ENG3"],
+    "Health Services":["HLTH_FOUND","ADV_HLTH","THERAPEUTIC"],
+    "Culinary Arts":  ["CULINARY1","CULINARY2","CULINARY3"],
+    "Computer Science":["CS_FOUND","AP_CSA","AP_CSP"],
+    "JROTC":          [],  // JROTC explicitly does NOT count for CTE Honors
+  };
+  const ctePathwayCounts = {};
+  Object.entries(CTE_PATHWAYS).forEach(([pathway, ids]) => {
+    const credits = ids.filter(id => allIds.includes(id))
+      .reduce((s, id) => { const c = getCourse(id); return s + (c?.credits||0); }, 0);
+    if (credits > 0) ctePathwayCounts[pathway] = credits;
+  });
+  // CS Honors requires BOTH AP_CSA AND AP_CSP
+  const hasCSHonors = allIds.includes("AP_CSA") && allIds.includes("AP_CSP");
+  const hasCTESeq = hasCSHonors ||
+    Object.entries(ctePathwayCounts)
+      .filter(([k]) => k !== "Computer Science")
+      .some(([,v]) => v >= 2);
+
+  const math4Met = mathCredits >= 4 && hasAlg2 && hasBeyondAlg2;
+  const sci4Met  = sciCredits >= 4 && hasBio1;
+
+  return {
+    academic: {
+      math4: { met: math4Met, detail: `${mathCredits.toFixed(1)}/4.0 math credits${hasAlg2?"":", needs Algebra 2"}${hasBeyondAlg2?"":", needs one course beyond Algebra 2"}` },
+      sci4:   { met: sci4Met,  detail: `${sciCredits.toFixed(1)}/4.0 science credits${hasBio1?"":", needs Biology 1"}` },
+      ap2:    { met: apCredits>=2, detail: `${apCredits.toFixed(1)}/2.0 AP credits` },
+    },
+    stem: {
+      math4:    { met: math4Met,   detail: `${mathCredits.toFixed(1)}/4.0 math credits${hasAlg2?"":", needs Algebra 2"}${hasBeyondAlg2?"":", needs one course beyond Algebra 2"}` },
+      sci4:     { met: sci4Met,    detail: `${sciCredits.toFixed(1)}/4.0 science credits${hasBio1?"":", needs Biology 1"}` },
+      stem_cap: { met: hasStemCap, detail: hasStemCap ? "STEM Capstone added \u2713" : "Add STEM Capstone (XAT1000) to your plan" },
+    },
+    cte: {
+      cte_seq:  { met: hasCTESeq, detail: hasCTESeq ? "2+ credits in one CTE pathway \u2713" : "Add 2+ courses in the same CTE pathway (CS requires both AP CSP + AP CSA)" },
+      cte_perf: { met: false,      detail: "Assessed by teacher \u2014 cannot be tracked here" },
+    },
+  };
+}
+
+function deptColor(dept) { return DEPT_COLORS[dept] || "#6B7280"; }
+
+
+function calcWlfa(plan) {
+  // WLFA requires 2 credits in ONE of: same World Language, any Fine Arts, same CTE pathway
+  // Returns { earned, overflow } where overflow flows to electives
+  const allIds = Object.values(plan).flat();
+  const allCourses = allIds.map(getCourse).filter(Boolean);
+  const wlfaCourses = allCourses.filter(c => c.gradCategory === "wlfa");
+
+  // World Language: group by language prefix (JPN/SPN/CHN/KOR)
+  const langGroups = {};
+  wlfaCourses.filter(c => c.dept === "World Language").forEach(c => {
+    const lang = c.id.replace(/\d.*$/, ""); // JPN1→JPN, SPN2→SPN etc
+    langGroups[lang] = (langGroups[lang] || 0) + c.gradCredits;
+  });
+  const worldLangMax = Object.values(langGroups).reduce((m, v) => Math.max(m, v), 0);
+
+  // Fine Arts: all fine arts credits pool together (can mix Performing/Visual)
+  const fineArtsTotal = wlfaCourses
+    .filter(c => c.dept === "Fine Arts")
+    .reduce((s, c) => s + c.gradCredits, 0);
+
+  // CTE: group by ctePath
+  const cteGroups = {};
+  wlfaCourses.filter(c => c.dept === "CTE").forEach(c => {
+    const path = c.ctePath || "Other";
+    cteGroups[path] = (cteGroups[path] || 0) + c.gradCredits;
+  });
+  const cteMax = Object.values(cteGroups).reduce((m, v) => Math.max(m, v), 0);
+
+  const bestSingle = Math.max(worldLangMax, fineArtsTotal, cteMax);
+  const earned = Math.min(2.0, bestSingle);
+
+  // Overflow = total wlfa credits planned minus what counts toward the requirement
+  const totalWlfa = wlfaCourses.reduce((s, c) => s + c.gradCredits, 0);
+  const overflow = Math.max(0, totalWlfa - earned);
+
+  return { earned, overflow };
+}
+
+function calcPlannerCredits(plan) {
+  const raw = {};
+  GRAD_REQUIREMENTS.forEach(r => { raw[r.id] = 0; });
+  let total = 0;
+
+  // First pass: accumulate all non-wlfa categories
+  Object.values(plan).forEach(courses => {
+    courses.forEach(cid => {
+      const c = getCourse(cid);
+      if (!c) return;
+      total += c.credits;
+      if (!c.gradCategory || c.gradCredits == null) return;
+      if (c.gradCategory === "wlfa") return; // handled separately
+      if (c.gradCategory === "electives") { raw.electives += c.gradCredits; return; }
+      const req = GRAD_REQUIREMENTS.find(r => r.id === c.gradCategory);
+      if (!req) return;
+      const space = Math.max(0, req.required - raw[c.gradCategory]);
+      const used = Math.min(c.gradCredits, space);
+      raw[c.gradCategory] += used;
+      raw.electives += (c.gradCredits - used);
+    });
+  });
+
+  // WLFA: use pathway-aware calculation
+  const { earned: wlfaEarned, overflow: wlfaOverflow } = calcWlfa(plan);
+  raw.wlfa = wlfaEarned;
+  raw.electives += wlfaOverflow;
+
+  const cats = {};
+  GRAD_REQUIREMENTS.forEach(r => { cats[r.id] = Math.min(raw[r.id] || 0, r.required); });
+  return { cats, total };
+}
+
+export default function KalaniPlanner() {
+  // V3: courses & gradReqs will come from Supabase via useCourseData()
+  // For now they resolve instantly from local hardcoded data
+  const { courses: liveCourses, gradReqs: liveGradReqs, loading: dataLoading } = useCourseData();
+  const { announcements } = useAnnouncements();
+
+  const [page, setPage] = useState("home");
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [homeSearch, setHomeSearch] = useState("");
+  const [homeSearchFocus, setHomeSearchFocus] = useState(false);
+  const [ratings, setRatings] = useState({}); // { courseId: { avg, count } }
+  const [myRatings, setMyRatings] = useState({}); // { courseId: starCount }
+  const [pendingRating, setPendingRating] = useState(null); // { courseId, stars }
+  const [hoverStar, setHoverStar] = useState(0);
+  const [filterDept, setFilterDept] = useState("All");
+  const [plan, setPlan] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kalani-compass-plan');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return JSON.parse(JSON.stringify(DEFAULT_PLAN));
+  });
+  const [addTarget, setAddTarget] = useState(null);
+  const [addSearch, setAddSearch] = useState("");
+  const [honorsOpen, setHonorsOpen] = useState({academic:false,stem:false,cte:false});
+  const [prereqWarn, setPrereqWarn] = useState(null); // {courseId, grade, unmet:[]}
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [filterCtePath, setFilterCtePath] = useState("All CTE");
+  const [filterFineArts, setFilterFineArts] = useState("All Fine Arts");
+  const [filterMisc, setFilterMisc] = useState("All Miscellaneous");
+  const [toast, setToast] = useState(null); // {msg, grade}
+
+  useEffect(() => {
+    try { localStorage.setItem('kalani-compass-plan', JSON.stringify(plan)); } catch {}
+  }, [plan]);
+
+  // Auto-dismiss toast after 2.5s
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  function showToast(msg) { setToast(msg); }
+
+  // Stable browser fingerprint for anonymous rating dedup
+  function getFingerprint() {
+    const raw = [navigator.userAgent, screen.width, screen.height, Intl.DateTimeFormat().resolvedOptions().timeZone].join("|");
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) {
+      hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+      hash |= 0;
+    }
+    return "fp_" + Math.abs(hash).toString(36);
+  }
+
+  // Load all ratings + check which ones current user has submitted
+  useEffect(() => {
+    async function loadRatings() {
+      const { data, error } = await supabase
+        .from("ratings")
+        .select("course_id, rating, fingerprint");
+      if (error || !data) return;
+
+      const fp = getFingerprint();
+      const grouped = {};
+      const mine = {};
+
+      data.forEach(r => {
+        if (!grouped[r.course_id]) grouped[r.course_id] = { total: 0, count: 0 };
+        grouped[r.course_id].total += r.rating;
+        grouped[r.course_id].count += 1;
+        if (r.fingerprint === fp) mine[r.course_id] = r.rating;
+      });
+
+      const averaged = {};
+      Object.entries(grouped).forEach(([cid, v]) => {
+        averaged[cid] = { avg: v.total / v.count, count: v.count };
+      });
+
+      setRatings(averaged);
+      setMyRatings(mine);
+    }
+    loadRatings();
+  }, []);
+
+  async function submitRating(courseId, stars) {
+    const fp = getFingerprint();
+    const semester = (() => {
+      const m = new Date().getMonth();
+      const y = new Date().getFullYear();
+      return `${y}-${m < 6 ? "Spring" : "Fall"}`;
+    })();
+
+    const { error } = await supabase.from("ratings").insert({
+      course_id: courseId,
+      rating: stars,
+      semester,
+      fingerprint: fp,
+    });
+
+    if (error) {
+      showToast("Could not submit rating. You may have already rated this course.");
+      return;
+    }
+
+    // Optimistic update
+    setRatings(prev => {
+      const existing = prev[courseId] || { avg: 0, count: 0 };
+      const newCount = existing.count + 1;
+      const newAvg = (existing.avg * existing.count + stars) / newCount;
+      return { ...prev, [courseId]: { avg: newAvg, count: newCount } };
+    });
+    setMyRatings(prev => ({ ...prev, [courseId]: stars }));
+    showToast(`⭐ Rated ${stars} star${stars > 1 ? "s" : ""} — thanks!`);
+    setPendingRating(null);
+    setHoverStar(0);
+  }
+  function navigate(p) { setPage(p); window.scrollTo({ top:0, behavior:"instant" }); }
+
+  const { cats, total } = useMemo(() => calcPlannerCredits(plan), [plan]);
+
+  const filteredCourses = useMemo(() => {
+    let list = COURSES;
+    if (filterDept !== "All") list = list.filter(c => c.dept === filterDept);
+    if (filterDept === "CTE" && filterCtePath !== "All CTE")
+      list = list.filter(c => c.ctePath === filterCtePath);
+    if (filterDept === "Fine Arts" && filterFineArts !== "All Fine Arts")
+      list = list.filter(c => c.fineArtsType === filterFineArts);
+    if (filterDept === "Miscellaneous" && filterMisc !== "All Miscellaneous")
+      list = list.filter(c => c.miscType === filterMisc);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(c =>
+        c.name.toLowerCase().includes(q) ||
+        (c.subtitle||"").toLowerCase().includes(q) ||
+        c.code.toLowerCase().includes(q) ||
+        c.dept.toLowerCase().includes(q) ||
+        (c.ctePath||c.fineArtsType||c.miscType||"").toLowerCase().includes(q) ||
+        (c.desc||"").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [filterDept, filterCtePath, filterFineArts, filterMisc, searchQuery]);
+
+  const homeSearchResults = useMemo(() => {
+    if (!homeSearch.trim()) return [];
+    const q = homeSearch.toLowerCase();
+    return COURSES.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      (c.subtitle||"").toLowerCase().includes(q) ||
+      c.code.toLowerCase().includes(q) ||
+      c.dept.toLowerCase().includes(q) ||
+      (c.ctePath||c.fineArtsType||c.miscType||"").toLowerCase().includes(q) ||
+      (c.desc||"").toLowerCase().includes(q)
+    ).slice(0, 4);
+  }, [homeSearch]);
+
+  const addSearchResults = useMemo(() => {
+    if (!addSearch.trim()) return COURSES.slice(0, 14);
+    const q = addSearch.toLowerCase();
+    return COURSES.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      c.code.toLowerCase().includes(q) ||
+      c.dept.toLowerCase().includes(q)
+    ).slice(0, 16);
+  }, [addSearch]);
+
+  const honorsProgress = useMemo(() => computeHonorsProgress(plan), [plan]);
+
+  function removeCourse(grade, idx) {
+    setPlan(p => { const n = JSON.parse(JSON.stringify(p)); n[grade].splice(idx, 1); return n; });
+  }
+  const GRADE_MAX = 9.0; // 9 slots = up to 9 credits (0.5cr courses use 0.5 slot)
+
+  function addCourseToPlan(courseId) {
+    if (!addTarget) return;
+    const course = getCourse(courseId);
+    if (gradeSlots(plan, addTarget) >= GRADE_MAX) return; // cap enforced silently
+    const completedBefore = getCoursesBeforeGrade(plan, addTarget);
+    const completedUpTo = getAllCoursesUpTo(plan, addTarget);
+    const unmet = getUnmetPrereqs(courseId, completedBefore, completedUpTo);
+    if (unmet.length > 0) {
+      setPrereqWarn({ courseId, grade: addTarget, unmet });
+      return;
+    }
+    setPlan(p => {
+      const n = JSON.parse(JSON.stringify(p));
+      if (!course?.repeatable && n[addTarget].includes(courseId)) return p;
+      n[addTarget].push(courseId);
+      return n;
+    });
+    setAddTarget(null); setAddSearch("");
+  }
+  function forceAddCourse(courseId) {
+    if (!addTarget) return;
+    const course = getCourse(courseId);
+    if (gradeSlots(plan, addTarget) >= GRADE_MAX) return;
+    setPlan(p => {
+      const n = JSON.parse(JSON.stringify(p));
+      if (!course?.repeatable && n[addTarget].includes(courseId)) return p;
+      n[addTarget].push(courseId);
+      return n;
+    });
+    setAddTarget(null); setAddSearch(""); setPrereqWarn(null);
+  }
+
+  // Slot = credits for normal courses, 1 for Off Campus (0-credit)
+  function gradeSlots(p, grade) {
+    return (p[grade]||[]).reduce((sum, cid) => {
+      const c = getCourse(cid);
+      if (!c) return sum;
+      return sum + (c.id === "OFF_CAMPUS" ? 1 : (c.credits || 0));
+    }, 0);
+  }
+
+  return (
+    <>
+      <style>{`
+        ${FONTS}
+        *{box-sizing:border-box;margin:0;padding:0;}
+        :root{
+          --red:#B00804; --red-dark:#950A07; --red-deep:#6B0503;
+          --slate:#1C2B3A; --slate-mid:#2D3F52; --slate-light:#3D5166;
+          --bg:#F7F8FA; --card:#fff; --text:#111827; --muted:#6B7280;
+          --border:#E5E7EB; --light-red:#FFF1F0;
+        }
+        body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);}
+        .fade-in{animation:fadeIn 0.3s ease;}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        .nav-link{cursor:pointer;padding:8px 15px;border-radius:8px;font-weight:600;font-size:14px;
+          color:rgba(255,255,255,0.65);transition:all 0.2s;white-space:nowrap;}
+        .nav-link:hover{color:#fff;background:rgba(255,255,255,0.14);}
+        .nav-link.active{color:#fff;background:rgba(255,255,255,0.22);}
+        .c-card{background:white;border-radius:12px;padding:16px;border:1px solid var(--border);
+          cursor:pointer;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+        .c-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.1);border-color:var(--red);}
+        .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;
+          font-weight:700;letter-spacing:0.03em;text-transform:uppercase;}
+        .req-bar{height:6px;border-radius:3px;background:rgba(255,255,255,0.12);overflow:hidden;}
+        .req-fill{height:100%;border-radius:3px;transition:width 0.6s cubic-bezier(.4,0,.2,1);}
+        .plan-cell{background:white;border-radius:12px;padding:14px;border:1px solid var(--border);}
+        .p-tag{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:7px;
+          margin:2px;font-size:12px;font-weight:600;flex:1 0 calc(50% - 4px);min-width:150px;}
+        .rm-btn{margin-left:auto;cursor:pointer;color:#9CA3AF;font-size:16px;line-height:1;padding:0 2px;flex-shrink:0;}
+        .rm-btn:hover{color:var(--red);}
+        .add-btn{border:1.5px dashed #D1D5DB;border-radius:7px;padding:7px;text-align:center;
+          font-size:11px;color:#9CA3AF;cursor:pointer;margin-top:6px;transition:all 0.2s;}
+        .add-btn:hover{border-color:var(--red);color:var(--red);background:var(--light-red);}
+        .overlay{position:fixed;inset:0;background:rgba(17,24,39,0.65);display:flex;align-items:center;
+          justify-content:center;z-index:1000;padding:20px;backdrop-filter:blur(5px);}
+        .modal{background:white;border-radius:20px;max-width:620px;width:100%;max-height:90vh;
+          overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,0.22);}
+        .si{width:100%;padding:11px 16px;border-radius:10px;border:2px solid var(--border);
+          font-size:14px;font-family:'Plus Jakarta Sans',sans-serif;outline:none;transition:border 0.2s;background:#fff;}
+        .si:focus{border-color:var(--red);}
+        .tag-ap{background:#FEF3C7;color:#92400E;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:800;}
+        .prereq-chip{padding:5px 11px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;}
+        ::-webkit-scrollbar{width:5px;height:5px;}
+        ::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px;}
+        .warn-banner{background:#FEF9C3;border:1.5px solid #EAB308;border-radius:10px;padding:12px 16px;margin:10px 0;font-size:13px;color:#78350F;}
+        .honors-check{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+        .honors-check:last-child{border-bottom:none;}
+        @media(max-width:900px){
+          .plan-grid{grid-template-columns:1fr 1fr !important;}
+        }
+        @media(max-width:768px){
+          .planner-layout{flex-direction:column !important;}
+          .planner-sidebar{width:100% !important;position:static !important;margin-top:28px;}
+          .planner-sidebar > div{position:static !important;}
+        }
+        @media(max-width:600px){
+          .plan-grid{grid-template-columns:1fr !important;}
+          .catalog-grid{grid-template-columns:1fr !important;}
+          .stat-grid{grid-template-columns:1fr 1fr !important;}
+          .grad-grid{grid-template-columns:1fr !important;}
+          nav{gap:0 !important;padding:0 12px !important;}
+          .nav-link{padding:8px 10px !important;font-size:12px !important;}
+          .modal{border-radius:14px !important;margin:10px !important;}
+          h1{font-size:28px !important;}
+          .hero-btns{flex-direction:column !important;align-items:center !important;}
+        }
+      `}</style>
+
+      <div style={{ minHeight:"100vh" }}>
+
+        {/* NAV */}
+        <nav style={{ background:`linear-gradient(90deg,var(--red-deep),var(--red-dark) 50%,var(--red))`,
+          padding:"0 24px", display:"flex", alignItems:"center", gap:"2px", height:"58px",
+          position:"sticky", top:0, zIndex:100, boxShadow:"0 2px 20px rgba(107,5,3,0.4)" }}>
+          <div onClick={()=>navigate("home")}
+            style={{ fontFamily:"'Playfair Display',serif", color:"white", fontSize:"20px", fontWeight:700,
+              marginRight:"20px", cursor:"pointer", textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>
+            🦅 Kalani Compass
+          </div>
+          {[["home","Home"],["catalog","Courses"],["planner","4-Year Planner"]].map(([id,label])=>(
+            <div key={id} className={`nav-link${page===id?" active":""}`} onClick={()=>navigate(id)}>{label}</div>
+          ))}
+          <div style={{ marginLeft:"auto" }} />
+        </nav>
+
+        {/* ANNOUNCEMENT BANNER */}
+        {announcements.map(a => (
+          <div key={a.id} style={{
+            background: a.type==="warning" ? "#FEF9C3" : a.type==="new" ? "#F0FDF4" : "#EFF6FF",
+            borderBottom: `2px solid ${a.type==="warning" ? "#EAB308" : a.type==="new" ? "#22C55E" : "#3B82F6"}`,
+            padding:"10px 24px", display:"flex", alignItems:"center", gap:"10px",
+            fontSize:"13px", fontWeight:600,
+            color: a.type==="warning" ? "#78350F" : a.type==="new" ? "#166534" : "#1E40AF"
+          }}>
+            <span style={{ fontSize:"16px" }}>
+              {a.type==="warning" ? "⚠️" : a.type==="new" ? "🆕" : "📢"}
+            </span>
+            <span><strong>{a.title}</strong>{a.body ? ` — ${a.body}` : ""}</span>
+          </div>
+        ))}
+
+        {/* ── HOME ── */}
+        {page==="home" && (
+          <div className="fade-in">
+            <div style={{ background:`linear-gradient(135deg,var(--red-deep) 0%,var(--red-dark) 55%,var(--red) 100%)`,
+              padding:"64px 24px 72px", textAlign:"center", position:"relative", overflow:"hidden" }}>
+              <div style={{ position:"absolute", inset:0, opacity:0.04,
+                backgroundImage:"radial-gradient(circle, white 1.5px, transparent 1.5px)", backgroundSize:"28px 28px" }} />
+              <div style={{ position:"relative", zIndex:1 }}>
+                <p style={{ color:"rgba(255,255,255,0.65)", fontSize:"12px", fontWeight:800,
+                  letterSpacing:"0.14em", textTransform:"uppercase", marginBottom:"14px" }}>
+                  Kalani High School — Honolulu, Hawaiʻi
+                </p>
+                <h1 style={{ fontFamily:"'Playfair Display',serif", color:"white",
+                  fontSize:"clamp(30px,5.5vw,58px)", fontWeight:700, lineHeight:1.15, marginBottom:"18px",
+                  textShadow:"0 2px 8px rgba(0,0,0,0.2)" }}>
+                  Plan your 4 years<br/>at Kalani
+                </h1>
+                <p style={{ color:"rgba(255,255,255,0.72)", fontSize:"16px", maxWidth:"460px",
+                  margin:"0 auto 36px", lineHeight:1.7 }}>
+                  Explore every course, understand prerequisites, and build a graduation plan before you register.
+                </p>
+                <div className="hero-btns" style={{ display:"flex", gap:"12px", justifyContent:"center", flexWrap:"wrap" }}>
+                  <button onClick={()=>navigate("catalog")}
+                    style={{ background:"white", color:"var(--red)", border:"none", borderRadius:"10px",
+                      padding:"13px 26px", fontSize:"14px", fontWeight:800, cursor:"pointer",
+                      boxShadow:"0 4px 20px rgba(0,0,0,0.2)", fontFamily:"inherit" }}>
+                    Browse All Courses →
+                  </button>
+                  <button onClick={()=>navigate("planner")}
+                    style={{ background:"rgba(255,255,255,0.1)", color:"white",
+                      border:"1.5px solid rgba(255,255,255,0.35)", borderRadius:"10px",
+                      padding:"13px 26px", fontSize:"14px", fontWeight:800, cursor:"pointer",
+                      fontFamily:"inherit" }}>
+                    Open 4-Year Planner
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Search */}
+            <div style={{ maxWidth:"580px", margin:"-26px auto 0", padding:"0 24px", position:"relative", zIndex:10 }}>
+              <input className="si" placeholder="🔍  Search — try 'AP Calculus', 'Computer Science', 'Marine Science'…"
+                value={homeSearch}
+                onChange={e=>setHomeSearch(e.target.value)}
+                onFocus={()=>setHomeSearchFocus(true)}
+                onBlur={()=>setTimeout(()=>setHomeSearchFocus(false), 150)}
+                onKeyDown={e=>{
+                  if(e.key==="Enter" && homeSearch.trim()) {
+                    setSearchQuery(homeSearch);
+                    setHomeSearchFocus(false);
+                    navigate("catalog");
+                  }
+                  if(e.key==="Escape") { setHomeSearchFocus(false); setHomeSearch(""); }
+                }}
+                style={{ boxShadow:"0 8px 32px rgba(176,8,4,0.15)", fontSize:"15px", padding:"16px 20px" }} />
+
+              {/* Autocomplete dropdown */}
+              {homeSearchFocus && homeSearchResults.length > 0 && (
+                <div style={{ position:"absolute", top:"calc(100% + 6px)", left:"24px", right:"24px",
+                  background:"white", borderRadius:"14px", boxShadow:"0 12px 40px rgba(0,0,0,0.15)",
+                  border:"1px solid var(--border)", overflow:"hidden", zIndex:200 }}>
+                  {homeSearchResults.map(c => {
+                    const col = deptColor(c.dept);
+                    const subLabel = c.ctePath||c.fineArtsType||c.miscType||c.dept;
+                    return (
+                      <div key={c.id}
+                        onMouseDown={()=>{
+                          setSelectedCourse(c);
+                          setHomeSearchFocus(false);
+                          setSearchQuery(homeSearch);
+                          navigate("catalog");
+                        }}
+                        style={{ display:"flex", alignItems:"center", gap:"12px", padding:"11px 16px",
+                          cursor:"pointer", borderBottom:"1px solid var(--border)", transition:"background 0.1s" }}
+                        onMouseEnter={e=>e.currentTarget.style.background="var(--light-red)"}
+                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                        <div style={{ width:"8px", height:"8px", borderRadius:"50%",
+                          background:col, flexShrink:0 }}/>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:"13px", fontWeight:700, color:"var(--text)",
+                            whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                            {c.name}
+                            {c.isAP && <span className="tag-ap" style={{ marginLeft:"6px" }}>AP</span>}
+                          </div>
+                          <div style={{ fontSize:"11px", color:"var(--muted)" }}>
+                            {subLabel} · {c.credits}cr · Grade {c.gradeLevel.join("/")}
+                          </div>
+                        </div>
+                        <span style={{ fontSize:"11px", color:"var(--muted)", flexShrink:0 }}>View →</span>
+                      </div>
+                    );
+                  })}
+                  <div
+                    onMouseDown={()=>{ setSearchQuery(homeSearch); setHomeSearchFocus(false); navigate("catalog"); }}
+                    style={{ padding:"10px 16px", fontSize:"12px", fontWeight:700,
+                      color:"var(--red)", cursor:"pointer", textAlign:"center",
+                      background:"#FFF8F8", transition:"background 0.1s" }}
+                    onMouseEnter={e=>e.currentTarget.style.background=deptColor("English")+"14"}
+                    onMouseLeave={e=>e.currentTarget.style.background="#FFF8F8"}>
+                    See all results for "{homeSearch}" →
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Stats */}
+            <div className="stat-grid" style={{ maxWidth:"840px", margin:"44px auto 0", padding:"0 24px",
+              display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:"14px" }}>
+              {[{n:"24",l:"Credits to graduate",i:"🎓",c:"#B00804"},{n:"140+",l:"Courses in catalog",i:"📚",c:"#0369A1"},
+                {n:"18",l:"AP courses offered",i:"⭐",c:"#7C3AED"},{n:"8",l:"CTE career pathways",i:"🛠",c:"#0F766E"}].map(s=>(
+                <div key={s.n} style={{ background:"white", borderRadius:"14px", padding:"22px",
+                  textAlign:"center", border:"1px solid var(--border)", boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
+                  <div style={{ fontSize:"28px", marginBottom:"8px" }}>{s.i}</div>
+                  <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"34px", fontWeight:700,
+                    color:s.c }}>{s.n}</div>
+                  <div style={{ fontSize:"12px", color:"var(--muted)", lineHeight:1.4 }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Dept links */}
+            <div style={{ maxWidth:"840px", margin:"32px auto 0", padding:"0 24px" }}>
+              <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:"22px", color:"var(--text)",
+                marginBottom:"14px" }}>Browse by Department</h2>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:"8px" }}>
+                {DEPTS.filter(d=>d!=="All").map(d=>(
+                  <div key={d} onClick={()=>{ setFilterDept(d); setFilterCtePath("All CTE"); setFilterFineArts("All Fine Arts"); setFilterMisc("All Miscellaneous"); navigate("catalog"); }}
+                    style={{ padding:"7px 15px", borderRadius:"8px", cursor:"pointer",
+                      background:deptColor(d)+"14", border:`1.5px solid ${deptColor(d)}35`,
+                      color:deptColor(d), fontWeight:700, fontSize:"13px", transition:"all 0.2s" }}
+                    onMouseEnter={e=>e.currentTarget.style.background=deptColor(d)+"28"}
+                    onMouseLeave={e=>e.currentTarget.style.background=deptColor(d)+"14"}>
+                    {d}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Grad requirements */}
+            <div style={{ maxWidth:"840px", margin:"36px auto 64px", padding:"0 24px" }}>
+              <div style={{ background:`linear-gradient(135deg,var(--slate) 0%,var(--slate-mid) 100%)`,
+                borderRadius:"18px", padding:"28px" }}>
+                <h2 style={{ fontFamily:"'Playfair Display',serif", color:"white", fontSize:"22px",
+                  marginBottom:"6px" }}>🎓 Graduation Requirements</h2>
+                <p style={{ color:"rgba(255,255,255,0.55)", fontSize:"13px", marginBottom:"22px" }}>
+                  24 total credits required for a Hawaiʻi High School Diploma
+                </p>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))", gap:"12px" }}>
+                  {GRAD_REQUIREMENTS.map(r=>(
+                    <div key={r.id} style={{ background:"rgba(255,255,255,0.07)", borderRadius:"10px", padding:"14px",
+                      borderLeft:`3px solid ${r.color}` }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"6px",
+                        fontSize:"13px", fontWeight:700 }}>
+                        <span style={{ color:"rgba(255,255,255,0.92)" }}>{r.label}</span>
+                        <span style={{ color:r.color, fontVariantNumeric:"tabular-nums" }}>{r.required} cr</span>
+                      </div>
+                      <div style={{ fontSize:"11px", color:"rgba(255,255,255,0.48)", lineHeight:1.55 }}>
+                        {r.breakdown.join(" • ")}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── CATALOG ── */}
+        {page==="catalog" && (
+          <div className="fade-in" style={{ maxWidth:"1200px", margin:"0 auto", padding:"32px 24px" }}>
+            <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"30px", color:"var(--red-dark)",
+              marginBottom:"22px" }}>Course Catalog</h1>
+            <div style={{ display:"flex", gap:"12px", marginBottom:"20px", flexWrap:"wrap", alignItems:"center" }}>
+              <input className="si" placeholder="🔍 Search courses…" value={searchQuery}
+                onChange={e=>setSearchQuery(e.target.value)}
+                style={{ flex:"1", minWidth:"200px", maxWidth:"320px" }} />
+              <div style={{ display:"flex", flexWrap:"wrap", gap:"5px" }}>
+                {DEPTS.map(d=>(
+                  <div key={d} onClick={()=>{ setFilterDept(d); setFilterCtePath("All CTE"); setFilterFineArts("All Fine Arts"); setFilterMisc("All Miscellaneous"); }}
+                    style={{ padding:"6px 12px", borderRadius:"7px", cursor:"pointer", fontSize:"12px",
+                      fontWeight:700, transition:"all 0.15s",
+                      background:filterDept===d?"var(--red)":"white",
+                      color:filterDept===d?"white":"var(--muted)",
+                      border:`1.5px solid ${filterDept===d?"var(--red)":"var(--border)"}` }}>
+                    {d}
+                  </div>
+                ))}
+              </div>
+            </div>
+            {filterDept === "CTE" && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:"5px", marginBottom:"12px" }}>
+                {CTE_PATHS.map(p=>(
+                  <div key={p} onClick={()=>setFilterCtePath(p)}
+                    style={{ padding:"5px 11px", borderRadius:"7px", cursor:"pointer", fontSize:"11px",
+                      fontWeight:700, transition:"all 0.15s",
+                      background:filterCtePath===p?"var(--red)":"white",
+                      color:filterCtePath===p?"white":"var(--muted)",
+                      border:`1.5px solid ${filterCtePath===p?"var(--red)":"var(--border)"}` }}>
+                    {p}
+                  </div>
+                ))}
+              </div>
+            )}
+            {filterDept === "Fine Arts" && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:"5px", marginBottom:"12px" }}>
+                {FINE_ARTS_TYPES.map(t=>(
+                  <div key={t} onClick={()=>setFilterFineArts(t)}
+                    style={{ padding:"5px 11px", borderRadius:"7px", cursor:"pointer", fontSize:"11px",
+                      fontWeight:700, transition:"all 0.15s",
+                      background:filterFineArts===t?"#DB2777":"white",
+                      color:filterFineArts===t?"white":"var(--muted)",
+                      border:`1.5px solid ${filterFineArts===t?"#DB2777":"var(--border)"}` }}>
+                    {t}
+                  </div>
+                ))}
+              </div>
+            )}
+            {filterDept === "Miscellaneous" && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:"5px", marginBottom:"12px" }}>
+                {MISC_TYPES.map(t=>(
+                  <div key={t} onClick={()=>setFilterMisc(t)}
+                    style={{ padding:"5px 11px", borderRadius:"7px", cursor:"pointer", fontSize:"11px",
+                      fontWeight:700, transition:"all 0.15s",
+                      background:filterMisc===t?"#6B7280":"white",
+                      color:filterMisc===t?"white":"var(--muted)",
+                      border:`1.5px solid ${filterMisc===t?"#6B7280":"var(--border)"}` }}>
+                    {t}
+                  </div>
+                ))}
+              </div>
+            )}
+            <p style={{ fontSize:"13px", color:"var(--muted)", marginBottom:"18px" }}>
+              Showing {filteredCourses.length} course{filteredCourses.length!==1?"s":""}
+            </p>
+            <div className="catalog-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(295px,1fr))", gap:"14px" }}>
+              {filteredCourses.map(c=>(
+                <div key={c.id} className="c-card" onClick={()=>setSelectedCourse(c)}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"8px" }}>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:"4px", alignItems:"center" }}>
+                      <span className="badge" style={{ background:deptColor(c.dept)+"1A", color:deptColor(c.dept) }}>{c.ctePath||c.fineArtsType||c.miscType||c.dept}</span>
+                      {c.teacherSigRequired&&<span style={{ fontSize:"10px",background:"#FEF3C7",color:"#92400E",padding:"2px 6px",borderRadius:"4px",fontWeight:700 }}>✍ Sig. req.</span>}
+                    </div>
+                    <div style={{ display:"flex", gap:"5px", alignItems:"center" }}>
+                      {c.isAP&&<span className="tag-ap">AP</span>}
+                      <span style={{ fontSize:"12px", fontWeight:700, color:"var(--muted)" }}>{c.credits}cr</span>
+                    </div>
+                  </div>
+                  <h3 style={{ fontSize:"14px", fontWeight:700, color:"var(--text)", lineHeight:1.35, marginBottom:"2px" }}>{c.name}</h3>
+                  {c.subtitle&&<p style={{ fontSize:"11px", color:"var(--muted)", fontStyle:"italic", marginBottom:"3px" }}>{c.subtitle}</p>}
+                  {c.code&&<p style={{ fontSize:"11px", color:"#A08080", marginBottom:"6px" }}>{c.code}</p>}
+                  <p style={{ fontSize:"12px", color:"var(--muted)", lineHeight:1.5,
+                    display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{c.desc}</p>
+                  {(c.prereqs.length>0 || (c.concurrentOk||[]).length>0)&&(
+                    <div style={{ marginTop:"9px", fontSize:"11px", fontWeight:700 }}>
+                      {c.prereqs.length>0&&(
+                        <span style={{ color:"var(--red)" }}>
+                          Prereq: {c.prereqs.map(pid=>{
+                            const equivs=(PREREQ_EQUIV[pid]||[]);
+                            return equivs.length>0
+                              ? `${getCourseName(pid)} (or ${equivs.map(getCourseName).join("/")})`
+                              : getCourseName(pid);
+                          }).join(" + ")}
+                        </span>
+                      )}
+                      {c.prereqs.length>0&&(c.concurrentOk||[]).length>0&&<span style={{color:"var(--muted)"}}> · </span>}
+                      {(c.concurrentOk||[]).length>0&&(
+                        <span style={{ color:"#1D4ED8" }}>
+                          🔄 concurrent: {(c.concurrentOk||[]).map(cid=>{
+                            const equivs=(PREREQ_EQUIV[cid]||[]);
+                            return equivs.length>0
+                              ? `${getCourseName(cid)} (or ${equivs.map(getCourseName).join("/")})`
+                              : getCourseName(cid);
+                          }).join(" or ")}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <div style={{ marginTop:"8px", fontSize:"11px", color:"var(--muted)",
+                    display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <span>Grade {c.gradeLevel.join("/")} · {c.credits===0.5?"Semester":"Year"}</span>
+                    {ratings[c.id] && (
+                      <span style={{ color:"#92400E", fontWeight:700 }}>
+                        ⭐ {ratings[c.id].avg.toFixed(1)}
+                        <span style={{ color:"var(--muted)", fontWeight:400 }}> ({ratings[c.id].count})</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {filteredCourses.length===0&&(
+                <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"60px", color:"var(--muted)" }}>
+                  <div style={{ fontSize:"44px", marginBottom:"16px" }}>🔍</div>
+                  <p style={{ fontSize:"16px", fontWeight:700 }}>No courses found</p>
+                  <p style={{ fontSize:"13px" }}>Try a different search term or department filter</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── PLANNER ── */}
+        {page==="planner" && (
+          <div className="fade-in" style={{ maxWidth:"1180px", margin:"0 auto", padding:"32px 24px" }}>
+            <div className="planner-layout" style={{ display:"flex", gap:"28px", alignItems:"flex-start", flexWrap:"wrap" }}>
+              <div style={{ flex:"1", minWidth:0 }}>
+                <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", flexWrap:"wrap", gap:"10px", marginBottom:"6px" }}>
+                  <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"28px", color:"var(--red-dark)" }}>4-Year Course Planner</h1>
+                  {showResetConfirm ? (
+                    <div style={{ display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap" }}>
+                      <span style={{ fontSize:"12px", color:"var(--muted)", fontWeight:600 }}>
+                        Reset all 4 grades?
+                      </span>
+                      <button onClick={()=>{ setPlan(JSON.parse(JSON.stringify(DEFAULT_PLAN))); setShowResetConfirm(false); }}
+                        style={{ background:"var(--red)", color:"white", border:"none",
+                          borderRadius:"7px", padding:"5px 12px", fontSize:"12px", fontWeight:700,
+                          cursor:"pointer", fontFamily:"inherit" }}>
+                        Yes, reset
+                      </button>
+                      <button onClick={()=>setShowResetConfirm(false)}
+                        style={{ background:"white", color:"var(--muted)", border:"1.5px solid var(--border)",
+                          borderRadius:"7px", padding:"5px 12px", fontSize:"12px", fontWeight:600,
+                          cursor:"pointer", fontFamily:"inherit" }}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                  <button onClick={()=>setShowResetConfirm(true)}
+                    style={{ background:"white", color:"var(--muted)", border:"1.5px solid var(--border)",
+                      borderRadius:"8px", padding:"6px 13px", fontSize:"12px", fontWeight:600,
+                      cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
+                    ↺ Reset Plan
+                  </button>
+                  )}
+                </div>
+                <p style={{ fontSize:"13px", color:"var(--muted)", marginBottom:"22px" }}>
+                  Click a course name to view details · ⚠️ = missing prereq · Click × to remove
+                </p>
+
+                {[9,10,11,12].map(grade=>{
+                  const gradeCredits = plan[grade].reduce((s,cid)=>{ const c=getCourse(cid); return s+(c?.credits||0); },0);
+                  const usedSlots = gradeSlots(plan, grade);
+                  const atCap = usedSlots >= GRADE_MAX;
+                  return (
+                    <div key={grade} style={{ marginBottom:"22px" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"9px" }}>
+                        <div style={{ background:`linear-gradient(90deg,var(--red-dark),var(--red))`,
+                          color:"white", borderRadius:"8px", padding:"5px 14px",
+                          fontSize:"13px", fontWeight:800, boxShadow:"0 2px 8px rgba(176,8,4,0.25)" }}>
+                          Grade {grade}
+                        </div>
+                        <div style={{ fontSize:"12px", color: atCap?"#B45309":"var(--muted)", fontWeight: atCap?700:400 }}>
+                          {plan[grade].length} course{plan[grade].length!==1?"s":""} · {usedSlots.toFixed(1)}/{GRADE_MAX} slots · {gradeCredits.toFixed(1)} credits
+                          {atCap && " · max reached"}
+                        </div>
+                      </div>
+                      <div className="plan-cell">
+                        <div style={{ display:"flex", flexWrap:"wrap" }}>
+                          {plan[grade].map((cid,idx)=>{
+                            const c=getCourse(cid);
+                            if(!c) return null;
+                            const col=deptColor(c.dept);
+                            const isOffCampus = cid==="OFF_CAMPUS";
+                            const before = getCoursesBeforeGrade(plan, grade);
+                            const upTo = getAllCoursesUpTo(plan, grade);
+                            const unmet = isOffCampus ? [] : getUnmetPrereqs(cid, before, upTo);
+                            return (
+                              <div key={`${cid}-${idx}`} className="p-tag"
+                                style={{ background: isOffCampus?"#F1F5F9":col+"16",
+                                  border:`1px solid ${isOffCampus?"#CBD5E1":col+"28"}`,
+                                  maxWidth:"calc(50% - 4px)" }}>
+                                <div style={{ width:"7px",height:"7px",borderRadius:"50%",
+                                  background: isOffCampus?"#475569":col, flexShrink:0 }}/>
+                                <span style={{ color: isOffCampus?"#475569":col, flex:1, lineHeight:1.3, cursor:"pointer" }}
+                                  onClick={()=>setSelectedCourse(c)}>
+                                  {isOffCampus ? "🚗 Off Campus" : c.name}
+                                </span>
+                                {c.isAP&&<span className="tag-ap">AP</span>}
+                                {unmet.length>0 && (
+                                  <span title={`Missing prereqs: ${unmet.map(getPrereqDisplay).join(", ")}`}
+                                    style={{ fontSize:"13px", cursor:"help" }}>⚠️</span>
+                                )}
+                                <span className="rm-btn" onClick={()=>removeCourse(grade,idx)}>×</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div style={{ display:"flex", gap:"8px", marginTop:"6px" }}>
+                          <div className="add-btn" style={{ flex:1, opacity: atCap?0.4:1, cursor: atCap?"not-allowed":"pointer",
+                            pointerEvents: atCap?"none":"auto" }}
+                            onClick={()=>{ if(!atCap) setAddTarget(grade); }}>
+                            {atCap ? `✋ Full (${GRADE_MAX} slots used)` : "+ Add a Course"}
+                          </div>
+                          {grade===12&&(
+                            <div className="add-btn"
+                              style={{ flex:"0 0 auto", borderColor:"#64748B", color:"#64748B",
+                                opacity: atCap?0.4:1, cursor: atCap?"not-allowed":"pointer",
+                                pointerEvents: atCap?"none":"auto" }}
+                              onClick={()=>{ if(gradeSlots(plan,12)<GRADE_MAX) setPlan(p=>{ const n=JSON.parse(JSON.stringify(p)); n[12].push("OFF_CAMPUS"); return n; }); }}>
+                              🚗 Off Campus
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ── SIDEBAR ── */}
+              <div className="planner-sidebar" style={{ width:"265px", flexShrink:0 }}>
+                <div style={{ background:`linear-gradient(170deg,var(--slate) 0%,var(--slate-mid) 100%)`,
+                  borderRadius:"16px", padding:"22px", position:"sticky", top:"72px",
+                  boxShadow:"0 8px 32px rgba(0,0,0,0.22)" }}>
+
+                  <h2 style={{ fontFamily:"'Playfair Display',serif", color:"white", fontSize:"18px",
+                    marginBottom:"4px" }}>Graduation Progress</h2>
+                  <div style={{ fontSize:"12px", color:"rgba(255,255,255,0.5)", marginBottom:"14px" }}>
+                    {total.toFixed(1)} / 24.0 credits planned
+                  </div>
+                  <div style={{ height:"10px", borderRadius:"5px", background:"rgba(255,255,255,0.1)",
+                    overflow:"hidden", marginBottom:"20px" }}>
+                    <div style={{ height:"100%", borderRadius:"5px", transition:"width 0.6s cubic-bezier(.4,0,.2,1)",
+                      width:`${Math.min(100,(total/24)*100)}%`,
+                      background:"linear-gradient(90deg,var(--red),#E53E3E)" }} />
+                  </div>
+                  {GRAD_REQUIREMENTS.map(r=>{
+                    const earned=cats[r.id]||0;
+                    const pct=Math.min(100,(earned/r.required)*100);
+                    const done=earned>=r.required;
+                    return (
+                      <div key={r.id} style={{ marginBottom:"12px" }}>
+                        <div style={{ display:"flex", justifyContent:"space-between",
+                          fontSize:"11px", fontWeight:700, marginBottom:"5px" }}>
+                          <span style={{ color: done ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.65)",
+                            display:"flex", alignItems:"center", gap:"4px" }}>
+                            {done && <span style={{ color:r.color, fontSize:"10px" }}>✓</span>}
+                            {r.label}
+                          </span>
+                          <span style={{ color:done?r.color:"rgba(255,255,255,0.4)",
+                            fontVariantNumeric:"tabular-nums" }}>
+                            {earned.toFixed(1)}/{r.required}
+                          </span>
+                        </div>
+                        <div className="req-bar">
+                          <div className="req-fill"
+                            style={{ width:`${pct}%`, background: r.color,
+                              opacity: done ? 1 : 0.75 }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  <div style={{ borderTop:"1px solid rgba(255,255,255,0.12)", margin:"18px 0 14px" }} />
+                  <div style={{ fontSize:"11px", fontWeight:800, letterSpacing:"0.1em",
+                    textTransform:"uppercase", color:"rgba(255,255,255,0.4)", marginBottom:"10px" }}>
+                    Honors Certificates
+                  </div>
+                  <p style={{ fontSize:"10px", color:"rgba(255,255,255,0.35)", marginBottom:"12px", lineHeight:1.5 }}>
+                    All require GPA 3.0+. Tap to track progress.
+                  </p>
+
+                  {HONORS_DEFS.map(hdef=>{
+                    const prog = honorsProgress[hdef.id];
+                    const metCount = Object.values(prog).filter(v=>v.met).length;
+                    const total_chks = hdef.checks.length;
+                    const isOpen = honorsOpen[hdef.id];
+                    const allMet = metCount === total_chks;
+                    return (
+                      <div key={hdef.id} style={{ marginBottom:"8px" }}>
+                        <div onClick={()=>setHonorsOpen(o=>({...o,[hdef.id]:!o[hdef.id]}))}
+                          style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+                            padding:"8px 10px", borderRadius:"8px", cursor:"pointer",
+                            background: allMet?"rgba(22,163,74,0.18)":"rgba(255,255,255,0.07)",
+                            border:`1px solid ${allMet?"rgba(22,163,74,0.4)":"rgba(255,255,255,0.1)"}`,
+                            transition:"all 0.15s" }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:"7px" }}>
+                            <span style={{ fontSize:"14px" }}>{hdef.icon}</span>
+                            <span style={{ fontSize:"12px", fontWeight:700, color:"white" }}>{hdef.label}</span>
+                          </div>
+                          <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
+                            <span style={{ fontSize:"11px", fontWeight:700,
+                              color: allMet?"#4ADE80":"rgba(255,255,255,0.45)" }}>
+                              {metCount}/{total_chks}
+                            </span>
+                            <span style={{ fontSize:"10px", color:"rgba(255,255,255,0.4)" }}>
+                              {isOpen?"▲":"▼"}
+                            </span>
+                          </div>
+                        </div>
+                        {isOpen && (
+                          <div style={{ background:"rgba(0,0,0,0.2)", borderRadius:"0 0 8px 8px",
+                            padding:"10px", marginTop:"-4px", border:"1px solid rgba(255,255,255,0.08)",
+                            borderTop:"none" }}>
+                            {hdef.checks.map(chk=>{
+                              const result = prog[chk.id];
+                              return (
+                                <div key={chk.id} style={{ display:"flex", gap:"8px", padding:"6px 0",
+                                  borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+                                  <span style={{ fontSize:"13px", flexShrink:0, marginTop:"1px" }}>
+                                    {result?.met ? "✅" : "⬜"}
+                                  </span>
+                                  <div>
+                                    <div style={{ fontSize:"11px", fontWeight:600, color:"rgba(255,255,255,0.85)", lineHeight:1.3 }}>
+                                      {chk.label}
+                                    </div>
+                                    <div style={{ fontSize:"10px", marginTop:"2px",
+                                      color: result?.met?"#4ADE80":"#FCD34D", lineHeight:1.4 }}>
+                                      {result?.detail}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            <p style={{ fontSize:"10px", color:"rgba(255,255,255,0.3)", marginTop:"8px", lineHeight:1.4 }}>
+                              ⚠️ GPA &amp; performance assessments cannot be tracked here.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+                {/* ── COURSE DETAIL MODAL ── */}
+        {selectedCourse&&(
+          <div className="overlay" onClick={()=>setSelectedCourse(null)}>
+            <div className="modal" onClick={e=>e.stopPropagation()}>
+              <div style={{ padding:"24px 26px", borderBottom:"1px solid var(--border)" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                  <div style={{ flex:1, paddingRight:"12px" }}>
+                    <span className="badge" style={{ background:deptColor(selectedCourse.dept)+"1A",
+                      color:deptColor(selectedCourse.dept), marginBottom:"10px", display:"inline-block" }}>
+                      {selectedCourse.dept}
+                    </span>
+                    <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:"22px", color:"var(--text)",
+                      lineHeight:1.3, marginBottom:"4px" }}>{selectedCourse.name}</h2>
+                    {selectedCourse.subtitle&&<p style={{ fontSize:"13px", color:"var(--muted)", fontStyle:"italic", marginBottom:"3px" }}>{selectedCourse.subtitle}</p>}
+                    {selectedCourse.code&&<p style={{ fontSize:"12px",color:"var(--muted)" }}>{selectedCourse.code}</p>}
+                  </div>
+                  <button onClick={()=>setSelectedCourse(null)}
+                    style={{ background:"var(--light-red)", border:"none", borderRadius:"50%", width:"34px",
+                      height:"34px", cursor:"pointer", fontSize:"20px", color:"var(--red)",
+                      display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>×</button>
+                </div>
+              </div>
+              <div style={{ padding:"22px 26px" }}>
+                {selectedCourse.isOffCampus ? (
+                  /* ── OFF CAMPUS STRUCTURED CARD ── */
+                  <div>
+                    <div style={{ background:"#F8FAFC", border:"1.5px solid #CBD5E1", borderRadius:"12px",
+                      padding:"16px", marginBottom:"14px" }}>
+                      <div style={{ fontSize:"11px", fontWeight:800, textTransform:"uppercase",
+                        letterSpacing:"0.09em", color:"#64748B", marginBottom:"10px" }}>✅ Eligibility (all 3 required)</div>
+                      {selectedCourse.eligibility.map((e,i)=>(
+                        <div key={i} style={{ display:"flex", gap:"9px", alignItems:"flex-start",
+                          padding:"6px 0", borderBottom: i<selectedCourse.eligibility.length-1?"1px solid #E2E8F0":"none" }}>
+                          <span style={{ background:"#0F172A", color:"white", borderRadius:"50%",
+                            width:"18px", height:"18px", display:"flex", alignItems:"center", justifyContent:"center",
+                            fontSize:"10px", fontWeight:700, flexShrink:0, marginTop:"1px" }}>{i+1}</span>
+                          <span style={{ fontSize:"13px", color:"#1E293B", lineHeight:1.5 }}>{e}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ marginBottom:"14px" }}>
+                      <div style={{ fontSize:"11px", fontWeight:800, textTransform:"uppercase",
+                        letterSpacing:"0.09em", color:"#64748B", marginBottom:"8px" }}>🗓 Qualifying Reasons & Limits</div>
+                      {selectedCourse.reasons.map((r,i)=>(
+                        <div key={i} style={{ background: i===0?"#F0FDF4":"#FFF7ED",
+                          border:`1.5px solid ${i===0?"#BBF7D0":"#FED7AA"}`,
+                          borderRadius:"9px", padding:"11px 14px", marginBottom:"8px" }}>
+                          <div style={{ fontSize:"13px", fontWeight:700, color: i===0?"#15803D":"#9A3412", marginBottom:"3px" }}>
+                            {r.label}
+                          </div>
+                          <div style={{ fontSize:"12px", color: i===0?"#166534":"#7C2D12" }}>{r.limit}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ background:"#FFFBEB", border:"1.5px solid #FDE68A",
+                      borderRadius:"10px", padding:"13px 15px", marginBottom:"14px" }}>
+                      <div style={{ fontSize:"11px", fontWeight:800, textTransform:"uppercase",
+                        letterSpacing:"0.09em", color:"#92400E", marginBottom:"8px" }}>
+                        📋 Required Submissions · Due {selectedCourse.deadline}
+                      </div>
+                      {selectedCourse.submissions.map((s,i)=>(
+                        <div key={i} style={{ display:"flex", gap:"8px", fontSize:"12px", color:"#78350F",
+                          padding:"5px 0", borderBottom: i<selectedCourse.submissions.length-1?"1px solid #FDE68A":"none" }}>
+                          <span style={{ fontWeight:800, flexShrink:0, color:"#92400E" }}>{String.fromCharCode(65+i)}.</span>
+                          <span style={{ lineHeight:1.5 }}>{s}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ background:"#FEF2F2", border:"1.5px solid #FECACA",
+                      borderRadius:"9px", padding:"11px 14px", marginBottom:"12px" }}>
+                      <div style={{ fontSize:"12px", fontWeight:700, color:"#991B1B", lineHeight:1.5 }}>
+                        ⚠️ {selectedCourse.warning}
+                      </div>
+                    </div>
+
+                    {selectedCourse.tips&&(
+                      <div style={{ background:"#EFF6FF", border:"1.5px solid #BFDBFE",
+                        borderRadius:"9px", padding:"11px 14px",
+                        fontSize:"12px", color:"#1E40AF", lineHeight:1.65 }}>
+                        <strong>💡 </strong>{selectedCourse.tips}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* ── REGULAR COURSE BODY ── */
+                  <div>
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"10px", marginBottom:"16px" }}>
+                      {[["Credits",selectedCourse.credits+" cr"],
+                        ["Grade",selectedCourse.gradeLevel.join("/")],
+                        ["Duration",selectedCourse.credits===0.5?"Semester":"Year"]].map(([k,v])=>(
+                        <div key={k} style={{ background:"#F9FAFB", borderRadius:"9px", padding:"11px", textAlign:"center",
+                          border:"1px solid var(--border)" }}>
+                          <div style={{ fontSize:"10px",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",
+                            letterSpacing:"0.06em",marginBottom:"4px" }}>{k}</div>
+                          <div style={{ fontSize:"15px",fontWeight:800,color:"var(--slate)" }}>{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {selectedCourse.isAP&&(
+                      <div style={{ background:"#FFFBEB", border:"1.5px solid #F59E0B", borderRadius:"9px",
+                        padding:"11px 14px", marginBottom:"14px", fontSize:"12px", color:"#78350F", fontWeight:600 }}>
+                        ⭐ AP Course — Weighted on 5.0 scale. AP exam required in May (~$96). Signed contract + parent info session required.
+                      </div>
+                    )}
+                    {selectedCourse.teacherSigRequired&&(
+                      <div style={{ background:"#FEF9C3", border:"1.5px solid #EAB308", borderRadius:"8px",
+                        padding:"8px 13px", marginBottom:"12px", fontSize:"12px", color:"#78350F", fontWeight:600 }}>
+                        ✍️ Teacher/counselor signature required for enrollment
+                      </div>
+                    )}
+                    <div style={{ marginBottom:"14px" }}>
+                      <h3 style={{ fontSize:"11px",fontWeight:800,color:"var(--muted)",textTransform:"uppercase",
+                        letterSpacing:"0.08em",marginBottom:"7px" }}>Description</h3>
+                      <p style={{ fontSize:"13px",color:"var(--text)",lineHeight:1.7 }}>{selectedCourse.desc}</p>
+                    </div>
+                    {selectedCourse.gradeReqs && Object.keys(selectedCourse.gradeReqs).length>0 && (
+                      <div style={{ background:"#F0FDF4", border:"1.5px solid #BBF7D0", borderRadius:"8px",
+                        padding:"10px 13px", marginBottom:"12px" }}>
+                        <div style={{ fontSize:"11px",fontWeight:800,color:"#166534",textTransform:"uppercase",
+                          letterSpacing:"0.06em",marginBottom:"6px" }}>⭐ Grade Requirements</div>
+                        {Object.entries(selectedCourse.gradeReqs).map(([pid,req])=>(
+                          <div key={pid} style={{ fontSize:"12px",color:"#15803D", marginBottom:"3px" }}>
+                            <strong>{getCourseName(pid)}</strong>: {req}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {selectedCourse.concurrentOk && selectedCourse.concurrentOk.length>0 && (
+                      <div style={{ background:"#EFF6FF", border:"1.5px solid #BFDBFE", borderRadius:"8px",
+                        padding:"10px 13px", marginBottom:"12px" }}>
+                        <div style={{ fontSize:"11px",fontWeight:800,color:"#1E40AF",textTransform:"uppercase",
+                          letterSpacing:"0.06em",marginBottom:"4px" }}>🔄 Can take concurrently with</div>
+                        <div style={{ fontSize:"12px",color:"#1D4ED8" }}>
+                          {selectedCourse.concurrentOk.map(id=>getCourseName(id)).join(" or ")}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {!selectedCourse.isOffCampus && (selectedCourse.prereqs.length>0 || (selectedCourse.concurrentOk||[]).length>0) &&(
+                  <div style={{ marginBottom:"14px" }}>
+                    <h3 style={{ fontSize:"11px",fontWeight:800,color:"var(--muted)",textTransform:"uppercase",
+                      letterSpacing:"0.08em",marginBottom:"7px" }}>Prerequisites</h3>
+                    <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
+                      {selectedCourse.prereqs.map(pid=>{
+                        const pc=getCourse(pid);
+                        const equivIds = PREREQ_EQUIV[pid]||[];
+                        return (
+                          <div key={pid} style={{ display:"flex", alignItems:"center", gap:"4px", flexWrap:"wrap" }}>
+                            <div className="prereq-chip" onClick={()=>setSelectedCourse(pc)}
+                              style={{ background:"#FEF2F2", border:"1px solid #FCA5A5", color:"#B91C1C" }}>
+                              {getCourseName(pid)} →
+                            </div>
+                            {equivIds.map(eid=>(
+                              <span key={eid} style={{ display:"flex", alignItems:"center", gap:"4px" }}>
+                                <span style={{ fontSize:"11px", color:"var(--muted)", fontWeight:600 }}>or</span>
+                                <div className="prereq-chip" onClick={()=>setSelectedCourse(getCourse(eid))}
+                                  style={{ background:"#FFF7ED", border:"1px solid #FED7AA", color:"#9A3412" }}>
+                                  {getCourseName(eid)} →
+                                </div>
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {(selectedCourse.concurrentOk||[]).length>0&&(
+                      <div style={{ marginTop:"8px" }}>
+                        <div style={{ fontSize:"11px", color:"#0369A1", fontWeight:700,
+                          marginBottom:"5px" }}>🔄 Can take concurrently with (same year OK):</div>
+                        <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
+                          {(selectedCourse.concurrentOk||[]).map(cid=>{
+                            const equivIds = PREREQ_EQUIV[cid]||[];
+                            return (
+                              <div key={cid} style={{ display:"flex", alignItems:"center", gap:"4px", flexWrap:"wrap" }}>
+                                <div className="prereq-chip" onClick={()=>setSelectedCourse(getCourse(cid))}
+                                  style={{ background:"#EFF6FF", border:"1px solid #93C5FD", color:"#1D4ED8" }}>
+                                  {getCourseName(cid)} 🔄
+                                </div>
+                                {equivIds.map(eid=>(
+                                  <span key={eid} style={{ display:"flex", alignItems:"center", gap:"4px" }}>
+                                    <span style={{ fontSize:"11px", color:"var(--muted)", fontWeight:600 }}>or</span>
+                                    <div className="prereq-chip" onClick={()=>setSelectedCourse(getCourse(eid))}
+                                      style={{ background:"#EFF6FF", border:"1px solid #93C5FD", color:"#1D4ED8" }}>
+                                      {getCourseName(eid)} 🔄
+                                    </div>
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {!selectedCourse.isOffCampus && (()=>{
+                  const unlocks=COURSES.filter(c=>c.prereqs.includes(selectedCourse.id));
+                  return unlocks.length>0?(
+                    <div style={{ marginBottom:"14px" }}>
+                      <h3 style={{ fontSize:"11px",fontWeight:800,color:"var(--muted)",textTransform:"uppercase",
+                        letterSpacing:"0.08em",marginBottom:"7px" }}>Leads To</h3>
+                      <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
+                        {unlocks.map(c=>(
+                          <div key={c.id} className="prereq-chip" onClick={()=>setSelectedCourse(c)}
+                            style={{ background:deptColor(c.dept)+"14",
+                              border:`1px solid ${deptColor(c.dept)}35`, color:deptColor(c.dept) }}>
+                            {c.name}{c.isAP&&" ⭐"}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ):null;
+                })()}
+                {!selectedCourse.isOffCampus && selectedCourse.tips&&(
+                  <div style={{ background:"#EFF6FF", border:"1.5px solid #BFDBFE",
+                    borderRadius:"9px", padding:"12px 14px", fontSize:"13px", color:"#1E40AF",
+                    lineHeight:1.65, marginBottom:"16px" }}>
+                    <strong>💡 Tip: </strong>{selectedCourse.tips}
+                  </div>
+                )}
+                {!selectedCourse.isOffCampus && <div style={{ borderTop:"1px solid var(--border)", paddingTop:"16px" }}>
+                  <p style={{ fontSize:"12px",color:"var(--muted)",marginBottom:"9px",fontWeight:600 }}>
+                    Add to 4-Year Plan:
+                  </p>
+                  <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
+                    {[9,10,11,12].map(g=>{
+                      const already = !selectedCourse.repeatable && plan[g].includes(selectedCourse.id);
+                      const full = gradeSlots(plan, g) >= GRADE_MAX;
+                      const disabled = already || full;
+                      return (
+                        <button key={g} disabled={disabled}
+                          onClick={()=>{
+                            if (disabled) return;
+                            const before = getCoursesBeforeGrade(plan, g);
+                            const upTo = getAllCoursesUpTo(plan, g);
+                            const unmet = getUnmetPrereqs(selectedCourse.id, before, upTo);
+                            if (unmet.length > 0) {
+                              setAddTarget(g);
+                              setPrereqWarn({ courseId: selectedCourse.id, grade: g, unmet });
+                              setSelectedCourse(null);
+                              return;
+                            }
+                            setPlan(p=>{const n=JSON.parse(JSON.stringify(p));if(!selectedCourse.repeatable&&n[g].includes(selectedCourse.id))return p;n[g].push(selectedCourse.id);return n;});
+                            showToast(`Added "${selectedCourse.name}" to Grade ${g}`);
+                            setSelectedCourse(null);
+                          }}
+                          style={{ padding:"8px 16px",fontSize:"13px",fontWeight:700,
+                            cursor:disabled?"not-allowed":"pointer",
+                            borderRadius:"8px",border:"1.5px solid var(--border)",
+                            background:already?"#FFF0F0":full?"#F9FAFB":"white",
+                            color:already?"var(--red)":full?"var(--muted)":"var(--text)",
+                            transition:"all 0.15s",fontFamily:"inherit",
+                            opacity:disabled?0.6:1 }}
+                          onMouseEnter={e=>{ if(!disabled){e.currentTarget.style.background="var(--red)";e.currentTarget.style.color="white";e.currentTarget.style.borderColor="var(--red)";} }}
+                          onMouseLeave={e=>{ if(!disabled){e.currentTarget.style.background="white";e.currentTarget.style.color="var(--text)";e.currentTarget.style.borderColor="var(--border)";} }}>
+                          {already ? `✓ Gr ${g}` : full ? `Full ${g}` : `Grade ${g}`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>}
+
+                {/* RATING SECTION */}
+                {!selectedCourse.isOffCampus && (
+                  <div style={{ borderTop:"1px solid var(--border)", paddingTop:"16px", marginTop:"8px" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between",
+                      alignItems:"center", marginBottom:"10px" }}>
+                      <p style={{ fontSize:"12px", color:"var(--muted)", fontWeight:600 }}>
+                        Rate this course:
+                      </p>
+                      {ratings[selectedCourse.id] ? (
+                        <span style={{ fontSize:"12px", color:"#92400E", fontWeight:700 }}>
+                          ⭐ {ratings[selectedCourse.id].avg.toFixed(1)} · {ratings[selectedCourse.id].count} rating{ratings[selectedCourse.id].count!==1?"s":""}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize:"11px", color:"var(--muted)" }}>No ratings yet — be the first!</span>
+                      )}
+                    </div>
+
+                    {myRatings[selectedCourse.id] ? (
+                      // Already rated
+                      <div style={{ display:"flex", alignItems:"center", gap:"8px",
+                        padding:"10px 14px", background:"#FFFBEB", borderRadius:"9px",
+                        border:"1.5px solid #FDE68A" }}>
+                        <span style={{ fontSize:"18px" }}>
+                          {"★".repeat(myRatings[selectedCourse.id])}{"☆".repeat(5-myRatings[selectedCourse.id])}
+                        </span>
+                        <span style={{ fontSize:"12px", color:"#92400E", fontWeight:600 }}>
+                          You rated this {myRatings[selectedCourse.id]} star{myRatings[selectedCourse.id]!==1?"s":""}
+                        </span>
+                      </div>
+                    ) : pendingRating?.courseId === selectedCourse.id ? (
+                      // Confirm dialog
+                      <div style={{ background:"#FEF9C3", border:"1.5px solid #EAB308",
+                        borderRadius:"10px", padding:"12px 14px" }}>
+                        <div style={{ fontSize:"13px", color:"#78350F", fontWeight:600, marginBottom:"10px" }}>
+                          Submit {pendingRating.stars} star{pendingRating.stars!==1?"s":""} for this course?
+                        </div>
+                        <div style={{ fontSize:"22px", marginBottom:"10px", letterSpacing:"2px" }}>
+                          {"★".repeat(pendingRating.stars)}{"☆".repeat(5-pendingRating.stars)}
+                        </div>
+                        <div style={{ display:"flex", gap:"8px" }}>
+                          <button onClick={()=>submitRating(pendingRating.courseId, pendingRating.stars)}
+                            style={{ flex:1, background:"#B45309", color:"white", border:"none",
+                              borderRadius:"7px", padding:"8px", fontSize:"12px",
+                              fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                            Confirm
+                          </button>
+                          <button onClick={()=>{ setPendingRating(null); setHoverStar(0); }}
+                            style={{ flex:1, background:"white", color:"#374151",
+                              border:"1.5px solid #D1D5DB", borderRadius:"7px",
+                              padding:"8px", fontSize:"12px", fontWeight:600,
+                              cursor:"pointer", fontFamily:"inherit" }}>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      // Star picker
+                      <div style={{ display:"flex", gap:"6px", alignItems:"center" }}>
+                        {[1,2,3,4,5].map(star => (
+                          <span key={star}
+                            onMouseEnter={()=>setHoverStar(star)}
+                            onMouseLeave={()=>setHoverStar(0)}
+                            onClick={()=>setPendingRating({ courseId: selectedCourse.id, stars: star })}
+                            style={{ fontSize:"28px", cursor:"pointer",
+                              color: star <= (hoverStar || 0) ? "#F59E0B" : "#D1D5DB",
+                              transition:"color 0.1s", lineHeight:1 }}>
+                            ★
+                          </span>
+                        ))}
+                        {hoverStar > 0 && (
+                          <span style={{ fontSize:"12px", color:"var(--muted)", marginLeft:"4px" }}>
+                            {["","Poor","Fair","Good","Great","Excellent"][hoverStar]}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── ADD COURSE MODAL ── */}
+        {addTarget!==null&&(
+          <div className="overlay" onClick={()=>{ setAddTarget(null); setAddSearch(""); setPrereqWarn(null); }}>
+            <div className="modal" style={{ maxWidth:"450px" }} onClick={e=>e.stopPropagation()}>
+              <div style={{ padding:"20px 22px", borderBottom:"1px solid var(--border)" }}>
+                <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:"19px", color:"var(--red-dark)", marginBottom:"3px" }}>
+                  Add Course to Grade {addTarget}
+                </h2>
+                <p style={{ fontSize:"13px",color:"var(--muted)" }}>Search by name, code, or department · ⚠️ = missing prereqs</p>
+              </div>
+              <div style={{ padding:"14px 18px" }}>
+                <input className="si" placeholder="e.g. Chemistry, AP, Japanese, Engineering…"
+                  autoFocus value={addSearch} onChange={e=>setAddSearch(e.target.value)}
+                  style={{ marginBottom:"10px" }} />
+
+                {/* Prereq warning dialog */}
+                {prereqWarn && (
+                  <div style={{ background:"#FEF9C3", border:"1.5px solid #EAB308", borderRadius:"10px",
+                    padding:"12px 14px", marginBottom:"10px" }}>
+                    <div style={{ fontWeight:700, fontSize:"13px", color:"#78350F", marginBottom:"6px" }}>
+                      ⚠️ Missing Prerequisites
+                    </div>
+                    <div style={{ fontSize:"12px", color:"#78350F", marginBottom:"10px" }}>
+                      <strong>{getCourse(prereqWarn.courseId)?.name}</strong> requires:
+                      <ul style={{ marginTop:"4px", paddingLeft:"18px" }}>
+                        {prereqWarn.unmet.map(pid=>(
+                          <li key={pid}>{getPrereqDisplay(pid)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div style={{ display:"flex", gap:"8px" }}>
+                      <button onClick={()=>forceAddCourse(prereqWarn.courseId)}
+                        style={{ flex:1, background:"#B45309", color:"white", border:"none", borderRadius:"7px",
+                          padding:"8px", fontSize:"12px", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                        Add Anyway
+                      </button>
+                      <button onClick={()=>setPrereqWarn(null)}
+                        style={{ flex:1, background:"white", color:"#374151", border:"1.5px solid #D1D5DB",
+                          borderRadius:"7px", padding:"8px", fontSize:"12px", fontWeight:600,
+                          cursor:"pointer", fontFamily:"inherit" }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {addTarget && gradeSlots(plan, addTarget) >= GRADE_MAX && (
+                  <div style={{ background:"#FEF3C7", border:"1.5px solid #F59E0B", borderRadius:"9px",
+                    padding:"10px 14px", marginBottom:"12px", fontSize:"12px", color:"#78350F", fontWeight:600 }}>
+                    ✋ Grade {addTarget} is at the {GRADE_MAX}-slot limit. Remove a course first.
+                  </div>
+                )}
+                <div style={{ maxHeight:"320px", overflowY:"auto" }}>
+                  {addSearchResults.map(c=>{
+                    const already = !c.repeatable && plan[addTarget].includes(c.id);
+                    const courseSlots = c.id==="OFF_CAMPUS"?1:(c.credits||0);
+                    const atCap = gradeSlots(plan, addTarget) + (already?0:courseSlots) > GRADE_MAX;
+                    const blocked = already || atCap;
+                    const completedBefore = getCoursesBeforeGrade(plan, addTarget);
+                    const completedUpTo = getAllCoursesUpTo(plan, addTarget);
+                    const unmet = c.id==="OFF_CAMPUS" ? [] : getUnmetPrereqs(c.id, completedBefore, completedUpTo);
+                    const hasWarn = unmet.length > 0;
+                    return (
+                      <div key={c.id} onClick={()=>{ if(!blocked) addCourseToPlan(c.id); }}
+                        style={{ display:"flex",alignItems:"center",gap:"10px",padding:"9px 10px",
+                          borderRadius:"8px",cursor:blocked?"default":"pointer",transition:"background 0.12s",
+                          background:already?"#FFF0F0":"transparent",opacity:blocked?0.45:1 }}
+                        onMouseEnter={e=>{ if(!blocked) e.currentTarget.style.background="var(--light-red)"; }}
+                        onMouseLeave={e=>{ e.currentTarget.style.background=already?"#FFF0F0":"transparent"; }}>
+                        <div style={{ width:"8px",height:"8px",borderRadius:"50%",flexShrink:0,background:deptColor(c.dept) }}/>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:"13px",fontWeight:700,color:"var(--text)",
+                            whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>
+                            {c.id==="OFF_CAMPUS"?"🚗 "+c.name:c.name}{c.isAP&&" ⭐"}
+                          </div>
+                          <div style={{ fontSize:"11px",color: hasWarn?"#D97706":"var(--muted)" }}>
+                            {c.dept} · {c.credits>0?c.credits+"cr":"free period"} · Gr {c.gradeLevel.join("/")}
+                            {c.repeatable&&" · can add multiple times"}
+                            {hasWarn && ` · ⚠️ needs: ${unmet.map(getCourseName).join(", ")}`}
+                          </div>
+                        </div>
+                        {already
+                          ?<span style={{ fontSize:"11px",color:"var(--red)",fontWeight:700,flexShrink:0 }}>Added</span>
+                          :<span style={{ fontSize:"20px",color: hasWarn?"#D97706":"var(--red)",flexShrink:0 }}>{hasWarn?"⚠️":"+"}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* ── DATA CITATION FOOTER ── */}
+      <DataCitationFooter />
+
+      {/* ── TOAST ── */}
+      {toast && (
+        <div style={{ position:"fixed", bottom:"28px", left:"50%", transform:"translateX(-50%)",
+          background:"#1C2B3A", color:"white", padding:"11px 22px", borderRadius:"10px",
+          fontSize:"13px", fontWeight:600, boxShadow:"0 4px 20px rgba(0,0,0,0.3)",
+          zIndex:2000, animation:"fadeIn 0.2s ease", pointerEvents:"none",
+          display:"flex", alignItems:"center", gap:"8px" }}>
+          ✅ {toast}
+        </div>
+      )}
+    </>
+  );
+}
+
+function DataCitationFooter() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <footer style={{ background:"#F1F5F9", borderTop:"1px solid #E2E8F0", padding:"14px 24px",
+        display:"flex", alignItems:"center", justifyContent:"center", gap:"16px", flexWrap:"wrap" }}>
+        <span style={{ fontSize:"12px", color:"#64748B", lineHeight:1.5 }}>
+          📋 Course data sourced from{" "}
+          <em>Kalani High School 2026–27 Registration Guide & Course Catalog</em>{" "}
+          and{" "}
+          <em>Hawaii DOE Graduation Requirements (July 2023)</em>.
+          For planning reference only.
+        </span>
+        <a href="https://www.kalanihighschool.org/admissions/course-registration-information/"
+          target="_blank" rel="noopener noreferrer"
+          style={{ fontSize:"11px", color:"#0369A1", background:"#EFF6FF", border:"1px solid #BFDBFE",
+            borderRadius:"6px", padding:"4px 10px", textDecoration:"none", whiteSpace:"nowrap", fontWeight:700 }}>
+          📋 Official Catalog ↗
+        </a>
+        <button onClick={()=>setOpen(true)}
+          style={{ fontSize:"11px", color:"#475569", background:"white", border:"1px solid #CBD5E1",
+            borderRadius:"6px", padding:"4px 10px", cursor:"pointer", whiteSpace:"nowrap",
+            fontFamily:"inherit" }}>
+          Data Sources &amp; Disclaimer ›
+        </button>
+      </footer>
+
+      {open && (
+        <div className="overlay" onClick={()=>setOpen(false)}>
+          <div className="modal" onClick={e=>e.stopPropagation()}
+            style={{ maxWidth:"520px", width:"92vw" }}>
+            <div style={{ padding:"24px 26px", borderBottom:"1px solid #E5E7EB",
+              display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <h2 style={{ fontSize:"17px", fontWeight:700, color:"#1C2B3A",
+                fontFamily:"'Playfair Display',serif" }}>Data Sources &amp; Disclaimer</h2>
+              <button onClick={()=>setOpen(false)}
+                style={{ background:"#FFF1F0", border:"none", borderRadius:"50%", width:"32px",
+                  height:"32px", cursor:"pointer", fontSize:"16px", color:"#B00804" }}>✕</button>
+            </div>
+            <div style={{ padding:"22px 26px", display:"flex", flexDirection:"column", gap:"16px" }}>
+              {[
+                { icon:"📖", label:"Primary Source", text:"Kalani High School 2024–2025 Manual of Studies. All course names, codes, credit values, grade levels, and prerequisite chains are derived from this document." },
+                { icon:"🎓", label:"Graduation Requirements", text:"Hawaii Department of Education Graduation Requirements, effective July 2023. Credit minimums and subject-area breakdowns follow this policy document." },
+                { icon:"⚠️", label:"Planning Reference Only", text:"Kalani Compass is an unofficial planning tool built by a student volunteer. It is not affiliated with Kalani High School or the Hawaii DOE. Course availability, prerequisites, and requirements may change. Always confirm your 4-year plan with your school counselor before submitting your registration card." },
+                { icon:"🔄", label:"Last Data Update", text:"Course catalog last reviewed: March 2026. Based on the 2026–2027 Kalani High School Course Catalog (Manual of Studies)." },
+              ].map(({icon,label,text})=>(
+                <div key={label} style={{ display:"flex", gap:"13px", alignItems:"flex-start" }}>
+                  <span style={{ fontSize:"20px", flexShrink:0, marginTop:"2px" }}>{icon}</span>
+                  <div>
+                    <div style={{ fontSize:"12px", fontWeight:700, color:"#475569",
+                      textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px" }}>{label}</div>
+                    <div style={{ fontSize:"13px", color:"#374151", lineHeight:1.6 }}>{text}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
