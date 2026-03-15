@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { supabase } from "./src/supabase.js";
 
 // ─── BACKEND ADAPTER ─────────────────────────────────────────────────────────────────────────────────
 // V2: data is hardcoded below. V3: swap useCourseData() to fetch from Supabase/Firebase.
@@ -9,7 +10,26 @@ function useCourseData() {
   return { courses: COURSES, gradReqs: GRAD_REQUIREMENTS, loading: false, error: null };
 }
 function useAnnouncements() {
-  return { announcements: [], loading: false };
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAnnouncements() {
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("announcements")
+        .select("*")
+        .eq("visible", true)
+        .or(`ends_at.is.null,ends_at.gte.${now}`)
+        .order("created_at", { ascending: false });
+
+      if (!error && data) setAnnouncements(data);
+      setLoading(false);
+    }
+    fetchAnnouncements();
+  }, []);
+
+  return { announcements, loading };
 }
 // ─────────────────────────────────────────────────────────────────────────────────
 
@@ -992,6 +1012,30 @@ export default function KalaniPlanner() {
           ))}
           <div style={{ marginLeft:"auto" }} />
         </nav>
+
+        {/* ANNOUNCEMENT BANNER */}
+        {announcements.map(a => (
+          <div key={a.id} style={{
+            background: a.type==="warning" ? "#FEF9C3"
+                      : a.type==="new"     ? "#F0FDF4"
+                      : "#EFF6FF",
+            borderBottom: `2px solid ${
+              a.type==="warning" ? "#EAB308"
+            : a.type==="new"    ? "#22C55E"
+            : "#3B82F6"}`,
+            padding:"10px 24px",
+            display:"flex", alignItems:"center", gap:"10px",
+            fontSize:"13px", fontWeight:600,
+            color: a.type==="warning" ? "#78350F"
+                 : a.type==="new"     ? "#166534"
+                 : "#1E40AF"
+          }}>
+            <span style={{ fontSize:"16px" }}>
+              {a.type==="warning" ? "⚠️" : a.type==="new" ? "🆕" : "📢"}
+            </span>
+            <span><strong>{a.title}</strong>{a.body ? ` — ${a.body}` : ""}</span>
+          </div>
+        ))}
 
         {/* ── HOME ── */}
         {page==="home" && (
