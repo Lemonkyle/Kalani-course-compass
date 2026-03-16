@@ -57,36 +57,113 @@ function Tag({ label, color, onRemove }) {
   );
 }
 
-function ArrayInput({ value, onChange, placeholder }) {
-  const [input, setInput] = useState("");
-  function add() {
-    const v = input.trim();
-    if (v && !value.includes(v)) { onChange([...value, v]); }
-    setInput("");
+function CourseSearchInput({ value, onChange, allCourses }) {
+  const [query, setQuery]       = useState("");
+  const [focused, setFocused]   = useState(false);
+
+  const results = query.trim().length > 0
+    ? allCourses.filter(c =>
+        !value.includes(c.id) &&
+        (c.name.toLowerCase().includes(query.toLowerCase()) ||
+         c.id.toLowerCase().includes(query.toLowerCase()) ||
+         (c.code||"").toLowerCase().includes(query.toLowerCase()))
+      ).slice(0, 4)
+    : [];
+
+  function addCourse(c) {
+    onChange([...value, c.id]);
+    setQuery("");
   }
+
+  const col = (dept) => ({
+    "English":"#C84B31","Mathematics":"#059669","Social Studies":"#7C3AED",
+    "Science":"#D97706","Health & PE":"#0891B2","CTE":"#B00804",
+    "World Language":"#0284C7","Fine Arts":"#DB2777",
+    "Miscellaneous":"#6B7280","Off Campus":"#475569",
+  }[dept] || "#6B7280");
+
   return (
     <div>
-      <div style={{ display:"flex", gap:"6px", flexWrap:"wrap", marginBottom:"6px" }}>
-        {value.map(v => (
-          <Tag key={v} label={v} color="#6B7280"
-            onRemove={()=>onChange(value.filter(x=>x!==v))} />
-        ))}
-      </div>
-      <div style={{ display:"flex", gap:"6px" }}>
-        <input value={input} onChange={e=>setInput(e.target.value)}
-          onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); add(); } }}
-          placeholder={placeholder}
-          style={{ flex:1, padding:"7px 10px", borderRadius:"7px",
-            border:"1.5px solid #E5E7EB", fontSize:"12px", outline:"none",
-            fontFamily:"inherit" }}
-          onFocus={e=>e.target.style.borderColor="#B00804"}
-          onBlur={e=>e.target.style.borderColor="#E5E7EB"}
+      {/* Selected tags */}
+      {value.length > 0 && (
+        <div style={{ display:"flex", gap:"6px", flexWrap:"wrap", marginBottom:"8px" }}>
+          {value.map(id => {
+            const c = allCourses.find(x=>x.id===id);
+            return (
+              <span key={id} style={{ display:"inline-flex", alignItems:"center", gap:"5px",
+                background: c ? col(c.dept)+"18" : "#F3F4F6",
+                border:`1px solid ${c ? col(c.dept)+"40" : "#E5E7EB"}`,
+                color: c ? col(c.dept) : "#6B7280",
+                borderRadius:"6px", padding:"3px 9px",
+                fontSize:"12px", fontWeight:600 }}>
+                <span style={{ fontWeight:800 }}>{id}</span>
+                {c && <span style={{ fontWeight:400, opacity:0.75 }}>· {c.name}</span>}
+                <span onClick={()=>onChange(value.filter(x=>x!==id))}
+                  style={{ cursor:"pointer", opacity:0.6, fontSize:"12px",
+                    marginLeft:"2px", lineHeight:1 }}>×</span>
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Search input */}
+      <div style={{ position:"relative" }}>
+        <input
+          value={query}
+          onChange={e=>setQuery(e.target.value)}
+          onFocus={()=>setFocused(true)}
+          onBlur={()=>setTimeout(()=>setFocused(false), 150)}
+          placeholder="Search course name or ID…"
+          style={{ width:"100%", padding:"8px 11px", borderRadius:"7px",
+            border:`1.5px solid ${focused?"#B00804":"#E5E7EB"}`,
+            fontSize:"12px", outline:"none", fontFamily:"inherit",
+            boxSizing:"border-box", transition:"border 0.15s" }}
         />
-        <button onClick={add} type="button"
-          style={{ padding:"7px 12px", background:"#F3F4F6", border:"1px solid #E5E7EB",
-            borderRadius:"7px", fontSize:"12px", cursor:"pointer", fontFamily:"inherit" }}>
-          Add
-        </button>
+
+        {/* Dropdown */}
+        {focused && results.length > 0 && (
+          <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, right:0,
+            background:"white", border:"1.5px solid #E5E7EB", borderRadius:"9px",
+            boxShadow:"0 8px 24px rgba(0,0,0,0.1)", zIndex:500, overflow:"hidden" }}>
+            {results.map(c => (
+              <div key={c.id} onMouseDown={()=>addCourse(c)}
+                style={{ display:"flex", alignItems:"center", gap:"10px",
+                  padding:"9px 12px", cursor:"pointer", borderBottom:"1px solid #F3F4F6",
+                  transition:"background 0.1s" }}
+                onMouseEnter={e=>e.currentTarget.style.background="#FFF1F0"}
+                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <div style={{ width:"8px", height:"8px", borderRadius:"50%",
+                  background:col(c.dept), flexShrink:0 }}/>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:"13px", fontWeight:700, color:"#111827",
+                    display:"flex", alignItems:"center", gap:"6px" }}>
+                    <span style={{ fontFamily:"monospace", fontSize:"11px",
+                      background:"#F3F4F6", color:"#374151", padding:"1px 6px",
+                      borderRadius:"4px" }}>{c.id}</span>
+                    <span style={{ overflow:"hidden", textOverflow:"ellipsis",
+                      whiteSpace:"nowrap" }}>{c.name}</span>
+                  </div>
+                  <div style={{ fontSize:"11px", color:"#9CA3AF", marginTop:"1px" }}>
+                    {c.cte_path||c.fine_arts_type||c.misc_type||c.dept} · {c.credits}cr · Gr {(c.grade_level||[]).join("/")}
+                  </div>
+                </div>
+                <span style={{ fontSize:"11px", color:"#B00804", fontWeight:700,
+                  flexShrink:0 }}>Add →</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* No results hint */}
+        {focused && query.trim().length > 0 && results.length === 0 && (
+          <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, right:0,
+            background:"white", border:"1.5px solid #E5E7EB", borderRadius:"9px",
+            padding:"10px 14px", fontSize:"12px", color:"#9CA3AF",
+            boxShadow:"0 8px 24px rgba(0,0,0,0.1)", zIndex:500 }}>
+            No courses found for "{query}"
+          </div>
+        )}
       </div>
     </div>
   );
@@ -651,16 +728,16 @@ export default function CoursePanel() {
 
             {/* Prereqs + Concurrent */}
             <div style={{ marginBottom:"12px" }}>
-              {label("Prerequisites", "course IDs — press Enter to add each")}
-              <ArrayInput value={form.prereqs}
+              {label("Prerequisites", "search and click to add")}
+              <CourseSearchInput value={form.prereqs}
                 onChange={v=>setForm(f=>({...f,prereqs:v}))}
-                placeholder="e.g. ALG2" />
+                allCourses={courses} />
             </div>
             <div style={{ marginBottom:"12px" }}>
               {label("Concurrent OK", "can be taken same year")}
-              <ArrayInput value={form.concurrent_ok}
+              <CourseSearchInput value={form.concurrent_ok}
                 onChange={v=>setForm(f=>({...f,concurrent_ok:v}))}
-                placeholder="e.g. TRIG" />
+                allCourses={courses} />
             </div>
 
             {/* Grad category */}
