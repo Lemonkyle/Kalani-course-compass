@@ -33,8 +33,29 @@ function normalizeCourse(row) {
   };
 }
 
+// Custom dept + grade sort order matching original catalog
+const DEPT_ORDER = [
+  "English","Social Studies","Mathematics","Science",
+  "Health & PE","CTE","World Language","Fine Arts","Miscellaneous","Off Campus"
+];
+
+function sortCourses(arr) {
+  return [...arr].sort((a, b) => {
+    // 1. Dept order
+    const di = DEPT_ORDER.indexOf(a.dept);
+    const dj = DEPT_ORDER.indexOf(b.dept);
+    if (di !== dj) return (di === -1 ? 99 : di) - (dj === -1 ? 99 : dj);
+    // 2. Within dept: lowest grade level first
+    const gi = Math.min(...(a.gradeLevel || a.grade_level || [99]));
+    const gj = Math.min(...(b.gradeLevel || b.grade_level || [99]));
+    if (gi !== gj) return gi - gj;
+    // 3. Alphabetical within same grade
+    return (a.name || "").localeCompare(b.name || "");
+  });
+}
+
 function useCourseData() {
-  const [courses, setCourses] = useState(COURSES);
+  const [courses, setCourses] = useState(sortCourses(COURSES));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,7 +64,6 @@ function useCourseData() {
         .from("courses")
         .select("*")
         .eq("archived", false)
-        .order("dept")
         .limit(500);
 
       if (error) {
@@ -54,7 +74,7 @@ function useCourseData() {
       }
       if (data && data.length > 0) {
         console.log("[Kalani Compass] fetchCourses: got", data.length, "courses from Supabase");
-        setCourses(data.map(normalizeCourse));
+        setCourses(sortCourses(data.map(normalizeCourse)));
       } else {
         console.warn("[Kalani Compass] fetchCourses: empty response, using local fallback");
       }
