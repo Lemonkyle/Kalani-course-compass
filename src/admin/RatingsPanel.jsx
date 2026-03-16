@@ -105,7 +105,7 @@ export default function RatingsPanel() {
           ["Total ratings",   totalRatings, "#B00804"],
           ["Overall average", overallAvg > 0 ? overallAvg.toFixed(2) : "—", "#F59E0B"],
           ["Courses rated",   coursesRated, "#7C3AED"],
-          ["Semesters",       semesters.length - 1, "#059669"],
+          ["Academic years",  semesters.length - 1, "#059669"],
         ].map(([lbl,val,color])=>(
           <div key={lbl} style={{ background:"white", border:"1px solid #E5E7EB",
             borderRadius:"10px", padding:"12px 14px" }}>
@@ -231,7 +231,7 @@ export default function RatingsPanel() {
             <div style={{ padding:"12px 16px", fontSize:"12px", color:"#9CA3AF",
               textAlign:"center", borderTop:"1px solid #F3F4F6" }}>
               {rows.length} course{rows.length!==1?"s":""} with ratings
-              {filterSem !== "All" && ` · ${filterSem}`}
+              {filterSem !== "All" && ` · ${filterSem} academic year`}
             </div>
           </>
         )}
