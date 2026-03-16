@@ -12,6 +12,9 @@ const DEPT_COLORS = {
 };
 
 const GRAD_CATEGORIES = ["english","ss","math","science","wlfa","pe","health","ptp","electives"];
+const CTE_PATHS       = ["AFNR","Business","Arts & Media","Engineering","Health Services","Culinary Arts","Computer Science","JROTC"];
+const FINE_ARTS_TYPES = ["Performing","Visual"];
+const MISC_TYPES      = ["General","Journalism","ESOL"];
 
 const EMPTY_FORM = {
   id:"", code:"", name:"", subtitle:"", dept:"English",
@@ -551,7 +554,11 @@ export default function CoursePanel() {
             <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:"12px", marginBottom:"12px" }}>
               <div>
                 {label("Department *")}
-                <select value={form.dept} onChange={e=>setForm(f=>({...f,dept:e.target.value}))}
+                <select value={form.dept}
+                  onChange={e=>setForm(f=>({...f,
+                    dept:e.target.value,
+                    cte_path:"", fine_arts_type:"", misc_type:""
+                  }))}
                   style={{...inp.style, cursor:"pointer", background:"white"}}
                   onFocus={inp.onFocus} onBlur={inp.onBlur}>
                   {DEPTS.filter(d=>d!=="All").map(d=><option key={d} value={d}>{d}</option>)}
@@ -567,6 +574,56 @@ export default function CoursePanel() {
                 </select>
               </div>
             </div>
+
+            {/* Sub-type selector — shown only for CTE / Fine Arts / Miscellaneous */}
+            {form.dept === "CTE" && (
+              <div style={{ marginBottom:"12px" }}>
+                {label("CTE Pathway *")}
+                <select value={form.cte_path}
+                  onChange={e=>setForm(f=>({...f,cte_path:e.target.value}))}
+                  style={{...inp.style, cursor:"pointer", background:"white"}}
+                  onFocus={inp.onFocus} onBlur={inp.onBlur}>
+                  <option value="">— Select pathway —</option>
+                  {CTE_PATHS.map(p=><option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+            )}
+            {form.dept === "Fine Arts" && (
+              <div style={{ marginBottom:"12px" }}>
+                {label("Fine Arts Type *")}
+                <div style={{ display:"flex", gap:"8px" }}>
+                  {FINE_ARTS_TYPES.map(t=>(
+                    <div key={t} onClick={()=>setForm(f=>({...f,fine_arts_type:t}))}
+                      style={{ flex:1, padding:"9px", borderRadius:"8px", cursor:"pointer",
+                        textAlign:"center", fontSize:"13px", fontWeight:600,
+                        transition:"all 0.15s", userSelect:"none",
+                        border:`1.5px solid ${form.fine_arts_type===t?"#DB2777":"#E5E7EB"}`,
+                        background:form.fine_arts_type===t?"#FDF2F8":"white",
+                        color:form.fine_arts_type===t?"#DB2777":"#6B7280" }}>
+                      {t === "Performing" ? "🎭 Performing" : "🎨 Visual"}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {form.dept === "Miscellaneous" && (
+              <div style={{ marginBottom:"12px" }}>
+                {label("Miscellaneous Type *")}
+                <div style={{ display:"flex", gap:"8px" }}>
+                  {MISC_TYPES.map(t=>(
+                    <div key={t} onClick={()=>setForm(f=>({...f,misc_type:t}))}
+                      style={{ flex:1, padding:"9px", borderRadius:"8px", cursor:"pointer",
+                        textAlign:"center", fontSize:"13px", fontWeight:600,
+                        transition:"all 0.15s", userSelect:"none",
+                        border:`1.5px solid ${form.misc_type===t?"#6B7280":"#E5E7EB"}`,
+                        background:form.misc_type===t?"#F9FAFB":"white",
+                        color:form.misc_type===t?"#374151":"#6B7280" }}>
+                      {t}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Grade levels */}
             <div style={{ marginBottom:"12px" }}>
