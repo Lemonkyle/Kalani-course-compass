@@ -1,13 +1,15 @@
 import { useState } from "react";
 import AdminLogin from "./AdminLogin.jsx";
 import AnnPanel from "./AnnPanel.jsx";
+import CoursePanel from "./CoursePanel.jsx";
+import RatingsPanel from "./RatingsPanel.jsx";
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');`;
 
 const NAV_ITEMS = [
   { id:"announcements", label:"Announcements", icon:"📢" },
-  { id:"courses",       label:"Courses",       icon:"📚", soon:true },
-  { id:"ratings",       label:"Ratings",       icon:"⭐", soon:true },
+  { id:"courses",       label:"Courses",       icon:"📚" },
+  { id:"ratings",       label:"Ratings",       icon:"⭐" },
 ];
 
 export default function AdminApp() {
@@ -102,26 +104,8 @@ export default function AdminApp() {
           {/* Main content */}
           <main style={{ flex:1, padding:"28px 32px", maxWidth:"900px" }}>
             {tab === "announcements" && <AnnPanel />}
-            {tab === "courses" && (
-              <div style={{ textAlign:"center", padding:"60px", color:"#9CA3AF" }}>
-                <div style={{ fontSize:"36px", marginBottom:"12px" }}>📚</div>
-                <div style={{ fontSize:"16px", fontWeight:600, color:"#6B7280",
-                  marginBottom:"6px" }}>Course management coming soon</div>
-                <div style={{ fontSize:"13px" }}>
-                  Will include course editing, adding new courses, and CSV bulk import
-                </div>
-              </div>
-            )}
-            {tab === "ratings" && (
-              <div style={{ textAlign:"center", padding:"60px", color:"#9CA3AF" }}>
-                <div style={{ fontSize:"36px", marginBottom:"12px" }}>⭐</div>
-                <div style={{ fontSize:"16px", fontWeight:600, color:"#6B7280",
-                  marginBottom:"6px" }}>Ratings overview coming soon</div>
-                <div style={{ fontSize:"13px" }}>
-                  Will show per-course averages and student feedback trends
-                </div>
-              </div>
-            )}
+            {tab === "courses" && <CoursePanel />}
+            {tab === "ratings" && <RatingsPanel />}
           </main>
         </div>
       </div>
