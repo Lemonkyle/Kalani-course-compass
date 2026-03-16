@@ -963,7 +963,8 @@ export default function KalaniPlanner() {
     const semester = (() => {
       const m = new Date().getMonth();
       const y = new Date().getFullYear();
-      return `${y}-${m < 6 ? "Spring" : "Fall"}`;
+      // Academic year: Aug-Dec = current/next, Jan-Jul = prev/current
+      return m >= 7 ? `${y}-${y+1}` : `${y-1}-${y}`;
     })();
 
     const { error } = await supabase.from("ratings").insert({
