@@ -12,6 +12,23 @@ const DEPT_COLORS = {
 };
 
 const GRAD_CATEGORIES = ["english","ss","math","science","wlfa","pe","health","ptp","electives"];
+
+const DEPT_ORDER = [
+  "English","Social Studies","Mathematics","Science",
+  "Health & PE","CTE","World Language","Fine Arts","Miscellaneous","Off Campus"
+];
+
+function sortCourses(arr) {
+  return [...arr].sort((a, b) => {
+    const di = DEPT_ORDER.indexOf(a.dept);
+    const dj = DEPT_ORDER.indexOf(b.dept);
+    if (di !== dj) return (di===-1?99:di) - (dj===-1?99:dj);
+    const gi = Math.min(...(a.grade_level||[99]));
+    const gj = Math.min(...(b.grade_level||[99]));
+    if (gi !== gj) return gi - gj;
+    return (a.name||"").localeCompare(b.name||"");
+  });
+}
 const CTE_PATHS       = ["AFNR","Business","Arts & Media","Engineering","Health Services","Culinary Arts","Computer Science","JROTC"];
 const FINE_ARTS_TYPES = ["Performing","Visual"];
 const MISC_TYPES      = ["General","Journalism","ESOL"];
@@ -121,8 +138,8 @@ export default function CoursePanel() {
   async function fetchCourses() {
     setLoading(true);
     const { data, error } = await supabase
-      .from("courses").select("*").order("dept").order("name");
-    if (!error && data) setCourses(data);
+      .from("courses").select("*");
+    if (!error && data) setCourses(sortCourses(data));
     setLoading(false);
   }
 
