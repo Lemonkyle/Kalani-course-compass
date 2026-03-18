@@ -30,6 +30,25 @@ function normalizeCourse(row) {
     desc:                row.desc || "",
     tips:                row.tips || "",
     gradeReqs:           row.grade_reqs || {},
+    // Off Campus special fields — not stored in Supabase, injected here
+    ...(row.is_off_campus ? {
+      eligibility: [
+        "Met ALL graduation requirements (except ELA 12 & Social Studies)",
+        "Completed the Personal Transition Plan (PTP)",
+        "Have a qualifying reason (see below)",
+      ],
+      reasons: [
+        { label:"✅ Early graduation (Semester A only)", limit:"One semester maximum — Grade 12 Sem A only" },
+        { label:"🟡 Work study / employment during school day", limit:"Requires proof of employment + counselor approval" },
+      ],
+      submissions: [
+        "Google Off Campus Request Form (submitted online)",
+        "Parent/guardian signature on the request form",
+        "Counselor approval prior to off campus period",
+      ],
+      warning: "Off Campus approval is not automatic. All three eligibility conditions must be met and administrative approval granted.",
+      deadline: "See counselor for current deadline",
+    } : {}),
   };
 }
 
