@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "./src/supabase.js";
 
 // ─── BACKEND ADAPTER ─────────────────────────────────────────────────────────────────────────────────
 // V2: data is hardcoded below. V3: swap useCourseData() to fetch from Supabase/Firebase.
@@ -77,16 +78,53 @@ function useCourseData() {
   const [courses, setCourses] = useState(sortCourses(COURSES));
   const [loading, setLoading] = useState(true);
 
-  // preview: skip supabase, local data only
-  return { courses, gradReqs: GRAD_REQUIREMENTS, loading: false, error: null };
+  useEffect(() => {
+    async function fetchCourses() {
+      const { data, error } = await supabase
+        .from("courses")
+        .select("*")
+        .eq("archived", false)
+        .limit(500);
+
+      if (error) {
+        console.error("[Kalani Compass] fetchCourses error:", error.message);
+        // Fallback: keep using local COURSES array
+        setLoading(false);
+        return;
+      }
+      if (data && data.length > 0) {
+        console.log("[Kalani Compass] fetchCourses: got", data.length, "courses from Supabase");
+        setCourses(sortCourses(data.map(normalizeCourse)));
+      } else {
+        console.warn("[Kalani Compass] fetchCourses: empty response, using local fallback");
+      }
+      setLoading(false);
+    }
+    fetchCourses();
+  }, []);
+
+  return { courses, gradReqs: GRAD_REQUIREMENTS, loading, error: null };
 }
 function useAnnouncements() {
-  const [announcements] = useState([{
-    id:"preview1", title:"Kalani Compass — Animation Preview",
-    body:"All framer-motion animations active. Supabase not connected.",
-    type:"info", visible:true, link_url:null
-  }]);
-  return { announcements, loading: false };
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAnnouncements() {
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("announcements")
+        .select("*")
+        .eq("visible", true)
+        .or(`ends_at.is.null,ends_at.gte.${now}`)
+        .order("created_at", { ascending: false });
+      if (!error && data) setAnnouncements(data);
+      setLoading(false);
+    }
+    fetchAnnouncements();
+  }, []);
+
+  return { announcements, loading };
 }
 // ─────────────────────────────────────────────────────────────────────────────────
 
@@ -846,26 +884,33 @@ function calcPlannerCredits(plan) {
   return { cats, total };
 }
 
-// ─── FRAMER MOTION ANIMATION VARIANTS ─────────────────────────
+// ─── FRAMER MOTION VARIANTS ──────────────────────────────────────────────────
 const pageVariants = {
   initial: { opacity:0, y:14, filter:"blur(4px)", scale:0.98 },
-  animate: { opacity:1, y:0, filter:"blur(0px)", scale:1,
+  animate: { opacity:1, y:0,  filter:"blur(0px)", scale:1,
     transition:{ type:"spring", stiffness:300, damping:25, mass:0.8 } },
   exit: { opacity:0, y:-14, filter:"blur(4px)", scale:0.98,
     transition:{ duration:0.18, ease:"easeIn" } },
 };
 const cardVariants = {
   hidden: { height:0, opacity:0, marginBottom:0 },
-  show:   { height:"auto", opacity:1, marginBottom:8,
-    transition:{ height:{ type:"spring", stiffness:400, damping:30 } } },
-  exit:   { height:0, opacity:0, marginBottom:0,
-    transition:{ delay:0.15, height:{ type:"spring", stiffness:400, damping:30 },
-      opacity:{delay:0.15}, marginBottom:{delay:0.15} } },
+  show: {
+    height:"auto", opacity:1, marginBottom:8,
+    transition:{ height:{ type:"spring", stiffness:400, damping:30 } }
+  },
+  exit: {
+    height:0, opacity:0, marginBottom:0,
+    transition:{ delay:0.15,
+      height:{ type:"spring", stiffness:400, damping:30 },
+      opacity:{ delay:0.15 }, marginBottom:{ delay:0.15 } }
+  },
 };
 const contentVariants = {
   hidden: { x:50, opacity:0, scale:0.95 },
-  show:   { x:0, opacity:1, scale:1, transition:{ type:"spring", stiffness:350, damping:25, delay:0.05 } },
-  exit:   { x:-60, opacity:0, scale:0.95, filter:"blur(8px)", transition:{ type:"spring", stiffness:400, damping:25 } },
+  show: { x:0, opacity:1, scale:1,
+    transition:{ type:"spring", stiffness:350, damping:25, delay:0.05 } },
+  exit: { x:-60, opacity:0, scale:0.95, filter:"blur(8px)",
+    transition:{ type:"spring", stiffness:400, damping:25 } },
 };
 const shakeAnim = { x:[0,-8,8,-6,6,-3,3,0], transition:{ duration:0.4, ease:"easeInOut" } };
 
@@ -949,8 +994,44 @@ export default function KalaniPlanner() {
     return "fp_" + Math.abs(hash).toString(36);
   }
 
-  // preview: no Supabase
-  async function fetchRatings() { return; }
+  // Fetch latest ratings from Supabase and update state
+  async function fetchRatings() {
+    const { data, error } = await supabase
+      .from("ratings")
+      .select("course_id, rating, fingerprint")
+      .limit(10000);
+
+    if (error) {
+      console.error("[Kalani Compass] fetchRatings error:", error.message, error);
+      return;
+    }
+    if (!data || data.length === 0) {
+      console.log("[Kalani Compass] fetchRatings: no data returned");
+      setRatings({});
+      return;
+    }
+
+    console.log("[Kalani Compass] fetchRatings: got", data.length, "rows");
+
+    const fp = getFingerprint();
+    const grouped = {};
+    const mine = {};
+
+    data.forEach(r => {
+      if (!grouped[r.course_id]) grouped[r.course_id] = { total: 0, count: 0 };
+      grouped[r.course_id].total += r.rating;
+      grouped[r.course_id].count += 1;
+      if (r.fingerprint === fp) mine[r.course_id] = r.rating;
+    });
+
+    const averaged = {};
+    Object.entries(grouped).forEach(([cid, v]) => {
+      averaged[cid] = { avg: v.total / v.count, count: v.count };
+    });
+
+    setRatings(averaged);
+    setMyRatings(mine);
+  }
 
   // Load ratings on mount
   useEffect(() => { fetchRatings(); }, []);
@@ -964,7 +1045,20 @@ export default function KalaniPlanner() {
       return m >= 7 ? `${y}-${y+1}` : `${y-1}-${y}`;
     })();
 
-    // preview: just update local state
+    const { error } = await supabase.from("ratings").insert({
+      course_id: courseId,
+      rating: stars,
+      semester,
+      fingerprint: fp,
+    });
+
+    if (error) {
+      showToast("Could not submit rating. You may have already rated this course.");
+      return;
+    }
+
+    // Re-fetch everything from Supabase — gets accurate count + includes other people's ratings
+    await fetchRatings();
     showToast(`⭐ Rated ${stars} star${stars > 1 ? "s" : ""} — thanks!`);
     setPendingRating(null);
     setHoverStar(0);
@@ -1244,11 +1338,12 @@ export default function KalaniPlanner() {
               {page===id && (
                 <motion.div layoutId="nav-pill"
                   style={{ position:"absolute", inset:0, borderRadius:"8px",
-                    background:"rgba(255,255,255,0.22)", boxShadow:"0 2px 8px rgba(0,0,0,0.15) inset" }}
+                    background:"rgba(255,255,255,0.22)",
+                    boxShadow:"0 2px 8px rgba(0,0,0,0.15) inset" }}
                   transition={{ type:"spring", stiffness:400, damping:28 }}/>
               )}
               <span style={{ position:"relative", zIndex:1, fontWeight:600, fontSize:"14px",
-                color: page===id ? "white" : "rgba(255,255,255,0.65)",
+                color: page===id?"white":"rgba(255,255,255,0.65)",
                 transition:"color 0.2s", whiteSpace:"nowrap" }}>
                 {label}
               </span>
@@ -1463,7 +1558,9 @@ export default function KalaniPlanner() {
                   ))}
                 </div>
               </div>
-          </motion.div>)}
+            </div>
+          </div>
+        </motion.div>)}
 
         {/* ── CATALOG ── */}
         {page==="catalog" && (
@@ -1594,7 +1691,9 @@ export default function KalaniPlanner() {
                   <p style={{ fontSize:"13px" }}>Try a different search term or department filter</p>
                 </div>
               )}
-          </motion.div>)}
+            </div>
+          </div>
+        </motion.div>)}
 
         {/* ── PLANNER ── */}
         {page==="planner" && (
@@ -1634,7 +1733,7 @@ export default function KalaniPlanner() {
                   Click a course name to view details · ⚠️ = missing prereq · Click × to remove
                 </p>
 
-                <div className="plan-grid" style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:"16px", marginBottom:"16px" }}>
+                <div className="plan-grid" style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:"16px", marginBottom:"8px" }}>
                 {[9,10,11,12].map(grade=>{
                   const gradeCredits = plan[grade].reduce((s,cid)=>{ const c=getCourse(cid); return s+(c?.credits||0); },0);
                   const usedSlots = gradeSlots(plan, grade);
@@ -1642,16 +1741,14 @@ export default function KalaniPlanner() {
                   return (
                     <motion.div key={grade}
                       animate={shakeGrade===grade ? shakeAnim : {}}>
-                      <div style={{ background:"white", borderRadius:"20px",
-                        border:"1px solid #E2E8F0",
+                      <div style={{ background:"white", borderRadius:"20px", border:"1px solid #E2E8F0",
                         boxShadow:"0 1px 4px rgba(0,0,0,0.05)", overflow:"hidden" }}>
                         <div style={{ padding:"16px 18px 12px", borderBottom:"1px solid #F1F5F9",
                           display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
                           <h2 style={{ fontSize:"20px", fontWeight:900, color:"#0F172A",
                             letterSpacing:"-0.04em", lineHeight:1 }}>Grade {grade}</h2>
                           <span style={{ fontSize:"11px", fontWeight:700,
-                            color:atCap?"#F59E0B":"#94A3B8",
-                            background:atCap?"#FEF9C3":"#F8FAFC",
+                            color:atCap?"#F59E0B":"#94A3B8", background:atCap?"#FEF9C3":"#F8FAFC",
                             padding:"3px 8px", borderRadius:"999px",
                             border:`1px solid ${atCap?"#FDE68A":"#E2E8F0"}` }}>
                             {usedSlots.toFixed(1)}/{GRADE_MAX}
@@ -1682,18 +1779,19 @@ export default function KalaniPlanner() {
                                     border:`1px solid ${isOffCampus?"#CBD5E1":col+"28"}`,
                                     borderRadius:"12px", overflow:"hidden",
                                     position:"relative", marginBottom:"6px" }}>
-                                  {/* Left color bar */}
+                                  {/* Left colour bar */}
                                   <div style={{ width:"4px", alignSelf:"stretch",
                                     background:isOffCampus?"#475569":col, flexShrink:0 }}/>
-                                  {/* Skewed shimmer on entry */}
+                                  {/* Skewed shimmer — dept colour so it shows on white bg */}
                                   <motion.div
                                     initial={{ x:"-150%", skewX:-12 }}
-                                    animate={{ x:"250%", skewX:-12 }}
+                                    animate={{ x:"250%",  skewX:-12 }}
                                     transition={{ duration:0.9, ease:"easeInOut", delay:0.12 }}
                                     style={{ position:"absolute", top:"-30%", bottom:"-30%",
                                       left:0, width:"55%", zIndex:20, pointerEvents:"none",
-                                      background:`linear-gradient(to right,transparent,${isOffCampus?"rgba(71,85,105,0.22)":col+"44"},transparent)` }}/>
-                                  {/* Content */}
+                                      background:`linear-gradient(to right,transparent,${
+                                        isOffCampus?"rgba(71,85,105,0.22)":col+"44"},transparent)` }}/>
+                                  {/* Text content */}
                                   <div style={{ flex:1, padding:"9px 10px", minWidth:0, position:"relative" }}>
                                     <div style={{ display:"flex", alignItems:"center", gap:"4px", marginBottom:"2px" }}>
                                       <span style={{ fontSize:"9px", fontWeight:900, letterSpacing:"0.07em",
@@ -1721,7 +1819,7 @@ export default function KalaniPlanner() {
                                       {isOffCampus?"🚗 Off Campus":c.name}
                                     </span>
                                   </div>
-                                  {/* Delete button — hover reveal */}
+                                  {/* Hover-reveal delete button */}
                                   <div className="delete-btn-wrap"
                                     style={{ padding:"0 10px", flexShrink:0 }}>
                                     <motion.div
@@ -1763,8 +1861,8 @@ export default function KalaniPlanner() {
                             </div>
                           )}
                         </div>
-                        </div>{/* card inner padding */}
-                      </div>{/* card outer */}
+                        </div>{/* card-inner-pad */}
+                      </div>{/* card-outer */}
                     </motion.div>
                   );
                 })}
@@ -1813,7 +1911,7 @@ export default function KalaniPlanner() {
                           </span>
                           <motion.span key={`${r.id}-${earned}`}
                             initial={{ scale:1.5, color:"#FBBF24" }}
-                            animate={{ scale:1, color: done?r.color:"rgba(255,255,255,0.4)" }}
+                            animate={{ scale:1, color:done?r.color:"rgba(255,255,255,0.4)" }}
                             transition={{ type:"spring", stiffness:400, damping:15 }}
                             style={{ fontVariantNumeric:"tabular-nums", display:"inline-block",
                               fontWeight:700, fontSize:"11px" }}>
@@ -1823,9 +1921,7 @@ export default function KalaniPlanner() {
                         <div className="req-bar" style={{ overflow:"hidden" }}>
                           <motion.div
                             animate={{ width:`${pct}%`,
-                              background: done
-                                ? `linear-gradient(90deg,${r.color},${r.color}cc)`
-                                : r.color }}
+                              background:done?`linear-gradient(90deg,${r.color},${r.color}cc)`:r.color }}
                             transition={{ type:"spring", stiffness:200, damping:20 }}
                             style={{ height:"100%", borderRadius:"3px",
                               overflow:"hidden", position:"relative" }}>
@@ -2418,11 +2514,6 @@ export default function KalaniPlanner() {
         </motion.div>)}
         </AnimatePresence>
 
-
-      </div>
-
-      {/* ── DATA CITATION FOOTER ── */}
-      <DataCitationFooter />
 
       {/* ── TOAST ── */}
       {toast && (
