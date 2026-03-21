@@ -2055,125 +2055,125 @@ export default function KalaniPlanner() {
                         </AnimatePresence>
                         {/* ── INLINE SEARCH — with open/close animation ── */}
                         <AnimatePresence initial={false}>
-                        {addTarget===grade ? (
-                          <motion.div
-                            key="search-panel"
-                            initial={{ opacity:0, height:0, marginTop:0 }}
-                            animate={{ opacity:1, height:"auto", marginTop:"auto",
-                              transition:{ height:{ type:"spring", stiffness:400, damping:30 },
-                                opacity:{ duration:0.15, delay:0.05 } } }}
-                            exit={{ opacity:0, height:0, marginTop:0,
-                              transition:{ height:{ type:"spring", stiffness:400, damping:30 },
-                                opacity:{ duration:0.1 } } }}
-                            style={{ overflow:"hidden", paddingTop:"8px", paddingBottom:"14px" }}>
-                            <div style={{ display:"flex", alignItems:"center", gap:"8px",
-                              background:"#F8FAFC", border:"1.5px solid var(--red)", borderRadius:"10px",
-                              padding:"8px 12px", marginBottom:"6px" }}>
-                              <span style={{ fontSize:"13px", color:"#94A3B8" }}>🔍</span>
-                              <input autoFocus value={addSearch}
-                                onChange={e=>setAddSearch(e.target.value)}
-                                placeholder="Search courses…"
-                                style={{ flex:1, border:"none", background:"transparent", outline:"none",
-                                  fontSize:"13px", fontWeight:500, color:"#0F172A", fontFamily:"inherit" }}
-                                onKeyDown={e=>{ if(e.key==="Escape"){ setAddTarget(null); setAddSearch(""); setPrereqWarn(null); } }}/>
-                              <button onClick={()=>{ setAddTarget(null); setAddSearch(""); setPrereqWarn(null); }}
-                                style={{ background:"none", border:"none", cursor:"pointer",
-                                  color:"#94A3B8", fontSize:"16px", lineHeight:1, padding:"0 2px" }}>×</button>
-                            </div>
-                            {/* Prereq warning inline */}
-                            {prereqWarn && prereqWarn.grade===grade && (
-                              <div style={{ background:"#FEF9C3", border:"1.5px solid #EAB308", borderRadius:"8px",
-                                padding:"10px 12px", marginBottom:"6px" }}>
-                                <div style={{ fontWeight:700, fontSize:"12px", color:"#78350F", marginBottom:"5px" }}>
-                                  {prereqWarn.coreConflict ? "⚠️ Subject Conflict" : "⚠️ Missing Prerequisites"}
-                                </div>
-                                <div style={{ fontSize:"11px", color:"#78350F", marginBottom:"8px" }}>
-                                  {prereqWarn.coreConflict ? (
-                                    <span>Conflicts with <strong>{prereqWarn.coreConflict}</strong> already in this grade.</span>
-                                  ) : (
-                                    <span><strong>{getCourse(prereqWarn.courseId)?.name}</strong> needs: {prereqWarn.unmet.map(getPrereqDisplay).join(", ")}</span>
-                                  )}
-                                </div>
-                                <div style={{ display:"flex", gap:"6px" }}>
-                                  <button onClick={()=>forceAddCourse(prereqWarn.courseId)}
-                                    style={{ flex:1, background:"#B45309", color:"white", border:"none", borderRadius:"6px",
-                                      padding:"6px", fontSize:"11px", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                                    Add Anyway
-                                  </button>
-                                  <button onClick={()=>setPrereqWarn(null)}
-                                    style={{ flex:1, background:"white", color:"#374151", border:"1px solid #D1D5DB",
-                                      borderRadius:"6px", padding:"6px", fontSize:"11px", fontWeight:600,
-                                      cursor:"pointer", fontFamily:"inherit" }}>
-                                    Cancel
-                                  </button>
-                                </div>
+                          {addTarget===grade && (
+                            <motion.div
+                              key="search-panel"
+                              initial={{ opacity:0, height:0, marginTop:0 }}
+                              animate={{ opacity:1, height:"auto", marginTop:"auto",
+                                transition:{ height:{ type:"spring", stiffness:400, damping:30 },
+                                  opacity:{ duration:0.15, delay:0.05 } } }}
+                              exit={{ opacity:0, height:0, marginTop:0,
+                                transition:{ height:{ type:"spring", stiffness:400, damping:30 },
+                                  opacity:{ duration:0.1 } } }}
+                              style={{ overflow:"hidden", paddingTop:"8px", paddingBottom:"14px" }}>
+                              <div style={{ display:"flex", alignItems:"center", gap:"8px",
+                                background:"#F8FAFC", border:"1.5px solid var(--red)", borderRadius:"10px",
+                                padding:"8px 12px", marginBottom:"6px" }}>
+                                <span style={{ fontSize:"13px", color:"#94A3B8" }}>🔍</span>
+                                <input autoFocus value={addSearch}
+                                  onChange={e=>setAddSearch(e.target.value)}
+                                  placeholder="Search courses…"
+                                  style={{ flex:1, border:"none", background:"transparent", outline:"none",
+                                    fontSize:"13px", fontWeight:500, color:"#0F172A", fontFamily:"inherit" }}
+                                  onKeyDown={e=>{ if(e.key==="Escape"){ setAddTarget(null); setAddSearch(""); setPrereqWarn(null); } }}/>
+                                <button onClick={()=>{ setAddTarget(null); setAddSearch(""); setPrereqWarn(null); }}
+                                  style={{ background:"none", border:"none", cursor:"pointer",
+                                    color:"#94A3B8", fontSize:"16px", lineHeight:1, padding:"0 2px" }}>×</button>
                               </div>
-                            )}
-                            {/* Results list */}
-                            <div style={{ maxHeight:"200px", overflowY:"auto", borderRadius:"10px",
-                              border:"1px solid #E2E8F0", background:"white",
-                              boxShadow:"0 4px 16px rgba(0,0,0,0.08)" }}>
-                              {addSearchResults.map(c=>{
-                                const already = !c.repeatable && Object.values(plan).flat().includes(c.id);
-                                const courseSlots = c.id==="OFF_CAMPUS"?1:(c.credits||0);
-                                const wouldExceed = gradeSlots(plan, grade) + courseSlots > GRADE_MAX;
-                                const blocked = already || wouldExceed;
-                                const completedBefore = getCoursesBeforeGrade(plan, grade);
-                                const completedUpTo = getAllCoursesUpTo(plan, grade);
-                                const unmet = c.id==="OFF_CAMPUS" ? [] : getUnmetPrereqs(c.id, completedBefore, completedUpTo);
-                                const hasWarn = unmet.length > 0;
-                                return (
-                                  <div key={c.id}
-                                    onClick={()=>{ if(!blocked) addCourseToPlan(c.id); }}
-                                    style={{ display:"flex", alignItems:"center", gap:"9px",
-                                      padding:"9px 12px", cursor:blocked?"default":"pointer",
-                                      borderBottom:"1px solid #F3F4F6", opacity:blocked?0.45:1,
-                                      transition:"background 0.1s" }}
-                                    onMouseEnter={e=>{ if(!blocked) e.currentTarget.style.background="#FFF1F0"; }}
-                                    onMouseLeave={e=>{ e.currentTarget.style.background="transparent"; }}>
-                                    <div style={{ width:"8px", height:"8px", borderRadius:"50%",
-                                      background:deptColor(c.dept), flexShrink:0 }}/>
-                                    <div style={{ flex:1, minWidth:0 }}>
-                                      <div style={{ fontSize:"13px", fontWeight:700, color:"var(--text)",
-                                        whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                                        {c.name}{c.isAP?" ⭐":""}
-                                      </div>
-                                      <div style={{ fontSize:"11px", color:hasWarn?"#D97706":"var(--muted)" }}>
-                                        {c.dept} · {c.credits}cr{hasWarn?" · ⚠️ needs: "+unmet.map(getPrereqDisplay).join(", "):""}
-                                      </div>
-                                    </div>
-                                    {already
-                                      ? <span style={{ fontSize:"11px", color:"var(--red)", fontWeight:700, flexShrink:0 }}>Added</span>
-                                      : <span style={{ fontSize:"18px", color:hasWarn?"#D97706":"var(--red)", flexShrink:0 }}>{hasWarn?"⚠️":"+"}</span>
-                                    }
+                              {/* Prereq warning inline */}
+                              {prereqWarn && prereqWarn.grade===grade && (
+                                <div style={{ background:"#FEF9C3", border:"1.5px solid #EAB308", borderRadius:"8px",
+                                  padding:"10px 12px", marginBottom:"6px" }}>
+                                  <div style={{ fontWeight:700, fontSize:"12px", color:"#78350F", marginBottom:"5px" }}>
+                                    {prereqWarn.coreConflict ? "⚠️ Subject Conflict" : "⚠️ Missing Prerequisites"}
                                   </div>
-                                );
-                              })}
-                            </div>
-                          </motion.div>
-                        ) : (
-                          <motion.div
-                            key="add-btn"
-                            initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-                            transition={{ duration:0.15 }}
-                            style={{ display:"flex", gap:"8px", marginTop:"auto", paddingBottom:"14px", paddingTop:"8px" }}>
-                            <div className="add-btn" style={{ flex:1, opacity:atCap?0.4:1,
-                              cursor:atCap?"not-allowed":"pointer", pointerEvents:atCap?"none":"auto" }}
-                              onClick={()=>{ if(!atCap) setAddTarget(grade); }}>
-                              {atCap ? "✋ Full ("+GRADE_MAX+" slots used)" : "+ Add a Course"}
-                            </div>
-                            {grade===12 ? (
-                              <div className="add-btn"
-                                style={{ flex:"0 0 auto", borderColor:"#64748B", color:"#64748B",
-                                  opacity:atCap?0.4:1, cursor:atCap?"not-allowed":"pointer",
-                                  pointerEvents:atCap?"none":"auto" }}
-                                onClick={()=>{ if(gradeSlots(plan,12)<GRADE_MAX){ planUids.current[12].push(Math.random().toString(36).slice(2)); setPlan(p=>{ const n=JSON.parse(JSON.stringify(p)); n[12].push("OFF_CAMPUS"); return n; }); } }}>
-                                🚗 Off Campus
+                                  <div style={{ fontSize:"11px", color:"#78350F", marginBottom:"8px" }}>
+                                    {prereqWarn.coreConflict ? (
+                                      <span>Conflicts with <strong>{prereqWarn.coreConflict}</strong> already in this grade.</span>
+                                    ) : (
+                                      <span><strong>{getCourse(prereqWarn.courseId)?.name}</strong> needs: {prereqWarn.unmet.map(getPrereqDisplay).join(", ")}</span>
+                                    )}
+                                  </div>
+                                  <div style={{ display:"flex", gap:"6px" }}>
+                                    <button onClick={()=>forceAddCourse(prereqWarn.courseId)}
+                                      style={{ flex:1, background:"#B45309", color:"white", border:"none", borderRadius:"6px",
+                                        padding:"6px", fontSize:"11px", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                                      Add Anyway
+                                    </button>
+                                    <button onClick={()=>setPrereqWarn(null)}
+                                      style={{ flex:1, background:"white", color:"#374151", border:"1px solid #D1D5DB",
+                                        borderRadius:"6px", padding:"6px", fontSize:"11px", fontWeight:600,
+                                        cursor:"pointer", fontFamily:"inherit" }}>
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                              {/* Results list */}
+                              <div style={{ maxHeight:"200px", overflowY:"auto", borderRadius:"10px",
+                                border:"1px solid #E2E8F0", background:"white",
+                                boxShadow:"0 4px 16px rgba(0,0,0,0.08)" }}>
+                                {addSearchResults.map(c=>{
+                                  const already = !c.repeatable && Object.values(plan).flat().includes(c.id);
+                                  const courseSlots = c.id==="OFF_CAMPUS"?1:(c.credits||0);
+                                  const wouldExceed = gradeSlots(plan, grade) + courseSlots > GRADE_MAX;
+                                  const blocked = already || wouldExceed;
+                                  const completedBefore = getCoursesBeforeGrade(plan, grade);
+                                  const completedUpTo = getAllCoursesUpTo(plan, grade);
+                                  const unmet = c.id==="OFF_CAMPUS" ? [] : getUnmetPrereqs(c.id, completedBefore, completedUpTo);
+                                  const hasWarn = unmet.length > 0;
+                                  return (
+                                    <div key={c.id}
+                                      onClick={()=>{ if(!blocked) addCourseToPlan(c.id); }}
+                                      style={{ display:"flex", alignItems:"center", gap:"9px",
+                                        padding:"9px 12px", cursor:blocked?"default":"pointer",
+                                        borderBottom:"1px solid #F3F4F6", opacity:blocked?0.45:1,
+                                        transition:"background 0.1s" }}
+                                      onMouseEnter={e=>{ if(!blocked) e.currentTarget.style.background="#FFF1F0"; }}
+                                      onMouseLeave={e=>{ e.currentTarget.style.background="transparent"; }}>
+                                      <div style={{ width:"8px", height:"8px", borderRadius:"50%",
+                                        background:deptColor(c.dept), flexShrink:0 }}/>
+                                      <div style={{ flex:1, minWidth:0 }}>
+                                        <div style={{ fontSize:"13px", fontWeight:700, color:"var(--text)",
+                                          whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                                          {c.name}{c.isAP?" ⭐":""}
+                                        </div>
+                                        <div style={{ fontSize:"11px", color:hasWarn?"#D97706":"var(--muted)" }}>
+                                          {c.dept} · {c.credits}cr{hasWarn?" · ⚠️ needs: "+unmet.map(getPrereqDisplay).join(", "):""}
+                                        </div>
+                                      </div>
+                                      {already
+                                        ? <span style={{ fontSize:"11px", color:"var(--red)", fontWeight:700, flexShrink:0 }}>Added</span>
+                                        : <span style={{ fontSize:"18px", color:hasWarn?"#D97706":"var(--red)", flexShrink:0 }}>{hasWarn?"⚠️":"+"}</span>
+                                      }
+                                    </div>
+                                  );
+                                })}
                               </div>
-                            ) : null}
-                          </div>
-                          </motion.div>
-                        ) : null}
+                            </motion.div>
+                          )}
+                          {addTarget!==grade && (
+                            <motion.div
+                              key="add-btn"
+                              initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+                              transition={{ duration:0.15 }}
+                              style={{ display:"flex", gap:"8px", marginTop:"auto", paddingBottom:"14px", paddingTop:"8px" }}>
+                              <div className="add-btn" style={{ flex:1, opacity:atCap?0.4:1,
+                                cursor:atCap?"not-allowed":"pointer", pointerEvents:atCap?"none":"auto" }}
+                                onClick={()=>{ if(!atCap) setAddTarget(grade); }}>
+                                {atCap ? "✋ Full ("+GRADE_MAX+" slots used)" : "+ Add a Course"}
+                              </div>
+                              {grade===12 ? (
+                                <div className="add-btn"
+                                  style={{ flex:"0 0 auto", borderColor:"#64748B", color:"#64748B",
+                                    opacity:atCap?0.4:1, cursor:atCap?"not-allowed":"pointer",
+                                    pointerEvents:atCap?"none":"auto" }}
+                                  onClick={()=>{ if(gradeSlots(plan,12)<GRADE_MAX){ planUids.current[12].push(Math.random().toString(36).slice(2)); setPlan(p=>{ const n=JSON.parse(JSON.stringify(p)); n[12].push("OFF_CAMPUS"); return n; }); } }}>
+                                  🚗 Off Campus
+                                </div>
+                              ) : null}
+                            </motion.div>
+                          )}
                         </AnimatePresence>
                         </div>
                       </div>
