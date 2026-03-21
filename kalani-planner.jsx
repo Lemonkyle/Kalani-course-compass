@@ -2108,9 +2108,8 @@ export default function KalaniPlanner() {
                                 🚗 Off Campus
                               </div>
                             ) : null}
-                          </div>
                           </motion.div>
-                        ) : null}
+                        )}
                         </AnimatePresence>
                         </div>
                       </div>
