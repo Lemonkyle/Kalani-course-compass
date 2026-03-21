@@ -939,6 +939,26 @@ function AnimatedProgressBar({ req, earned, color, label, done }) {
   );
 }
 
+// ── PAGE TRANSITION (from nav-demo.jsx) ──────────────────────────────
+const pageVariants = {
+  initial: { opacity:0, y:15, filter:"blur(4px)", scale:0.98 },
+  animate: { opacity:1, y:0,  filter:"blur(0px)", scale:1,
+    transition:{ type:"spring", stiffness:300, damping:25, mass:0.8 } },
+  exit:    { opacity:0, y:-15, filter:"blur(4px)", scale:0.98,
+    transition:{ duration:0.2, ease:"easeIn" } },
+};
+// renderPage avoids putting </motion.div> before } which triggers esbuild
+function renderPage(condition, pageKey, children) {
+  if (!condition) return null;
+  return (
+    <motion.div key={pageKey} variants={pageVariants}
+      initial="initial" animate="animate" exit="exit"
+      style={{ width:"100%" }}>
+      {children}
+    </motion.div>
+  );
+}
+
 export default function KalaniPlanner() {
   // V4: courses fetched from Supabase, falls back to local COURSES if unavailable
   const { courses: liveCourses, gradReqs: liveGradReqs, loading: dataLoading } = useCourseData();
@@ -1063,7 +1083,19 @@ export default function KalaniPlanner() {
   // Load ratings on mount
   useEffect(() => { fetchRatings(); }, []);
 
-  async function submitRating(courseId, stars) {
+  function spawnRatingParticles() {
+    setBurstKey(k=>k+1);
+    const newP = Array.from({length:12}, (_,i) => ({
+      id: Date.now()+i,
+      angle: (Math.PI*2*i)/12 + (Math.random()*0.4-0.2),
+      dist:  Math.random()*38+20,
+      size:  Math.random()*5+4,
+      color: ["#F59E0B","#FCD34D","#F97316","#FBBF24"][Math.floor(Math.random()*4)],
+    }));
+    setRatingParticles(newP);
+    setTimeout(()=>setRatingParticles([]), 800);
+  }
+    async function submitRating(courseId, stars) {
     const fp = getFingerprint();
     const semester = (() => {
       const m = new Date().getMonth();
@@ -1191,6 +1223,7 @@ export default function KalaniPlanner() {
       setPrereqWarn({ courseId, grade: addTarget, unmet: [], coreConflict });
       return;
     }
+    newCardKeys.current.add(addTarget+"-"+(plan[addTarget]||[]).length);
     setPlan(p => {
       const n = JSON.parse(JSON.stringify(p));
       if (!course?.repeatable && Object.values(n).flat().includes(courseId)) return p;
@@ -1203,6 +1236,7 @@ export default function KalaniPlanner() {
     if (!addTarget) return;
     const course = getCourse(courseId);
     if (gradeSlots(plan, addTarget) >= GRADE_MAX) return;
+    newCardKeys.current.add(addTarget+"-"+(plan[addTarget]||[]).length);
     setPlan(p => {
       const n = JSON.parse(JSON.stringify(p));
       if (!course?.repeatable && Object.values(n).flat().includes(courseId)) return p;
@@ -1282,6 +1316,21 @@ export default function KalaniPlanner() {
         }
         @keyframes ratingPopIn{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
         @keyframes confirmSlideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes starBurst{
+          0%{transform:scale(1);}25%{transform:scale(1.9) rotate(18deg);}
+          55%{transform:scale(0.75) rotate(-8deg);}80%{transform:scale(1.2) rotate(4deg);}
+          100%{transform:scale(1) rotate(0);}
+        }
+        @keyframes starElastic{
+          0%{transform:scale(1);}20%{transform:scale(1.65) rotate(12deg);}
+          50%{transform:scale(0.82) rotate(-6deg);}75%{transform:scale(1.15) rotate(3deg);}
+          100%{transform:scale(1) rotate(0);}
+        }
+        @keyframes particle{
+          0%{opacity:1;transform:translate(-50%,-50%) scale(0);}
+          40%{opacity:1;transform:translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1.3);}
+          100%{opacity:0;transform:translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0);}
+        }
         *{box-sizing:border-box;margin:0;padding:0;}
         :root{
           --red:#B00804; --red-dark:#950A07; --red-deep:#6B0503;
@@ -1433,8 +1482,10 @@ export default function KalaniPlanner() {
           );
         })}
 
+        <AnimatePresence mode="wait">
+
         {/* ── HOME ── */}
-        {page==="home" && (
+        {renderPage(page==="home","home",
           <div className="fade-in">
             <div style={{ background:`linear-gradient(135deg,var(--red-deep) 0%,var(--red-dark) 55%,var(--red) 100%)`,
               padding:"64px 24px 72px", textAlign:"center", position:"relative", overflow:"hidden" }}>
@@ -1598,10 +1649,10 @@ export default function KalaniPlanner() {
               </div>
             </div>
           </div>
-          )}
+        )}
 
         {/* ── CATALOG ── */}
-        {page==="catalog" && (
+        {renderPage(page==="catalog","catalog",
           <div className="fade-in" style={{ maxWidth:"1200px", margin:"0 auto", padding:"32px 24px" }}>
             <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"30px", color:"var(--red-dark)",
               marginBottom:"22px" }}>Course Catalog</h1>
@@ -1730,10 +1781,10 @@ export default function KalaniPlanner() {
                 )}
             </div>
           </div>
-          )}
+        )}
 
         {/* ── PLANNER ── */}
-        {page==="planner" && (
+        {renderPage(page==="planner","planner",
           <div className="fade-in" style={{ maxWidth:"1180px", margin:"0 auto", padding:"32px 24px" }}>
             <div className="planner-layout" style={{ display:"flex", gap:"28px", alignItems:"flex-start", flexWrap:"wrap" }}>
               <div style={{ flex:"1", minWidth:0 }}>
@@ -1770,15 +1821,16 @@ export default function KalaniPlanner() {
                   Click a course name to view details · ⚠️ = missing prereq · Click × to remove
                 </p>
 
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:"16px", marginBottom:"8px" }}>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gridAutoRows:"1fr", gap:"16px", marginBottom:"8px", alignItems:"stretch" }}>
                 {[9,10,11,12].map(grade=>{
                   const gradeCredits = plan[grade].reduce((s,cid)=>{ const c=getCourse(cid); return s+(c?.credits||0); },0);
                   const usedSlots = gradeSlots(plan, grade);
                   const atCap = usedSlots >= GRADE_MAX;
                   return (
-                    <motion.div key={grade} animate={shakeGrade===grade ? shakeAnim : {}}>
+                    <motion.div key={grade} animate={shakeGrade===grade ? shakeAnim : {}} style={{ height:"100%" }}>
                       <div style={{ background:"white", borderRadius:"20px", border:"1px solid #E2E8F0",
-                        boxShadow:"0 1px 4px rgba(0,0,0,0.05)", overflow:"hidden" }}>
+                        boxShadow:"0 1px 4px rgba(0,0,0,0.05)", overflow:"hidden",
+                        display:"flex", flexDirection:"column", height:"100%" }}>
                         <div style={{ padding:"16px 18px 12px", borderBottom:"1px solid #F1F5F9",
                           display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
                           <h2 style={{ fontSize:"20px", fontWeight:900, color:"#0F172A",
@@ -1790,8 +1842,8 @@ export default function KalaniPlanner() {
                             {usedSlots.toFixed(1)}/{GRADE_MAX}
                           </span>
                         </div>
-                        <div style={{ padding:"12px 14px 0" }}>
-                        <AnimatePresence>
+                        <div style={{ padding:"12px 14px 0", display:"flex", flexDirection:"column", flex:1 }}>
+                        <AnimatePresence initial={false}>
                           {plan[grade].map((cid,idx)=>{
                             const c=getCourse(cid);
                             if(!c) return null;
@@ -1803,10 +1855,11 @@ export default function KalaniPlanner() {
                             const isNew = newCardKeys.current.has(grade+"-"+idx);
                             return (
                               <motion.div key={cid+"-"+idx} layout="position"
-                                variants={cardVariants} initial="hidden" animate="show" exit="exit"
+                                initial={{ height:0, opacity:0 }}
+                                animate={{ height:"auto", opacity:1, transition:{ height:{ type:"spring", stiffness:400, damping:30 }, opacity:{ duration:0.2 } } }}
+                                exit={{ height:0, opacity:0, marginBottom:0, transition:{ delay:0.12, duration:0.28, ease:"easeIn" } }}
                                 style={{ overflow:"hidden" }}>
                                 <motion.div className="card-hover-group"
-                                  variants={contentVariants}
                                   whileHover={{ x:3, boxShadow:"0 4px 14px rgba(0,0,0,0.08)" }}
                                   transition={{ type:"spring", stiffness:400, damping:28 }}
                                   style={{ display:"flex", alignItems:"center",
@@ -1870,7 +1923,7 @@ export default function KalaniPlanner() {
                             );
                           })}
                         </AnimatePresence>
-                        <div style={{ display:"flex", gap:"8px", marginTop:"6px" }}>
+                        <div style={{ display:"flex", gap:"8px", marginTop:"auto", paddingBottom:"14px", paddingTop:"8px" }}>
                           <div className="add-btn" style={{ flex:1, opacity: atCap?0.4:1, cursor: atCap?"not-allowed":"pointer",
                             pointerEvents: atCap?"none":"auto" }}
                             onClick={()=>{ if(!atCap) setAddTarget(grade); }}>
@@ -2343,11 +2396,31 @@ export default function KalaniPlanner() {
                               style={{ fontSize:"32px", cursor:"pointer", lineHeight:1,
                                 display: starVisible.includes(star) ? "inline-block" : "none",
                                 animation: starVisible.includes(star)
-                                  ? `starPop 0.4s cubic-bezier(.34,1.56,.64,1) both` : "none",
+                                  ? (burstKey>0 && star<=(pendingRating?.courseId===selectedCourse.id ? pendingRating.stars : 0)
+                                      ? `starBurst 0.9s cubic-bezier(0.34,1.56,0.64,1) ${(star-1)*0.09}s both`
+                                      : clickKey>0 && star<=(pendingRating?.courseId===selectedCourse.id ? pendingRating.stars : 0)
+                                        ? `starElastic 1.2s cubic-bezier(0.34,1.56,0.64,1) ${(star-1)*0.09}s both`
+                                        : `starPop 0.4s cubic-bezier(.34,1.56,.64,1) ${(star-1)*0.09}s both`)
+                                  : "none",
                                 color: star <= (pendingRating?.courseId===selectedCourse.id ? pendingRating.stars : 0)
                                   ? "#F59E0B" : "#D1D5DB",
                                 willChange:"transform",
                               }}>★</span>
+                          ))}
+
+                          {/* Floating particles */}
+                          {ratingParticles.map(p=>(
+                            <span key={p.id} style={{
+                              position:"absolute",
+                              left:`${(pendingRating?.stars||3)*39}px`,
+                              top:"50%",
+                              width:`${p.size}px`,height:`${p.size}px`,
+                              borderRadius:"50%",background:p.color,
+                              pointerEvents:"none",
+                              animation:`particle 0.75s cubic-bezier(0.19,1,0.22,1) forwards`,
+                              "--tx":`${Math.cos(p.angle)*p.dist}px`,
+                              "--ty":`${Math.sin(p.angle)*p.dist}px`,
+                            }}/>
                           ))}
                         </div>
 
@@ -2360,6 +2433,7 @@ export default function KalaniPlanner() {
                                 if(ratingAnimating) return;
                                 setRatingAnimating(true);
                                 // Burst animation
+                                spawnRatingParticles();
                                 if(typeof anime !== "undefined") {
                                   const targets = [];
                                   for(let i=1;i<=pendingRating.stars;i++){
@@ -2503,8 +2577,9 @@ export default function KalaniPlanner() {
               </div>
             </div>
           </div>
-          )}
+        )}
 
+        </AnimatePresence>
       </div>
 
       {/* ── DATA CITATION FOOTER ── */}
