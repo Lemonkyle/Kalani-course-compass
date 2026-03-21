@@ -1694,8 +1694,7 @@ export default function KalaniPlanner() {
               )}
             </div>
           </div>
-        </motion.div>
-        )}
+        </motion.div>){/* catalog */}
 
         {/* ── PLANNER ── */}
         {page==="planner" && (
@@ -2513,8 +2512,7 @@ export default function KalaniPlanner() {
               </div>
             </div>
           </div>
-        </motion.div>
-        )}
+        </motion.div>){/* planner */}
         </AnimatePresence>
 
 
