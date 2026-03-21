@@ -1396,7 +1396,7 @@ export default function KalaniPlanner() {
         })}
 
         <AnimatePresence mode="wait">
-        {page==="home" && (
+        {page==="home" ? (
           <motion.div key="home" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="fade-in">
             <div style={{ background:`linear-gradient(135deg,var(--red-deep) 0%,var(--red-dark) 55%,var(--red) 100%)`,
               padding:"64px 24px 72px", textAlign:"center", position:"relative", overflow:"hidden" }}>
@@ -1561,10 +1561,10 @@ export default function KalaniPlanner() {
             </div>
           </div>
         </motion.div>
-        )}
+        ) : null}
 
-        {/* ── CATALOG ── */}
-        {page==="catalog" && (
+        {/* ── CATALOG ── */
+        {page==="catalog" ? (
           <motion.div key="catalog" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="fade-in" style={{ maxWidth:"1200px", margin:"0 auto", padding:"32px 24px" }}>
             <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"30px", color:"var(--red-dark)",
               marginBottom:"22px" }}>Course Catalog</h1>
@@ -1694,10 +1694,11 @@ export default function KalaniPlanner() {
               )}
             </div>
           </div>
-        </motion.div>){/* catalog */}
+        </motion.div>
+        ) : null}
 
         {/* ── PLANNER ── */}
-        {page==="planner" && (
+        {page==="planner" ? (
           <motion.div key="planner" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="fade-in" style={{ maxWidth:"1180px", margin:"0 auto", padding:"32px 24px" }}>
             <div className="planner-layout" style={{ display:"flex", gap:"28px", alignItems:"flex-start", flexWrap:"wrap" }}>
               <div style={{ flex:"1", minWidth:0 }}>
@@ -2512,7 +2513,8 @@ export default function KalaniPlanner() {
               </div>
             </div>
           </div>
-        </motion.div>){/* planner */}
+        </motion.div>
+        ) : null}
         </AnimatePresence>
 
 
