@@ -1,15 +1,37 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./src/supabase.js";
+import AnimatedProgressBar from "./src/components/AnimatedProgressBar.jsx";
+import DataCitationFooter from "./src/components/DataCitationFooter.jsx";
+import { buildCourseSearchIndex, filterIndexedCourses } from "./src/utils/courseSearch.js";
 
 // ─── BACKEND ADAPTER ─────────────────────────────────────────────────────────────────────────────────
 // V2: data is hardcoded below. V3: swap useCourseData() to fetch from Supabase/Firebase.
 // DATA_SOURCE: "local" | "supabase" — now fetching from Supabase with local fallback
 const DATA_SOURCE = "supabase";
 
+function ensureCourseDefaults(course = {}) {
+  return {
+    ...course,
+    code: course.code || "",
+    subtitle: course.subtitle || "",
+    dept: course.dept || "General",
+    credits: course.credits ?? 0,
+    gradeLevel: Array.isArray(course.gradeLevel) ? course.gradeLevel : (Array.isArray(course.grade_level) ? course.grade_level : []),
+    prereqs: Array.isArray(course.prereqs) ? course.prereqs : [],
+    concurrentOk: Array.isArray(course.concurrentOk) ? course.concurrentOk : (Array.isArray(course.concurrent_ok) ? course.concurrent_ok : []),
+    desc: course.desc || "",
+    tips: course.tips || "",
+    gradeReqs: course.gradeReqs || {},
+    eligibility: Array.isArray(course.eligibility) ? course.eligibility : [],
+    reasons: Array.isArray(course.reasons) ? course.reasons : [],
+    submissions: Array.isArray(course.submissions) ? course.submissions : [],
+  };
+}
+
 function normalizeCourse(row) {
   // Convert Supabase row (snake_case, pg arrays) back to the shape the app expects
-  return {
+  return ensureCourseDefaults({
     id:                  row.id,
     code:                row.code || "",
     name:                row.name,
@@ -50,7 +72,7 @@ function normalizeCourse(row) {
       warning: "Off Campus approval is not automatic. All three eligibility conditions must be met and administrative approval granted.",
       deadline: "See counselor for current deadline",
     } : {}),
-  };
+  });
 }
 
 // Custom dept + grade sort order matching original catalog
@@ -75,7 +97,7 @@ function sortCourses(arr) {
 }
 
 function useCourseData() {
-  const [courses, setCourses] = useState(sortCourses(COURSES));
+  const [courses, setCourses] = useState(sortCourses(COURSES.map(ensureCourseDefaults)));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -665,7 +687,7 @@ const DEFAULT_PLAN = {
   12: ["TRIG","ELA4","ECON","PSYCH","MARINE"],
 };
 
-function getCourse(id) { return COURSES.find(c => c.id === id); }
+function getCourse(id) { const course = COURSES.find(c => c.id === id); return course ? ensureCourseDefaults(course) : undefined; }
 function getCourseName(id) { const c = getCourse(id); return c ? c.name : id; }
 
 // Returns display string for a prereq, including equivalents: "Chemistry or Honors Chemistry"
@@ -886,60 +908,20 @@ function calcPlannerCredits(plan) {
 
 // ── Gemini-exact variant structure ─────────────────────────────
 const cardContainerVariants = {
-  hidden: { height:0, opacity:0 },
-  show:   { height:"auto", opacity:1,
-    transition:{ type:"spring", stiffness:400, damping:30 } },
-  exit:   { height:0, opacity:0,
-    transition:{ delay:0.15, type:"spring", stiffness:400, damping:30 } },
+  hidden: { height:0, opacity:0, marginBottom:0 },
+  show:   { height:"auto", opacity:1, marginBottom:12,
+    transition:{ height:{ type:"spring", stiffness:500, damping:35 }, opacity:{ duration:0.18 } } },
+  exit:   { height:0, opacity:0, marginBottom:0,
+    transition:{ delay:0.16, height:{ type:"spring", stiffness:500, damping:35 }, opacity:{ duration:0.12 } } },
 };
 const cardContentVariants = {
-  hidden: { x:40, opacity:0 },
+  hidden: { x:50, opacity:0 },
   show:   { x:0, opacity:1,
-    transition:{ type:"spring", stiffness:350, damping:25 } },
-  exit:   { x:-80, opacity:0, filter:"blur(10px)",
-    transition:{ duration:0.2 } },
+    transition:{ type:"spring", stiffness:400, damping:28 } },
+  exit:   { x:-120, opacity:0, scale:0.92, filter:"blur(8px)",
+    transition:{ type:"spring", stiffness:400, damping:30 } },
 };
 const shakeAnim = { x:[0,-8,8,-6,6,-3,3,0], transition:{ duration:0.4, ease:"easeInOut" } };
-
-function AnimatedProgressBar({ req, earned, color, label, done }) {
-  const pct = Math.min(100,(earned/req)*100);
-  const isDone = done || earned >= req;
-  const prevRef = useRef(0);
-  const [justAdded, setJustAdded] = useState(false);
-  useEffect(()=>{
-    if(earned > prevRef.current){ setJustAdded(true); setTimeout(()=>setJustAdded(false),800); }
-    prevRef.current = earned;
-  },[earned]);
-  return (
-    <div style={{ marginBottom:"12px" }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"5px" }}>
-        <span style={{ fontSize:"11px", fontWeight:700, color:isDone?"rgba(255,255,255,0.9)":"rgba(255,255,255,0.55)", display:"flex", alignItems:"center", gap:"4px" }}>
-          {isDone ? <motion.span initial={{scale:0}} animate={{scale:1}} style={{color,fontSize:"10px"}}>✓</motion.span> : null}
-          {label}
-        </span>
-        <motion.span key={label+earned}
-          initial={{ scale:1.5, color:"#FBBF24" }}
-          animate={{ scale:1, color:isDone?color:"rgba(255,255,255,0.35)" }}
-          transition={{ type:"spring", stiffness:400, damping:15 }}
-          style={{ fontSize:"11px", fontWeight:700, fontVariantNumeric:"tabular-nums", display:"inline-block" }}>
-          {earned.toFixed(1)}/{req}
-        </motion.span>
-      </div>
-      <div style={{ height:"6px", borderRadius:"999px", background:"rgba(255,255,255,0.1)", overflow:"hidden" }}>
-        <motion.div animate={{ width:pct+"%" }} transition={{ type:"spring", stiffness:200, damping:15 }}
-          style={{ height:"100%", borderRadius:"999px", background:color, overflow:"hidden", position:"relative" }}>
-          <AnimatePresence>
-            {justAdded && !isDone ? (
-              <motion.div initial={{ x:"-100%", opacity:1 }} animate={{ x:"100%", opacity:0 }}
-                transition={{ duration:0.6, ease:"easeOut" }}
-                style={{ position:"absolute", inset:0, background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.75),transparent)" }}/>
-            ) : null}
-          </AnimatePresence>
-        </motion.div>
-      </div>
-    </div>
-  );
-}
 
 // ── PAGE TRANSITION (from nav-demo.jsx) ──────────────────────────────
 const pageVariants = {
@@ -969,6 +951,7 @@ export default function KalaniPlanner() {
   // This shadows the global getCourse() for all component code below
   function getCourse(id) { return liveCourses.find(c => c.id === id); }
   const { announcements } = useAnnouncements();
+  const modalCourse = useMemo(() => selectedCourse ? ensureCourseDefaults(selectedCourse) : null, [selectedCourse]);
 
   const [page, setPage] = useState("home");
   const [selectedCourse, setSelectedCourse] = useState(null);
@@ -1001,7 +984,6 @@ export default function KalaniPlanner() {
   const [gridKey, setGridKey] = useState(0);
   const [toast, setToast] = useState(null); // {msg, grade}
   const [shakeGrade, setShakeGrade] = useState(null);
-  const [removingCards, setRemovingCards] = useState(new Set());
 
   useEffect(() => {
     try { localStorage.setItem('kalani-compass-plan', JSON.stringify(plan)); } catch {}
@@ -1126,6 +1108,7 @@ export default function KalaniPlanner() {
   function navigate(p) { setPage(p); window.scrollTo({ top:0, behavior:"instant" }); }
 
   const { cats, total } = useMemo(() => calcPlannerCredits(plan), [plan]);
+  const indexedCourses = useMemo(() => buildCourseSearchIndex(liveCourses), [liveCourses]);
 
   const filteredCourses = useMemo(() => {
     let list = liveCourses;
@@ -1137,54 +1120,29 @@ export default function KalaniPlanner() {
     if (filterDept === "Miscellaneous" && filterMisc !== "All Miscellaneous")
       list = list.filter(c => c.miscType === filterMisc);
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(c =>
-        c.name.toLowerCase().includes(q) ||
-        (c.subtitle||"").toLowerCase().includes(q) ||
-        c.code.toLowerCase().includes(q) ||
-        c.dept.toLowerCase().includes(q) ||
-        (c.ctePath||c.fineArtsType||c.miscType||"").toLowerCase().includes(q) ||
-        (c.desc||"").toLowerCase().includes(q)
-      );
+      const allowedIds = new Set(filterIndexedCourses(indexedCourses, searchQuery).map(course => course.id));
+      list = list.filter(c => allowedIds.has(c.id));
     }
     return list;
-  }, [filterDept, filterCtePath, filterFineArts, filterMisc, searchQuery, liveCourses]);
+  }, [filterDept, filterCtePath, filterFineArts, filterMisc, searchQuery, liveCourses, indexedCourses]);
 
   const homeSearchResults = useMemo(() => {
-    if (!homeSearch.trim()) return [];
-    const q = homeSearch.toLowerCase();
-    return liveCourses.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      (c.subtitle||"").toLowerCase().includes(q) ||
-      c.code.toLowerCase().includes(q) ||
-      c.dept.toLowerCase().includes(q) ||
-      (c.ctePath||c.fineArtsType||c.miscType||"").toLowerCase().includes(q) ||
-      (c.desc||"").toLowerCase().includes(q)
-    ).slice(0, 4);
-  }, [homeSearch, liveCourses]);
+    return filterIndexedCourses(indexedCourses, homeSearch, 4);
+  }, [homeSearch, indexedCourses]);
 
   const addSearchResults = useMemo(() => {
     if (!addSearch.trim()) return liveCourses.slice(0, 14);
-    const q = addSearch.toLowerCase();
-    return liveCourses.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      (c.subtitle||"").toLowerCase().includes(q) ||
-      c.code.toLowerCase().includes(q) ||
-      c.dept.toLowerCase().includes(q) ||
-      (c.ctePath||c.fineArtsType||c.miscType||"").toLowerCase().includes(q) ||
-      (c.desc||"").toLowerCase().includes(q)
-    ).slice(0, 16);
-  }, [addSearch, liveCourses]);
+    return filterIndexedCourses(indexedCourses, addSearch, 16);
+  }, [addSearch, liveCourses, indexedCourses]);
 
   const honorsProgress = useMemo(() => computeHonorsProgress(plan), [plan]);
 
   function removeCourse(grade, idx) {
-    const key = `${grade}-${idx}`;
-    setRemovingCards(prev => new Set([...prev, key]));
-    setTimeout(() => {
-      setPlan(p => { const n = JSON.parse(JSON.stringify(p)); n[grade].splice(idx, 1); return n; });
-      setRemovingCards(prev => { const s = new Set(prev); s.delete(key); return s; });
-    }, 360);
+    setPlan(p => {
+      const nextPlan = JSON.parse(JSON.stringify(p));
+      nextPlan[grade].splice(idx, 1);
+      return nextPlan;
+    });
   }
   const GRADE_MAX = 9.0; // 9 slots = up to 9 credits (0.5cr courses use 0.5 slot)
 
@@ -1715,10 +1673,10 @@ export default function KalaniPlanner() {
               Showing {filteredCourses.length} course{filteredCourses.length!==1?"s":""}
             </p>
             <div key={gridKey} className="catalog-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(295px,1fr))", gap:"14px" }}>
-              {filteredCourses.map(c=>(
+              {filteredCourses.map((c, index)=>(
                 <div key={c.id} className="c-card"
-                  style={{ animation:"cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) "+(filteredCourses.indexOf(c)*0.045)+"s both" }}
-                  onClick={()=>setSelectedCourse(c)}>
+                  style={{ animation:"cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) "+(index*0.045)+"s both" }}
+                  onClick={()=>setSelectedCourse(ensureCourseDefaults(c))}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"8px" }}>
                     <div style={{ display:"flex", flexWrap:"wrap", gap:"4px", alignItems:"center" }}>
                       <span className="badge" style={{ background:deptColor(c.dept)+"1A", color:deptColor(c.dept) }}>{c.ctePath||c.fineArtsType||c.miscType||c.dept}</span>
@@ -1734,9 +1692,9 @@ export default function KalaniPlanner() {
                   {c.code&&<p style={{ fontSize:"11px", color:"#A08080", marginBottom:"6px" }}>{c.code}</p>}
                   <p style={{ fontSize:"12px", color:"var(--muted)", lineHeight:1.5,
                     display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{c.desc}</p>
-                  {(c.prereqs.length>0 || (c.concurrentOk||[]).length>0)&&(
+                  {((c.prereqs||[]).length>0 || (c.concurrentOk||[]).length>0)&&(
                     <div style={{ marginTop:"9px", fontSize:"11px", fontWeight:700 }}>
-                      {c.prereqs.length>0&&(
+                      {(c.prereqs||[]).length>0&&(
                         <span style={{ color:"var(--red)" }}>
                           Prereq: {c.prereqs.map(pid=>{
                             const equivs=(PREREQ_EQUIV[pid]||[]);
@@ -1746,7 +1704,7 @@ export default function KalaniPlanner() {
                           }).join(" + ")}
                         </span>
                         )}
-                      {c.prereqs.length>0&&(c.concurrentOk||[]).length>0&&<span style={{color:"var(--muted)"}}> · </span>}
+                      {(c.prereqs||[]).length>0&&(c.concurrentOk||[]).length>0&&<span style={{color:"var(--muted)"}}> · </span>}
                       {(c.concurrentOk||[]).length>0&&(
                         <span style={{ color:"#1D4ED8" }}>
                           🔄 concurrent: {(c.concurrentOk||[]).map(cid=>{
@@ -1842,7 +1800,7 @@ export default function KalaniPlanner() {
                           </span>
                         </div>
                         <div style={{ padding:"12px 14px 0", display:"flex", flexDirection:"column", flex:1 }}>
-                        <AnimatePresence initial={false}>
+                        <AnimatePresence initial={false} mode="popLayout">
                           {plan[grade].map((cid,idx)=>{
                             const c=getCourse(cid);
                             if(!c) return null;
@@ -1856,7 +1814,8 @@ export default function KalaniPlanner() {
                                 layout
                                 variants={cardContainerVariants}
                                 initial="hidden" animate="show" exit="exit"
-                                style={{ overflow:"hidden" }}>
+                                transition={{ layout:{ type:"spring", stiffness:500, damping:35 } }}
+                                style={{ overflow:"hidden", position:"relative" }}>
                                 <motion.div
                                   variants={cardContentVariants}
                                   className="card-hover-group"
@@ -1864,7 +1823,7 @@ export default function KalaniPlanner() {
                                     background:isOffCampus?"#F8FAFC":"white",
                                     border:"1px solid "+(isOffCampus?"#CBD5E1":col+"28"),
                                     borderRadius:"12px", overflow:"hidden",
-                                    position:"relative", marginBottom:"8px" }}>
+                                    position:"relative" }}>
                                   {/* Left color bar */}
                                   <div style={{ width:"4px", alignSelf:"stretch",
                                     background:isOffCampus?"#475569":col, flexShrink:0 }}/>
@@ -1896,7 +1855,7 @@ export default function KalaniPlanner() {
                                       color:isOffCampus?"#475569":"#0F172A", letterSpacing:"-0.01em",
                                       cursor:"pointer", overflow:"hidden", textOverflow:"ellipsis",
                                       display:"block", whiteSpace:"nowrap" }}
-                                      onClick={()=>setSelectedCourse(c)}>
+                                      onClick={()=>setSelectedCourse(ensureCourseDefaults(c))}>
                                       {isOffCampus?"🚗 Off Campus":c.name}
                                     </span>
                                   </div>
@@ -2142,13 +2101,11 @@ export default function KalaniPlanner() {
             </div>
           </div>
           )}
-
-
-
+        </AnimatePresence>
 
       {/* ── COURSE DETAIL MODAL — lives outside renderPage so catalog page can open it too ── */}
       <AnimatePresence>
-        {selectedCourse ? (
+        {modalCourse ? (
           <div className="overlay" onClick={()=>setSelectedCourse(null)}>
             <motion.div className="modal" onClick={e=>e.stopPropagation()}
               initial={{ opacity:0, scale:0.88, y:24 }}
@@ -2159,14 +2116,14 @@ export default function KalaniPlanner() {
                 style={{ padding:"24px 26px", borderBottom:"1px solid var(--border)" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                   <div style={{ flex:1, paddingRight:"12px" }}>
-                    <span className="badge" style={{ background:deptColor(selectedCourse.dept)+"1A",
-                      color:deptColor(selectedCourse.dept), marginBottom:"10px", display:"inline-block" }}>
-                      {selectedCourse.dept}
+                    <span className="badge" style={{ background:deptColor(modalCourse.dept)+"1A",
+                      color:deptColor(modalCourse.dept), marginBottom:"10px", display:"inline-block" }}>
+                      {modalCourse.dept}
                     </span>
                     <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:"22px", color:"var(--text)",
-                      lineHeight:1.3, marginBottom:"4px" }}>{selectedCourse.name}</h2>
-                    {selectedCourse.subtitle&&<p style={{ fontSize:"13px", color:"var(--muted)", fontStyle:"italic", marginBottom:"3px" }}>{selectedCourse.subtitle}</p>}
-                    {selectedCourse.code&&<p style={{ fontSize:"12px",color:"var(--muted)" }}>{selectedCourse.code}</p>}
+                      lineHeight:1.3, marginBottom:"4px" }}>{modalCourse.name}</h2>
+                    {modalCourse.subtitle&&<p style={{ fontSize:"13px", color:"var(--muted)", fontStyle:"italic", marginBottom:"3px" }}>{modalCourse.subtitle}</p>}
+                    {modalCourse.code&&<p style={{ fontSize:"12px",color:"var(--muted)" }}>{modalCourse.code}</p>}
                   </div>
                   <button onClick={()=>setSelectedCourse(null)}
                     style={{ background:"var(--light-red)", border:"none", borderRadius:"50%", width:"34px",
@@ -2177,16 +2134,16 @@ export default function KalaniPlanner() {
               <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }}
                 transition={{ type:"spring", stiffness:300, damping:24, delay:0.14 }}
                 style={{ padding:"22px 26px" }}>
-                {selectedCourse.isOffCampus ? (
+                {modalCourse.isOffCampus ? (
                   /* ── OFF CAMPUS STRUCTURED CARD ── */
                   <div>
                     <div style={{ background:"#F8FAFC", border:"1.5px solid #CBD5E1", borderRadius:"12px",
                       padding:"16px", marginBottom:"14px" }}>
                       <div style={{ fontSize:"11px", fontWeight:800, textTransform:"uppercase",
                         letterSpacing:"0.09em", color:"#64748B", marginBottom:"10px" }}>✅ Eligibility (all 3 required)</div>
-                      {selectedCourse.eligibility.map((e,i)=>(
+                      {modalCourse.eligibility.map((e,i)=>(
                         <div key={i} style={{ display:"flex", gap:"9px", alignItems:"flex-start",
-                          padding:"6px 0", borderBottom: i<selectedCourse.eligibility.length-1?"1px solid #E2E8F0":"none" }}>
+                          padding:"6px 0", borderBottom: i<modalCourse.eligibility.length-1?"1px solid #E2E8F0":"none" }}>
                           <span style={{ background:"#0F172A", color:"white", borderRadius:"50%",
                             width:"18px", height:"18px", display:"flex", alignItems:"center", justifyContent:"center",
                             fontSize:"10px", fontWeight:700, flexShrink:0, marginTop:"1px" }}>{i+1}</span>
@@ -2198,7 +2155,7 @@ export default function KalaniPlanner() {
                     <div style={{ marginBottom:"14px" }}>
                       <div style={{ fontSize:"11px", fontWeight:800, textTransform:"uppercase",
                         letterSpacing:"0.09em", color:"#64748B", marginBottom:"8px" }}>🗓 Qualifying Reasons & Limits</div>
-                      {selectedCourse.reasons.map((r,i)=>(
+                      {modalCourse.reasons.map((r,i)=>(
                         <div key={i} style={{ background: i===0?"#F0FDF4":"#FFF7ED",
                           border:`1.5px solid ${i===0?"#BBF7D0":"#FED7AA"}`,
                           borderRadius:"9px", padding:"11px 14px", marginBottom:"8px" }}>
@@ -2214,11 +2171,11 @@ export default function KalaniPlanner() {
                       borderRadius:"10px", padding:"13px 15px", marginBottom:"14px" }}>
                       <div style={{ fontSize:"11px", fontWeight:800, textTransform:"uppercase",
                         letterSpacing:"0.09em", color:"#92400E", marginBottom:"8px" }}>
-                        📋 Required Submissions · Due {selectedCourse.deadline}
+                        📋 Required Submissions · Due {modalCourse.deadline}
                       </div>
-                      {selectedCourse.submissions.map((s,i)=>(
+                      {modalCourse.submissions.map((s,i)=>(
                         <div key={i} style={{ display:"flex", gap:"8px", fontSize:"12px", color:"#78350F",
-                          padding:"5px 0", borderBottom: i<selectedCourse.submissions.length-1?"1px solid #FDE68A":"none" }}>
+                          padding:"5px 0", borderBottom: i<modalCourse.submissions.length-1?"1px solid #FDE68A":"none" }}>
                           <span style={{ fontWeight:800, flexShrink:0, color:"#92400E" }}>{String.fromCharCode(65+i)}.</span>
                           <span style={{ lineHeight:1.5 }}>{s}</span>
                         </div>
@@ -2228,15 +2185,15 @@ export default function KalaniPlanner() {
                     <div style={{ background:"#FEF2F2", border:"1.5px solid #FECACA",
                       borderRadius:"9px", padding:"11px 14px", marginBottom:"12px" }}>
                       <div style={{ fontSize:"12px", fontWeight:700, color:"#991B1B", lineHeight:1.5 }}>
-                        ⚠️ {selectedCourse.warning}
+                        ⚠️ {modalCourse.warning}
                       </div>
                     </div>
 
-                    {selectedCourse.tips&&(
+                    {modalCourse.tips&&(
                       <div style={{ background:"#EFF6FF", border:"1.5px solid #BFDBFE",
                         borderRadius:"9px", padding:"11px 14px",
                         fontSize:"12px", color:"#1E40AF", lineHeight:1.65 }}>
-                        <strong>💡 </strong>{selectedCourse.tips}
+                        <strong>💡 </strong>{modalCourse.tips}
                       </div>
                       )}
                   </div>
@@ -2244,9 +2201,9 @@ export default function KalaniPlanner() {
                   /* ── REGULAR COURSE BODY ── */
                   <div>
                     <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"10px", marginBottom:"16px" }}>
-                      {[["Credits",selectedCourse.credits+" cr"],
-                        ["Grade",selectedCourse.gradeLevel.join("/")],
-                        ["Duration",selectedCourse.credits===0.5?"Semester":"Year"]].map(([k,v])=>(
+                      {[["Credits",modalCourse.credits+" cr"],
+                        ["Grade",modalCourse.gradeLevel.join("/")],
+                        ["Duration",modalCourse.credits===0.5?"Semester":"Year"]].map(([k,v])=>(
                         <div key={k} style={{ background:"#F9FAFB", borderRadius:"9px", padding:"11px", textAlign:"center",
                           border:"1px solid var(--border)" }}>
                           <div style={{ fontSize:"10px",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",
@@ -2255,13 +2212,13 @@ export default function KalaniPlanner() {
                         </div>
                         ))}
                     </div>
-                    {selectedCourse.isAP&&(
+                    {modalCourse.isAP&&(
                       <div style={{ background:"#FFFBEB", border:"1.5px solid #F59E0B", borderRadius:"9px",
                         padding:"11px 14px", marginBottom:"14px", fontSize:"12px", color:"#78350F", fontWeight:600 }}>
                         ⭐ AP Course — Weighted on 5.0 scale. AP exam required in May (~$96). Signed contract + parent info session required.
                       </div>
                       )}
-                    {selectedCourse.teacherSigRequired&&(
+                    {modalCourse.teacherSigRequired&&(
                       <div style={{ background:"#FEF9C3", border:"1.5px solid #EAB308", borderRadius:"8px",
                         padding:"8px 13px", marginBottom:"12px", fontSize:"12px", color:"#78350F", fontWeight:600 }}>
                         ✍️ Teacher/counselor signature required for enrollment
@@ -2270,38 +2227,38 @@ export default function KalaniPlanner() {
                     <div style={{ marginBottom:"14px" }}>
                       <h3 style={{ fontSize:"11px",fontWeight:800,color:"var(--muted)",textTransform:"uppercase",
                         letterSpacing:"0.08em",marginBottom:"7px" }}>Description</h3>
-                      <p style={{ fontSize:"13px",color:"var(--text)",lineHeight:1.7 }}>{selectedCourse.desc}</p>
+                      <p style={{ fontSize:"13px",color:"var(--text)",lineHeight:1.7 }}>{modalCourse.desc}</p>
                     </div>
-                    {selectedCourse.gradeReqs && Object.keys(selectedCourse.gradeReqs).length>0 && (
+                    {modalCourse.gradeReqs && Object.keys(modalCourse.gradeReqs).length>0 && (
                       <div style={{ background:"#F0FDF4", border:"1.5px solid #BBF7D0", borderRadius:"8px",
                         padding:"10px 13px", marginBottom:"12px" }}>
                         <div style={{ fontSize:"11px",fontWeight:800,color:"#166534",textTransform:"uppercase",
                           letterSpacing:"0.06em",marginBottom:"6px" }}>⭐ Grade Requirements</div>
-                        {Object.entries(selectedCourse.gradeReqs).map(([pid,req])=>(
+                        {Object.entries(modalCourse.gradeReqs).map(([pid,req])=>(
                           <div key={pid} style={{ fontSize:"12px",color:"#15803D", marginBottom:"3px" }}>
                             <strong>{getCourseName(pid)}</strong>: {req}
                           </div>
                           ))}
                       </div>
                       )}
-                    {selectedCourse.concurrentOk && selectedCourse.concurrentOk.length>0 && (
+                    {modalCourse.concurrentOk && modalCourse.concurrentOk.length>0 && (
                       <div style={{ background:"#EFF6FF", border:"1.5px solid #BFDBFE", borderRadius:"8px",
                         padding:"10px 13px", marginBottom:"12px" }}>
                         <div style={{ fontSize:"11px",fontWeight:800,color:"#1E40AF",textTransform:"uppercase",
                           letterSpacing:"0.06em",marginBottom:"4px" }}>🔄 Can take concurrently with</div>
                         <div style={{ fontSize:"12px",color:"#1D4ED8" }}>
-                          {selectedCourse.concurrentOk.map(id=>getCourseName(id)).join(" or ")}
+                          {modalCourse.concurrentOk.map(id=>getCourseName(id)).join(" or ")}
                         </div>
                       </div>
                       )}
                   </div>
                   )}
-                {!selectedCourse.isOffCampus && (selectedCourse.prereqs.length>0 || (selectedCourse.concurrentOk||[]).length>0) &&(
+                {!modalCourse.isOffCampus && (modalCourse.prereqs.length>0 || (modalCourse.concurrentOk||[]).length>0) &&(
                   <div style={{ marginBottom:"14px" }}>
                     <h3 style={{ fontSize:"11px",fontWeight:800,color:"var(--muted)",textTransform:"uppercase",
                       letterSpacing:"0.08em",marginBottom:"7px" }}>Prerequisites</h3>
                     <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
-                      {selectedCourse.prereqs.map(pid=>{
+                      {modalCourse.prereqs.map(pid=>{
                         const pc=getCourse(pid);
                         const equivIds = PREREQ_EQUIV[pid]||[];
                         return (
@@ -2323,12 +2280,12 @@ export default function KalaniPlanner() {
                         );
                       })}
                     </div>
-                    {(selectedCourse.concurrentOk||[]).length>0&&(
+                    {(modalCourse.concurrentOk||[]).length>0&&(
                       <div style={{ marginTop:"8px" }}>
                         <div style={{ fontSize:"11px", color:"#0369A1", fontWeight:700,
                           marginBottom:"5px" }}>🔄 Can take concurrently with (same year OK):</div>
                         <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
-                          {(selectedCourse.concurrentOk||[]).map(cid=>{
+                          {(modalCourse.concurrentOk||[]).map(cid=>{
                             const equivIds = PREREQ_EQUIV[cid]||[];
                             return (
                               <div key={cid} style={{ display:"flex", alignItems:"center", gap:"4px", flexWrap:"wrap" }}>
@@ -2353,15 +2310,15 @@ export default function KalaniPlanner() {
                       )}
                   </div>
                   )}
-                {!selectedCourse.isOffCampus && (()=>{
-                  const unlocks=liveCourses.filter(c=>c.prereqs.includes(selectedCourse.id));
+                {!modalCourse.isOffCampus && (()=>{
+                  const unlocks=liveCourses.filter(c=>c.prereqs.includes(modalCourse.id));
                   return unlocks.length>0?(
                     <div style={{ marginBottom:"14px" }}>
                       <h3 style={{ fontSize:"11px",fontWeight:800,color:"var(--muted)",textTransform:"uppercase",
                         letterSpacing:"0.08em",marginBottom:"7px" }}>Leads To</h3>
                       <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
                         {unlocks.map(c=>(
-                          <div key={c.id} className="prereq-chip" onClick={()=>setSelectedCourse(c)}
+                          <div key={c.id} className="prereq-chip" onClick={()=>setSelectedCourse(ensureCourseDefaults(c))}
                             style={{ background:deptColor(c.dept)+"14",
                               border:`1px solid ${deptColor(c.dept)}35`, color:deptColor(c.dept) }}>
                             {c.name}{c.isAP&&" ⭐"}
@@ -2371,20 +2328,20 @@ export default function KalaniPlanner() {
                     </div>
                   ):null;
                 })()}
-                {!selectedCourse.isOffCampus && selectedCourse.tips&&(
+                {!modalCourse.isOffCampus && modalCourse.tips&&(
                   <div style={{ background:"#EFF6FF", border:"1.5px solid #BFDBFE",
                     borderRadius:"9px", padding:"12px 14px", fontSize:"13px", color:"#1E40AF",
                     lineHeight:1.65, marginBottom:"16px" }}>
-                    <strong>💡 Tip: </strong>{selectedCourse.tips}
+                    <strong>💡 Tip: </strong>{modalCourse.tips}
                   </div>
                   )}
-                {!selectedCourse.isOffCampus && <div style={{ borderTop:"1px solid var(--border)", paddingTop:"16px" }}>
+                {!modalCourse.isOffCampus && <div style={{ borderTop:"1px solid var(--border)", paddingTop:"16px" }}>
                   <p style={{ fontSize:"12px",color:"var(--muted)",marginBottom:"9px",fontWeight:600 }}>
                     Add to 4-Year Plan:
                   </p>
                   <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
                     {[9,10,11,12].map(g=>{
-                      const already = !selectedCourse.repeatable && Object.values(plan).flat().includes(selectedCourse.id);
+                      const already = !modalCourse.repeatable && Object.values(plan).flat().includes(modalCourse.id);
                       const full = gradeSlots(plan, g) >= GRADE_MAX;
                       const disabled = already || full;
                       return (
@@ -2393,22 +2350,22 @@ export default function KalaniPlanner() {
                             if (disabled) return;
                             const before = getCoursesBeforeGrade(plan, g);
                             const upTo = getAllCoursesUpTo(plan, g);
-                            const unmet = getUnmetPrereqs(selectedCourse.id, before, upTo);
+                            const unmet = getUnmetPrereqs(modalCourse.id, before, upTo);
                             if (unmet.length > 0) {
                               setAddTarget(g);
-                              setPrereqWarn({ courseId: selectedCourse.id, grade: g, unmet });
+                              setPrereqWarn({ courseId: modalCourse.id, grade: g, unmet });
                               setSelectedCourse(null);
                               return;
                             }
-                            const conflict = getCoreConflict(selectedCourse.id, g);
+                            const conflict = getCoreConflict(modalCourse.id, g);
                             if (conflict) {
                               setAddTarget(g);
-                              setPrereqWarn({ courseId: selectedCourse.id, grade: g, unmet: [], coreConflict: conflict });
+                              setPrereqWarn({ courseId: modalCourse.id, grade: g, unmet: [], coreConflict: conflict });
                               setSelectedCourse(null);
                               return;
                             }
-                            setPlan(p=>{const n=JSON.parse(JSON.stringify(p));if(!selectedCourse.repeatable&&Object.values(n).flat().includes(selectedCourse.id))return p;n[g].push(selectedCourse.id);return n;});
-                            showToast(`Added "${selectedCourse.name}" to Grade ${g}`);
+                            setPlan(p=>{const n=JSON.parse(JSON.stringify(p));if(!modalCourse.repeatable&&Object.values(n).flat().includes(modalCourse.id))return p;n[g].push(modalCourse.id);return n;});
+                            showToast(`Added "${modalCourse.name}" to Grade ${g}`);
                             setSelectedCourse(null);
                           }}
                           style={{ padding:"8px 16px",fontSize:"13px",fontWeight:700,
@@ -2429,34 +2386,34 @@ export default function KalaniPlanner() {
                 }
 
                 {/* RATING SECTION */}
-                {!selectedCourse.isOffCampus && (
+                {!modalCourse.isOffCampus && (
                   <div style={{ borderTop:"1px solid var(--border)", paddingTop:"16px", marginTop:"8px" }}>
                     <div style={{ display:"flex", justifyContent:"space-between",
                       alignItems:"center", marginBottom:"12px" }}>
                       <p style={{ fontSize:"11px", color:"var(--muted)", fontWeight:700,
                         textTransform:"uppercase", letterSpacing:"0.06em" }}>Rate this course</p>
-                      {ratings[selectedCourse.id] ? (
+                      {ratings[modalCourse.id] ? (
                         <span style={{ fontSize:"12px", color:"#92400E", fontWeight:700 }}>
-                          ⭐ {ratings[selectedCourse.id].avg.toFixed(1)}
-                          <span style={{ color:"var(--muted)", fontWeight:400 }}> · {ratings[selectedCourse.id].count} rating{ratings[selectedCourse.id].count!==1?"s":""}</span>
+                          ⭐ {ratings[modalCourse.id].avg.toFixed(1)}
+                          <span style={{ color:"var(--muted)", fontWeight:400 }}> · {ratings[modalCourse.id].count} rating{ratings[modalCourse.id].count!==1?"s":""}</span>
                         </span>
                       ) : (
                         <span style={{ fontSize:"11px", color:"var(--muted)" }}>No ratings yet — be the first!</span>
                       )}
                     </div>
 
-                    {myRatings[selectedCourse.id] ? (
+                    {myRatings[modalCourse.id] ? (
                       // Already rated
                       <div style={{ display:"flex", alignItems:"center", gap:"10px",
                         padding:"10px 14px", background:"#FFFBEB", borderRadius:"10px",
                         border:"1.5px solid #FDE68A", animation:"ratingPopIn 0.4s cubic-bezier(.34,1.56,.64,1)" }}>
                         <div style={{ display:"flex", gap:"2px" }}>
                           {[1,2,3,4,5].map(s=>(
-                            <span key={s} style={{ fontSize:"20px", color:s<=myRatings[selectedCourse.id]?"#F59E0B":"#D1D5DB" }}>★</span>
+                            <span key={s} style={{ fontSize:"20px", color:s<=myRatings[modalCourse.id]?"#F59E0B":"#D1D5DB" }}>★</span>
                           ))}
                         </div>
                         <span style={{ fontSize:"13px", color:"#92400E", fontWeight:600 }}>
-                          You rated this {myRatings[selectedCourse.id]} star{myRatings[selectedCourse.id]!==1?"s":""}
+                          You rated this {myRatings[modalCourse.id]} star{myRatings[modalCourse.id]!==1?"s":""}
                         </span>
                       </div>
                     ) : (
@@ -2464,19 +2421,19 @@ export default function KalaniPlanner() {
                       <div style={{ display:"flex", alignItems:"center", gap:"14px", minHeight:"44px" }}>
                         {/* Star picker */}
                         <div style={{ display:"flex", gap:"5px", flexShrink:0 }}
-                          id={`stars-${selectedCourse.id}`}>
+                          id={`stars-${modalCourse.id}`}>
                           {[1,2,3,4,5].map(star => (
                             <span
                               key={star}
-                              id={`star-${selectedCourse.id}-${star}`}
+                              id={`star-${modalCourse.id}-${star}`}
                               onClick={()=>{
                                 if(ratingAnimating) return;
-                                setPendingRating({ courseId:selectedCourse.id, stars:star });
+                                setPendingRating({ courseId:modalCourse.id, stars:star });
                                 // Elastic pop animation via animejs
                                 if(typeof anime !== "undefined") {
                                   const targets = [];
                                   for(let i=1;i<=star;i++){
-                                    const el = document.getElementById(`star-${selectedCourse.id}-${i}`);
+                                    const el = document.getElementById(`star-${modalCourse.id}-${i}`);
                                     if(el) targets.push(el);
                                   }
                                   anime.waapi.animate(targets, {
@@ -2490,13 +2447,13 @@ export default function KalaniPlanner() {
                               style={{ fontSize:"32px", cursor:"pointer", lineHeight:1,
                                 display: starVisible.includes(star) ? "inline-block" : "none",
                                 animation: starVisible.includes(star)
-                                  ? (burstKey>0 && star<=(pendingRating?.courseId===selectedCourse.id ? pendingRating.stars : 0)
+                                  ? (burstKey>0 && star<=(pendingRating?.courseId===modalCourse.id ? pendingRating.stars : 0)
                                       ? `starBurst 0.9s cubic-bezier(0.34,1.56,0.64,1) ${(star-1)*0.09}s both`
-                                      : clickKey>0 && star<=(pendingRating?.courseId===selectedCourse.id ? pendingRating.stars : 0)
+                                      : clickKey>0 && star<=(pendingRating?.courseId===modalCourse.id ? pendingRating.stars : 0)
                                         ? `starElastic 1.2s cubic-bezier(0.34,1.56,0.64,1) ${(star-1)*0.09}s both`
                                         : `starPop 0.4s cubic-bezier(.34,1.56,.64,1) ${(star-1)*0.09}s both`)
                                   : "none",
-                                color: star <= (pendingRating?.courseId===selectedCourse.id ? pendingRating.stars : 0)
+                                color: star <= (pendingRating?.courseId===modalCourse.id ? pendingRating.stars : 0)
                                   ? "#F59E0B" : "#D1D5DB",
                                 willChange:"transform",
                               }}>★</span>
@@ -2519,7 +2476,7 @@ export default function KalaniPlanner() {
                         </div>
 
                         {/* Confirm panel — slides in from right */}
-                        {pendingRating?.courseId === selectedCourse.id && (
+                        {pendingRating?.courseId === modalCourse.id && (
                           <div style={{ display:"flex", gap:"8px", alignItems:"center",
                             animation:"confirmSlideIn 0.28s cubic-bezier(.25,.46,.45,.94)" }}>
                             <button
@@ -2531,7 +2488,7 @@ export default function KalaniPlanner() {
                                 if(typeof anime !== "undefined") {
                                   const targets = [];
                                   for(let i=1;i<=pendingRating.stars;i++){
-                                    const el = document.getElementById(`star-${selectedCourse.id}-${i}`);
+                                    const el = document.getElementById(`star-${modalCourse.id}-${i}`);
                                     if(el) targets.push(el);
                                   }
                                   anime.waapi.animate(targets, {
@@ -2568,11 +2525,8 @@ export default function KalaniPlanner() {
             </motion.div>
             </motion.div>
           </div>
-          )}
         ) : null}
       </AnimatePresence>
-
-        </AnimatePresence>
       </div>
 
       {/* ── DATA CITATION FOOTER ── */}
@@ -2594,69 +2548,6 @@ export default function KalaniPlanner() {
           </motion.div>
         ) : null}
       </AnimatePresence>
-    </>
-  );
-}
-
-function DataCitationFooter() {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <footer style={{ background:"#F1F5F9", borderTop:"1px solid #E2E8F0", padding:"14px 24px",
-        display:"flex", alignItems:"center", justifyContent:"center", gap:"16px", flexWrap:"wrap" }}>
-        <span style={{ fontSize:"12px", color:"#64748B", lineHeight:1.5 }}>
-          📋 Course data sourced from{" "}
-          <em>Kalani High School 2026–27 Registration Guide & Course Catalog</em>{" "}
-          and{" "}
-          <em>Hawaii DOE Graduation Requirements (July 2023)</em>.
-          For planning reference only.
-        </span>
-        <a href="https://www.kalanihighschool.org/admissions/course-registration-information/"
-          target="_blank" rel="noopener noreferrer"
-          style={{ fontSize:"11px", color:"#0369A1", background:"#EFF6FF", border:"1px solid #BFDBFE",
-            borderRadius:"6px", padding:"4px 10px", textDecoration:"none", whiteSpace:"nowrap", fontWeight:700 }}>
-          📋 Official Catalog ↗
-        </a>
-        <button onClick={()=>setOpen(true)}
-          style={{ fontSize:"11px", color:"#475569", background:"white", border:"1px solid #CBD5E1",
-            borderRadius:"6px", padding:"4px 10px", cursor:"pointer", whiteSpace:"nowrap",
-            fontFamily:"inherit" }}>
-          Data Sources &amp; Disclaimer ›
-        </button>
-      </footer>
-
-      {open && (
-        <div className="overlay" onClick={()=>setOpen(false)}>
-          <div className="modal" onClick={e=>e.stopPropagation()}
-            style={{ maxWidth:"520px", width:"92vw" }}>
-            <div style={{ padding:"24px 26px", borderBottom:"1px solid #E5E7EB",
-              display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <h2 style={{ fontSize:"17px", fontWeight:700, color:"#1C2B3A",
-                fontFamily:"'Playfair Display',serif" }}>Data Sources &amp; Disclaimer</h2>
-              <button onClick={()=>setOpen(false)}
-                style={{ background:"#FFF1F0", border:"none", borderRadius:"50%", width:"32px",
-                  height:"32px", cursor:"pointer", fontSize:"16px", color:"#B00804" }}>✕</button>
-            </div>
-            <div style={{ padding:"22px 26px", display:"flex", flexDirection:"column", gap:"16px" }}>
-              {[
-                { icon:"📖", label:"Primary Source", text:"Kalani High School 2024–2025 Manual of Studies. All course names, codes, credit values, grade levels, and prerequisite chains are derived from this document." },
-                { icon:"🎓", label:"Graduation Requirements", text:"Hawaii Department of Education Graduation Requirements, effective July 2023. Credit minimums and subject-area breakdowns follow this policy document." },
-                { icon:"⚠️", label:"Planning Reference Only", text:"Kalani Compass is an unofficial planning tool built by a student volunteer. It is not affiliated with Kalani High School or the Hawaii DOE. Course availability, prerequisites, and requirements may change. Always confirm your 4-year plan with your school counselor before submitting your registration card." },
-                { icon:"🔄", label:"Last Data Update", text:"Course catalog last reviewed: March 2026. Based on the 2026–2027 Kalani High School Course Catalog (Manual of Studies)." },
-              ].map(({icon,label,text})=>(
-                <div key={label} style={{ display:"flex", gap:"13px", alignItems:"flex-start" }}>
-                  <span style={{ fontSize:"20px", flexShrink:0, marginTop:"2px" }}>{icon}</span>
-                  <div>
-                    <div style={{ fontSize:"12px", fontWeight:700, color:"#475569",
-                      textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px" }}>{label}</div>
-                    <div style={{ fontSize:"13px", color:"#374151", lineHeight:1.6 }}>{text}</div>
-                  </div>
-                </div>
-                ))}
-            </div>
-          </div>
-        </div>
-        )}
     </>
   );
 }
