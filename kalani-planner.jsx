@@ -884,22 +884,13 @@ function calcPlannerCredits(plan) {
   return { cats, total };
 }
 
-// ─── ANIMATION VARIANTS (from planner-demo.jsx) ───────────────
 const cardVariants = {
   hidden: { height:0, opacity:0, marginBottom:0 },
-  show: {
-    height:"auto", opacity:1, marginBottom:8,
-    transition:{ height:{ type:"spring", stiffness:400, damping:30 } }
-  },
-  exit: {
-    height:0, opacity:0, marginBottom:0,
-    transition:{
-      delay:0.15,
-      height:{ type:"spring", stiffness:400, damping:30 },
-      opacity:{ delay:0.15 },
-      marginBottom:{ delay:0.15 },
-    }
-  },
+  show: { height:"auto", opacity:1, marginBottom:8,
+    transition:{ height:{ type:"spring", stiffness:400, damping:30 } } },
+  exit: { height:0, opacity:0, marginBottom:0,
+    transition:{ delay:0.15, height:{ type:"spring", stiffness:400, damping:30 },
+      opacity:{delay:0.15}, marginBottom:{delay:0.15} } },
 };
 const contentVariants = {
   hidden: { x:50, opacity:0, scale:0.95 },
@@ -908,83 +899,39 @@ const contentVariants = {
 };
 const shakeAnim = { x:[0,-8,8,-6,6,-3,3,0], transition:{ duration:0.4, ease:"easeInOut" } };
 
-// ─── PAGE TRANSITION WRAPPER (from nav-demo.jsx) ──────────────
-const pageVariants = {
-  initial: { opacity:0, y:15, filter:"blur(4px)", scale:0.98 },
-  animate: { opacity:1, y:0,  filter:"blur(0px)", scale:1,
-    transition:{ type:"spring", stiffness:300, damping:25, mass:0.8 } },
-  exit:    { opacity:0, y:-15, filter:"blur(4px)", scale:0.98,
-    transition:{ duration:0.2, ease:"easeIn" } },
-};
-// renderPage: avoids custom component closing tag + } esbuild bug
-// returns a motion.div when condition is true, null otherwise
-function renderPage(condition, pageKey, children) {
-  if (!condition) return null;
-  return (
-    <motion.div key={pageKey} variants={pageVariants}
-      initial="initial" animate="animate" exit="exit"
-      style={{ width:"100%" }}>
-      {children}
-    </motion.div>
-  );
-}
-
-// ─── NAV PILL INDICATOR (from nav-demo.jsx) ───────────────────
-function AnimatedTabIndicator() {
-  return (
-    <motion.div layoutId="nav-pill"
-      style={{ position:"absolute", inset:0, borderRadius:"8px",
-        background:"rgba(255,255,255,0.22)",
-        boxShadow:"0 2px 8px rgba(0,0,0,0.15) inset" }}
-      transition={{ type:"spring", stiffness:400, damping:25 }}/>
-  );
-}
-
-// ─── ANIMATED PROGRESS BAR (from planner-demo.jsx) ────────────
 function AnimatedProgressBar({ req, earned, color, label, done }) {
   const pct = Math.min(100,(earned/req)*100);
   const isDone = done || earned >= req;
-  const [justAdded, setJustAdded] = useState(false);
   const prevRef = useRef(0);
-
+  const [justAdded, setJustAdded] = useState(false);
   useEffect(()=>{
     if(earned > prevRef.current){ setJustAdded(true); setTimeout(()=>setJustAdded(false),800); }
     prevRef.current = earned;
   },[earned]);
-
   return (
     <div style={{ marginBottom:"12px" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"5px" }}>
-        <span style={{ fontSize:"11px", fontWeight:700,
-          color: isDone?"rgba(255,255,255,0.9)":"rgba(255,255,255,0.55)",
-          display:"flex", alignItems:"center", gap:"4px" }}>
+        <span style={{ fontSize:"11px", fontWeight:700, color:isDone?"rgba(255,255,255,0.9)":"rgba(255,255,255,0.55)", display:"flex", alignItems:"center", gap:"4px" }}>
           {isDone ? <motion.span initial={{scale:0}} animate={{scale:1}} style={{color,fontSize:"10px"}}>✓</motion.span> : null}
           {label}
         </span>
-        <motion.span
-          key={`${label}-${earned}`}
+        <motion.span key={label+earned}
           initial={{ scale:1.5, color:"#FBBF24" }}
-          animate={{ scale:1, color: isDone ? color : "rgba(255,255,255,0.35)" }}
+          animate={{ scale:1, color:isDone?color:"rgba(255,255,255,0.35)" }}
           transition={{ type:"spring", stiffness:400, damping:15 }}
           style={{ fontSize:"11px", fontWeight:700, fontVariantNumeric:"tabular-nums", display:"inline-block" }}>
           {earned.toFixed(1)}/{req}
         </motion.span>
       </div>
       <div style={{ height:"6px", borderRadius:"999px", background:"rgba(255,255,255,0.1)", overflow:"hidden" }}>
-        <motion.div
-          initial={{ width:0 }}
-          animate={{ width:`${pct}%` }}
-          transition={{ type:"spring", stiffness:200, damping:15 }}
-          style={{ height:"100%", borderRadius:"999px", background:color,
-            overflow:"hidden", position:"relative" }}>
+        <motion.div animate={{ width:pct+"%" }} transition={{ type:"spring", stiffness:200, damping:15 }}
+          style={{ height:"100%", borderRadius:"999px", background:color, overflow:"hidden", position:"relative" }}>
           <AnimatePresence>
-            {justAdded && !isDone && (
-              <motion.div
-                initial={{ x:"-100%", opacity:1 }} animate={{ x:"100%", opacity:0 }}
+            {justAdded && !isDone ? (
+              <motion.div initial={{ x:"-100%", opacity:1 }} animate={{ x:"100%", opacity:0 }}
                 transition={{ duration:0.6, ease:"easeOut" }}
-                style={{ position:"absolute", inset:0,
-                  background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.75),transparent)" }}/>
-            )}
+                style={{ position:"absolute", inset:0, background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.75),transparent)" }}/>
+            ) : null}
           </AnimatePresence>
         </motion.div>
       </div>
@@ -1032,7 +979,8 @@ export default function KalaniPlanner() {
   const [gridKey, setGridKey] = useState(0);
   const [toast, setToast] = useState(null); // {msg, grade}
   const [shakeGrade, setShakeGrade] = useState(null);
-  const [removingCards, setRemovingCards] = useState(new Set()); // keys being animated out
+  const [removingCards, setRemovingCards] = useState(new Set());
+  const newCardKeys = useRef(new Set()); // keys being animated out
 
   useEffect(() => {
     try { localStorage.setItem('kalani-compass-plan', JSON.stringify(plan)); } catch {}
@@ -1360,7 +1308,6 @@ export default function KalaniPlanner() {
           margin:2px;font-size:12px;font-weight:600;flex:1 0 calc(50% - 4px);min-width:150px;}
         .rm-btn{margin-left:auto;cursor:pointer;color:#9CA3AF;font-size:16px;line-height:1;padding:0 2px;flex-shrink:0;}
         .rm-btn:hover{color:var(--red);}
-        /* Filter button sweep (animation-demo) */
         .dept-btn{padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;
           font-family:inherit;position:relative;overflow:hidden;border:1.5px solid var(--border);
           background:white;color:var(--muted);
@@ -1371,10 +1318,8 @@ export default function KalaniPlanner() {
         .dept-btn span{position:relative;z-index:1;}
         .dept-btn:hover{transform:scale(1.06) translateY(-1px);border-color:var(--red);color:var(--red);}
         .dept-btn.active::before{height:100%;}
-        .dept-btn.active{color:white!important;border-color:var(--red)!important;
-          box-shadow:0 4px 14px rgba(176,8,4,0.3);}
+        .dept-btn.active{color:white!important;border-color:var(--red)!important;box-shadow:0 4px 14px rgba(176,8,4,0.3);}
         .dept-btn.active:hover{transform:scale(1.03);color:white!important;}
-        /* Delete reveal (planner-demo) */
         .delete-reveal{opacity:0;transform:translateX(12px);
           transition:opacity 0.22s ease,transform 0.28s cubic-bezier(0.34,1.4,0.64,1);}
         .card-hover-group:hover .delete-reveal{opacity:1;transform:translateX(0);}
@@ -1430,13 +1375,17 @@ export default function KalaniPlanner() {
           {[["home","Home"],["catalog","Courses"],["planner","4-Year Planner"]].map(([id,label])=>(
             <div key={id} onClick={()=>navigate(id)}
               style={{ position:"relative", cursor:"pointer", padding:"8px 15px", borderRadius:"8px" }}>
-              {page===id && <AnimatedTabIndicator />}
+              {page===id ? (
+                <motion.div layoutId="nav-pill"
+                  style={{ position:"absolute", inset:0, borderRadius:"8px",
+                    background:"rgba(255,255,255,0.22)", boxShadow:"0 2px 8px rgba(0,0,0,0.15) inset" }}
+                  transition={{ type:"spring", stiffness:400, damping:25 }}/>
+              ) : null}
               <span style={{ position:"relative", zIndex:1, fontWeight:600, fontSize:"14px",
-                color: page===id?"white":"rgba(255,255,255,0.65)",
-                transition:"color 0.2s", whiteSpace:"nowrap" }}>
+                color:page===id?"white":"rgba(255,255,255,0.65)", transition:"color 0.2s", whiteSpace:"nowrap" }}>
                 {label}
               </span>
-            </div>))}
+            </div>{/* */}))}
           <div style={{ marginLeft:"auto" }} />
         </nav>
 
@@ -1458,7 +1407,7 @@ export default function KalaniPlanner() {
               <span style={{ fontSize:"14px", flexShrink:0 }}>{icon}</span>
               <div style={{ flex:1, fontSize:"13px", lineHeight:1.4 }}>
                 <span style={{ fontWeight:700, color:palTxt }}>{a.title}</span>
-                {a.body && <span style={{ color:palSub }}> — {a.body}</span>}
+                {a.body && <span style={{ color:palSub }}> — {a.body}</span>{null}}
               </div>
               {a.link_url && (
                 <a href={a.link_url} target="_blank" rel="noopener noreferrer"
@@ -1469,7 +1418,7 @@ export default function KalaniPlanner() {
                   onMouseEnter={e=>e.currentTarget.style.opacity="0.8"}
                   onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
                   {a.type==="new"?"Take Survey ↗":"Learn More ↗"}
-                </a>)}
+                </a>{/* */})}
               <button
                 onClick={()=>setDismissedAnns(d=>[...d,a.id])}
                 style={{ background:"rgba(255,255,255,0.18)", border:"none", borderRadius:"50%",
@@ -1482,8 +1431,8 @@ export default function KalaniPlanner() {
           );
         })}
 
-        <AnimatePresence mode="wait">
-        {renderPage(page==="home","home",
+        {/* ── HOME ── */}
+        {page==="home" && (
           <div className="fade-in">
             <div style={{ background:`linear-gradient(135deg,var(--red-deep) 0%,var(--red-dark) 55%,var(--red) 100%)`,
               padding:"64px 24px 72px", textAlign:"center", position:"relative", overflow:"hidden" }}>
@@ -1564,7 +1513,7 @@ export default function KalaniPlanner() {
                           <div style={{ fontSize:"13px", fontWeight:700, color:"var(--text)",
                             whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
                             {c.name}
-                            {c.isAP && <span className="tag-ap" style={{ marginLeft:"6px" }}>AP</span>}
+                            {c.isAP && <span className="tag-ap" style={{ marginLeft:"6px" }}>AP</span>{null}}
                           </div>
                           <div style={{ fontSize:"11px", color:"var(--muted)" }}>
                             {subLabel} · {c.credits}cr · Grade {c.gradeLevel.join("/")}
@@ -1583,7 +1532,7 @@ export default function KalaniPlanner() {
                     onMouseLeave={e=>e.currentTarget.style.background="#FFF8F8"}>
                     See all results for "{homeSearch}" →
                   </div>
-                </div>)}
+                </div>{/* */})}
             </div>
 
             {/* Stats */}
@@ -1597,7 +1546,7 @@ export default function KalaniPlanner() {
                   <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"34px", fontWeight:700,
                     color:s.c }}>{s.n}</div>
                   <div style={{ fontSize:"12px", color:"var(--muted)", lineHeight:1.4 }}>{s.l}</div>
-                </div>))}
+                </div>{/* */}))}
             </div>
 
             {/* Dept links */}
@@ -1613,7 +1562,7 @@ export default function KalaniPlanner() {
                     onMouseEnter={e=>e.currentTarget.style.background=deptColor(d)+"28"}
                     onMouseLeave={e=>e.currentTarget.style.background=deptColor(d)+"14"}>
                     {d}
-                  </div>))}
+                  </div>{/* */}))}
               </div>
             </div>
 
@@ -1638,15 +1587,14 @@ export default function KalaniPlanner() {
                       <div style={{ fontSize:"11px", color:"rgba(255,255,255,0.48)", lineHeight:1.55 }}>
                         {r.breakdown.join(" • ")}
                       </div>
-                    </div>))}
+                    </div>{/* */}))}
                 </div>
               </div>
             </div>
-          </div>
-          </div>)}
+          </div>{/* */})}
 
         {/* ── CATALOG ── */}
-        {renderPage(page==="catalog","catalog",
+        {page==="catalog" && (
           <div className="fade-in" style={{ maxWidth:"1200px", margin:"0 auto", padding:"32px 24px" }}>
             <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"30px", color:"var(--red-dark)",
               marginBottom:"22px" }}>Course Catalog</h1>
@@ -1657,10 +1605,10 @@ export default function KalaniPlanner() {
               <div style={{ display:"flex", flexWrap:"wrap", gap:"5px" }}>
                 {DEPTS.map(d=>(
                   <button key={d}
-                    className={`dept-btn${filterDept===d?" active":""}`}
+                    className={"dept-btn"+(filterDept===d?" active":"")}
                     onClick={()=>{ setFilterDept(d); setFilterCtePath("All CTE"); setFilterFineArts("All Fine Arts"); setFilterMisc("All Miscellaneous"); setGridKey(k=>k+1); }}>
                     <span>{d}</span>
-                  </button>))}
+                  </button>{/* */}))}
               </div>
             </div>
             {filterDept === "CTE" && (
@@ -1673,8 +1621,8 @@ export default function KalaniPlanner() {
                       color:filterCtePath===p?"white":"var(--muted)",
                       border:`1.5px solid ${filterCtePath===p?"var(--red)":"var(--border)"}` }}>
                     {p}
-                  </div>))}
-              </div>)}
+                  </div>{/* */}))}
+              </div>{/* */})}
             {filterDept === "Fine Arts" && (
               <div style={{ display:"flex", flexWrap:"wrap", gap:"5px", marginBottom:"12px" }}>
                 {FINE_ARTS_TYPES.map(t=>(
@@ -1685,8 +1633,8 @@ export default function KalaniPlanner() {
                       color:filterFineArts===t?"white":"var(--muted)",
                       border:`1.5px solid ${filterFineArts===t?"#DB2777":"var(--border)"}` }}>
                     {t}
-                  </div>))}
-              </div>)}
+                  </div>{/* */}))}
+              </div>{/* */})}
             {filterDept === "Miscellaneous" && (
               <div style={{ display:"flex", flexWrap:"wrap", gap:"5px", marginBottom:"12px" }}>
                 {MISC_TYPES.map(t=>(
@@ -1697,29 +1645,29 @@ export default function KalaniPlanner() {
                       color:filterMisc===t?"white":"var(--muted)",
                       border:`1.5px solid ${filterMisc===t?"#6B7280":"var(--border)"}` }}>
                     {t}
-                  </div>))}
-              </div>)}
+                  </div>{/* */}))}
+              </div>{/* */})}
             <p style={{ fontSize:"13px", color:"var(--muted)", marginBottom:"18px" }}>
               Showing {filteredCourses.length} course{filteredCourses.length!==1?"s":""}
             </p>
             <div key={gridKey} className="catalog-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(295px,1fr))", gap:"14px" }}>
               {filteredCourses.map(c=>(
                 <div key={c.id} className="c-card"
-                  style={{ animation:`cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) ${filteredCourses.indexOf(c)*0.045}s both` }}
+                  style={{ animation:"cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) "+(filteredCourses.indexOf(c)*0.045)+"s both" }}
                   onClick={()=>setSelectedCourse(c)}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"8px" }}>
                     <div style={{ display:"flex", flexWrap:"wrap", gap:"4px", alignItems:"center" }}>
                       <span className="badge" style={{ background:deptColor(c.dept)+"1A", color:deptColor(c.dept) }}>{c.ctePath||c.fineArtsType||c.miscType||c.dept}</span>
-                      {c.teacherSigRequired&&<span style={{ fontSize:"10px",background:"#FEF3C7",color:"#92400E",padding:"2px 6px",borderRadius:"4px",fontWeight:700 }}>✍ Sig. req.</span>}
+                      {c.teacherSigRequired&&<span style={{ fontSize:"10px",background:"#FEF3C7",color:"#92400E",padding:"2px 6px",borderRadius:"4px",fontWeight:700 }}>✍ Sig. req.</span>{null}}
                     </div>
                     <div style={{ display:"flex", gap:"5px", alignItems:"center" }}>
-                      {c.isAP&&<span className="tag-ap">AP</span>}
+                      {c.isAP&&<span className="tag-ap">AP</span>{null}}
                       <span style={{ fontSize:"12px", fontWeight:700, color:"var(--muted)" }}>{c.credits}cr</span>
                     </div>
                   </div>
                   <h3 style={{ fontSize:"14px", fontWeight:700, color:"var(--text)", lineHeight:1.35, marginBottom:"2px" }}>{c.name}</h3>
-                  {c.subtitle&&<p style={{ fontSize:"11px", color:"var(--muted)", fontStyle:"italic", marginBottom:"3px" }}>{c.subtitle}</p>}
-                  {c.code&&<p style={{ fontSize:"11px", color:"#A08080", marginBottom:"6px" }}>{c.code}</p>}
+                  {c.subtitle&&<p style={{ fontSize:"11px", color:"var(--muted)", fontStyle:"italic", marginBottom:"3px" }}>{c.subtitle}</p>{null}}
+                  {c.code&&<p style={{ fontSize:"11px", color:"#A08080", marginBottom:"6px" }}>{c.code}</p>{null}}
                   <p style={{ fontSize:"12px", color:"var(--muted)", lineHeight:1.5,
                     display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{c.desc}</p>
                   {(c.prereqs.length>0 || (c.concurrentOk||[]).length>0)&&(
@@ -1732,8 +1680,8 @@ export default function KalaniPlanner() {
                               ? `${getCourseName(pid)} (or ${equivs.map(getCourseName).join("/")})`
                               : getCourseName(pid);
                           }).join(" + ")}
-                        </span>)}
-                      {c.prereqs.length>0&&(c.concurrentOk||[]).length>0&&<span style={{color:"var(--muted)"}}> · </span>}
+                        </span>{/* */})}
+                      {c.prereqs.length>0&&(c.concurrentOk||[]).length>0&&<span style={{color:"var(--muted)"}}> · </span>{null}}
                       {(c.concurrentOk||[]).length>0&&(
                         <span style={{ color:"#1D4ED8" }}>
                           🔄 concurrent: {(c.concurrentOk||[]).map(cid=>{
@@ -1742,8 +1690,8 @@ export default function KalaniPlanner() {
                               ? `${getCourseName(cid)} (or ${equivs.map(getCourseName).join("/")})`
                               : getCourseName(cid);
                           }).join(" or ")}
-                        </span>)}
-                    </div>)}
+                        </span>{/* */})}
+                    </div>{/* */})}
                   <div style={{ marginTop:"8px", fontSize:"11px", color:"var(--muted)",
                     display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                     <span>Grade {c.gradeLevel.join("/")} · {c.credits===0.5?"Semester":"Year"}</span>
@@ -1751,21 +1699,20 @@ export default function KalaniPlanner() {
                       <span style={{ color:"#92400E", fontWeight:700 }}>
                         ⭐ {ratings[c.id].avg.toFixed(1)}
                         <span style={{ color:"var(--muted)", fontWeight:400 }}> ({ratings[c.id].count})</span>
-                      </span>)}
+                      </span>{/* */})}
                   </div>
-                </div>))}
+                </div>{/* */}))}
               {filteredCourses.length===0&&(
                 <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"60px", color:"var(--muted)" }}>
                   <div style={{ fontSize:"44px", marginBottom:"16px" }}>🔍</div>
                   <p style={{ fontSize:"16px", fontWeight:700 }}>No courses found</p>
                   <p style={{ fontSize:"13px" }}>Try a different search term or department filter</p>
-                </div>)}
+                </div>{/* */})}
             </div>
-          </div>
-        </div>)}
+          </div>{/* */})}
 
         {/* ── PLANNER ── */}
-        {renderPage(page==="planner","planner",
+        {page==="planner" && (
           <div className="fade-in" style={{ maxWidth:"1180px", margin:"0 auto", padding:"32px 24px" }}>
             <div className="planner-layout" style={{ display:"flex", gap:"28px", alignItems:"flex-start", flexWrap:"wrap" }}>
               <div style={{ flex:"1", minWidth:0 }}>
@@ -1795,7 +1742,7 @@ export default function KalaniPlanner() {
                       borderRadius:"8px", padding:"6px 13px", fontSize:"12px", fontWeight:600,
                       cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
                     ↺ Reset Plan
-                  </button>)}
+                  </button>{/* */})}
                 </div>
                 <p style={{ fontSize:"13px", color:"var(--muted)", marginBottom:"22px" }}>
                   Click a course name to view details · ⚠️ = missing prereq · Click × to remove
@@ -1807,8 +1754,7 @@ export default function KalaniPlanner() {
                   const usedSlots = gradeSlots(plan, grade);
                   const atCap = usedSlots >= GRADE_MAX;
                   return (
-                    <motion.div key={grade}
-                      animate={shakeGrade===grade ? shakeAnim : {}}>
+                    <motion.div key={grade} animate={shakeGrade===grade ? shakeAnim : {}}>
                       <div style={{ background:"white", borderRadius:"20px", border:"1px solid #E2E8F0",
                         boxShadow:"0 1px 4px rgba(0,0,0,0.05)", overflow:"hidden" }}>
                         <div style={{ padding:"16px 18px 12px", borderBottom:"1px solid #F1F5F9",
@@ -1818,7 +1764,7 @@ export default function KalaniPlanner() {
                           <span style={{ fontSize:"11px", fontWeight:700,
                             color:atCap?"#F59E0B":"#94A3B8", background:atCap?"#FEF9C3":"#F8FAFC",
                             padding:"3px 8px", borderRadius:"999px",
-                            border:`1px solid ${atCap?"#FDE68A":"#E2E8F0"}` }}>
+                            border:"1px solid "+(atCap?"#FDE68A":"#E2E8F0") }}>
                             {usedSlots.toFixed(1)}/{GRADE_MAX}
                           </span>
                         </div>
@@ -1832,12 +1778,10 @@ export default function KalaniPlanner() {
                             const before = getCoursesBeforeGrade(plan, grade);
                             const upTo = getAllCoursesUpTo(plan, grade);
                             const unmet = isOffCampus ? [] : getUnmetPrereqs(cid, before, upTo);
-                            const isNew = newCardKeys.current.has(`${grade}-${idx}`);
+                            const isNew = newCardKeys.current.has(grade+"-"+idx);
                             return (
-                              <motion.div key={`${cid}-${idx}`}
-                                layout="position"
-                                variants={cardVariants}
-                                initial="hidden" animate="show" exit="exit"
+                              <motion.div key={cid+"-"+idx} layout="position"
+                                variants={cardVariants} initial="hidden" animate="show" exit="exit"
                                 style={{ overflow:"hidden" }}>
                                 <motion.div className="card-hover-group"
                                   variants={contentVariants}
@@ -1845,60 +1789,53 @@ export default function KalaniPlanner() {
                                   transition={{ type:"spring", stiffness:400, damping:28 }}
                                   style={{ display:"flex", alignItems:"center",
                                     background:isOffCampus?"#F8FAFC":"white",
-                                    border:`1px solid ${isOffCampus?"#CBD5E1":col+"28"}`,
+                                    border:"1px solid "+(isOffCampus?"#CBD5E1":col+"28"),
                                     borderRadius:"12px", overflow:"hidden",
                                     position:"relative", marginBottom:"6px" }}>
                                   <div style={{ width:"4px", alignSelf:"stretch",
                                     background:isOffCampus?"#475569":col, flexShrink:0 }}/>
-                                  {isNew && (
+                                  {isNew ? (
                                     <motion.div
                                       initial={{ x:"-150%", skewX:-12 }}
                                       animate={{ x:"250%", skewX:-12 }}
                                       transition={{ duration:0.9, ease:"easeInOut", delay:0.12 }}
                                       style={{ position:"absolute", top:"-30%", bottom:"-30%",
                                         left:0, width:"55%", zIndex:20, pointerEvents:"none",
-                                        background:`linear-gradient(to right,transparent,${
-                                          isOffCampus?"rgba(71,85,105,0.25)":col+"60"},${col}35,transparent)` }}/>
-                                  )}
+                                        background:"linear-gradient(to right,transparent,"+(isOffCampus?"rgba(71,85,105,0.25)":col+"60")+","+(isOffCampus?"rgba(71,85,105,0.1)":col+"35")+",transparent)" }}/>
+                                  ) : null}
                                   <div style={{ flex:1, padding:"9px 10px", minWidth:0, position:"relative" }}>
                                     <div style={{ display:"flex", alignItems:"center", gap:"4px", marginBottom:"2px" }}>
                                       <span style={{ fontSize:"9px", fontWeight:900, letterSpacing:"0.07em",
                                         textTransform:"uppercase", background:isOffCampus?"#E2E8F0":col+"18",
-                                        color:isOffCampus?"#475569":col,
-                                        padding:"2px 6px", borderRadius:"4px", flexShrink:0 }}>
+                                        color:isOffCampus?"#475569":col, padding:"2px 6px", borderRadius:"4px", flexShrink:0 }}>
                                         {isOffCampus?"Off Campus":c.dept}
                                       </span>
                                       <span style={{ fontSize:"9px", fontWeight:800, color:"#94A3B8",
-                                        background:"#F1F5F9", padding:"2px 5px",
-                                        borderRadius:"4px", flexShrink:0 }}>{c.credits}cr</span>
-                                      {c.isAP&&<span className="tag-ap" style={{fontSize:"9px"}}>AP</span>}
-                                      {unmet.length>0 && (
-                                        <span title={`Missing prereqs: ${unmet.map(getPrereqDisplay).join(", ")}`}
+                                        background:"#F1F5F9", padding:"2px 5px", borderRadius:"4px", flexShrink:0 }}>{c.credits}cr</span>
+                                      {c.isAP ? <span className="tag-ap" style={{fontSize:"9px"}}>AP</span> : null}
+                                      {unmet.length>0 ? (
+                                        <span title={"Missing prereqs: "+unmet.map(getPrereqDisplay).join(", ")}
                                           style={{ fontSize:"11px", cursor:"help", flexShrink:0 }}>⚠️</span>
-                                      )}
+                                      ) : null}
                                     </div>
                                     <span style={{ fontSize:"13px", fontWeight:700,
-                                      color:isOffCampus?"#475569":"#0F172A",
-                                      letterSpacing:"-0.01em", cursor:"pointer",
-                                      overflow:"hidden", textOverflow:"ellipsis",
+                                      color:isOffCampus?"#475569":"#0F172A", letterSpacing:"-0.01em",
+                                      cursor:"pointer", overflow:"hidden", textOverflow:"ellipsis",
                                       display:"block", whiteSpace:"nowrap" }}
                                       onClick={()=>setSelectedCourse(c)}>
                                       {isOffCampus?"🚗 Off Campus":c.name}
                                     </span>
                                   </div>
-                                  <div className="delete-reveal"
-                                    style={{ padding:"0 10px", flexShrink:0 }}>
+                                  <div className="delete-reveal" style={{ padding:"0 10px", flexShrink:0 }}>
                                     <motion.div
-                                      whileHover={{ backgroundColor:"#EF4444", scale:1.1,
-                                        boxShadow:"0 4px 12px rgba(239,68,68,0.4)" }}
+                                      whileHover={{ backgroundColor:"#EF4444", scale:1.1, boxShadow:"0 4px 12px rgba(239,68,68,0.4)" }}
                                       whileTap={{ scale:0.92 }}
                                       onClick={()=>removeCourse(grade,idx)}
                                       style={{ width:"30px", height:"30px", borderRadius:"50%",
                                         background:"#FEF2F2", display:"flex", alignItems:"center",
                                         justifyContent:"center", cursor:"pointer" }}>
                                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                                        stroke="#EF4444" strokeWidth="2.5"
-                                        strokeLinecap="round" strokeLinejoin="round">
+                                        stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                         <polyline points="3 6 5 6 21 6"/>
                                         <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
                                         <path d="M10 11v6M14 11v6"/>
@@ -1915,16 +1852,17 @@ export default function KalaniPlanner() {
                           <div className="add-btn" style={{ flex:1, opacity: atCap?0.4:1, cursor: atCap?"not-allowed":"pointer",
                             pointerEvents: atCap?"none":"auto" }}
                             onClick={()=>{ if(!atCap) setAddTarget(grade); }}>
-                            {atCap ? `✋ Full (${GRADE_MAX} slots used)` : "+ Add a Course"}
+                            {atCap ? "✋ Full ("+GRADE_MAX+" slots used)" : "+ Add a Course"}
                           </div>
-                          {grade===12&&(
+                          {grade===12 ? (
                             <div className="add-btn"
                               style={{ flex:"0 0 auto", borderColor:"#64748B", color:"#64748B",
                                 opacity: atCap?0.4:1, cursor: atCap?"not-allowed":"pointer",
                                 pointerEvents: atCap?"none":"auto" }}
-                              onClick={()=>{ if(gradeSlots(plan,12)<GRADE_MAX){ const nk=`12-${(plan[12]||[]).length}`; newCardKeys.current.add(nk); setPlan(p=>{ const n=JSON.parse(JSON.stringify(p)); n[12].push("OFF_CAMPUS"); return n; }); } }}>
+                              onClick={()=>{ if(gradeSlots(plan,12)<GRADE_MAX){ newCardKeys.current.add("12-"+(plan[12]||[]).length); setPlan(p=>{ const n=JSON.parse(JSON.stringify(p)); n[12].push("OFF_CAMPUS"); return n; }); } }}>
                               🚗 Off Campus
-                            </div>)}
+                            </div>
+                          ) : null}
                         </div>
                         </div>
                       </div>
@@ -1948,23 +1886,18 @@ export default function KalaniPlanner() {
                   <div style={{ height:"10px", borderRadius:"5px", background:"rgba(255,255,255,0.1)",
                     overflow:"hidden", marginBottom:"20px" }}>
                     <motion.div
-                      animate={{ width:`${Math.min(100,(total/24)*100)}%` }}
+                      animate={{ width:Math.min(100,(total/24)*100)+"%" }}
                       transition={{ type:"spring", stiffness:200, damping:15 }}
-                      style={{ height:"100%", borderRadius:"5px",
-                        background:"linear-gradient(90deg,var(--red),#E53E3E)" }}/>
+                      style={{ height:"100%", borderRadius:"5px", background:"linear-gradient(90deg,var(--red),#E53E3E)" }}/>
                   </div>
                   {GRAD_REQUIREMENTS.map(r=>{
                     const earned=cats[r.id]||0;
                     const done=earned>=r.required;
                     return (
-                      <AnimatedProgressBar
-                        key={r.id}
-                        label={r.label}
-                        req={r.required}
+                      <AnimatedProgressBar key={r.id}
+                        label={r.label} req={r.required}
                         earned={Math.min(earned,r.required)}
-                        color={r.color}
-                        done={done}
-                      />
+                        color={r.color} done={done}/>
                     );
                   })}
 
@@ -2032,7 +1965,7 @@ export default function KalaniPlanner() {
                             <p style={{ fontSize:"10px", color:"rgba(255,255,255,0.3)", marginTop:"8px", lineHeight:1.4 }}>
                               ⚠️ GPA &amp; performance assessments cannot be tracked here.
                             </p>
-                          </div>)}
+                          </div>{/* */})}
                       </div>
                     );
                   })}
@@ -2041,19 +1974,16 @@ export default function KalaniPlanner() {
                 </div>
               </div>
             </div>
-          </div>)}
+          </div>{/* */})}
 
                 {/* ── COURSE DETAIL MODAL ── */}
         {selectedCourse&&(
           <div className="overlay" onClick={()=>setSelectedCourse(null)}>
             <motion.div className="modal" onClick={e=>e.stopPropagation()}
               initial={{ opacity:0, scale:0.88, y:24 }}
-              animate={{ opacity:1, scale:1,   y:0,
-                transition:{ type:"spring", stiffness:350, damping:22 } }}
-              exit={{ opacity:0, scale:0.92, y:16,
-                transition:{ duration:0.18, ease:"easeIn" } }}>
-              <motion.div
-                initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }}
+              animate={{ opacity:1, scale:1, y:0, transition:{ type:"spring", stiffness:350, damping:22 } }}
+              exit={{ opacity:0, scale:0.92, y:16, transition:{ duration:0.18, ease:"easeIn" } }}>
+              <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }}
                 transition={{ type:"spring", stiffness:300, damping:24, delay:0.06 }}
                 style={{ padding:"24px 26px", borderBottom:"1px solid var(--border)" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
@@ -2064,8 +1994,8 @@ export default function KalaniPlanner() {
                     </span>
                     <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:"22px", color:"var(--text)",
                       lineHeight:1.3, marginBottom:"4px" }}>{selectedCourse.name}</h2>
-                    {selectedCourse.subtitle&&<p style={{ fontSize:"13px", color:"var(--muted)", fontStyle:"italic", marginBottom:"3px" }}>{selectedCourse.subtitle}</p>}
-                    {selectedCourse.code&&<p style={{ fontSize:"12px",color:"var(--muted)" }}>{selectedCourse.code}</p>}
+                    {selectedCourse.subtitle&&<p style={{ fontSize:"13px", color:"var(--muted)", fontStyle:"italic", marginBottom:"3px" }}>{selectedCourse.subtitle}</p>{null}}
+                    {selectedCourse.code&&<p style={{ fontSize:"12px",color:"var(--muted)" }}>{selectedCourse.code}</p>{null}}
                   </div>
                   <button onClick={()=>setSelectedCourse(null)}
                     style={{ background:"var(--light-red)", border:"none", borderRadius:"50%", width:"34px",
@@ -2073,8 +2003,7 @@ export default function KalaniPlanner() {
                       display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>×</button>
                 </div>
               </motion.div>
-              <motion.div
-                initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }}
+              <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }}
                 transition={{ type:"spring", stiffness:300, damping:24, delay:0.14 }}
                 style={{ padding:"22px 26px" }}>
                 {selectedCourse.isOffCampus ? (
@@ -2091,7 +2020,7 @@ export default function KalaniPlanner() {
                             width:"18px", height:"18px", display:"flex", alignItems:"center", justifyContent:"center",
                             fontSize:"10px", fontWeight:700, flexShrink:0, marginTop:"1px" }}>{i+1}</span>
                           <span style={{ fontSize:"13px", color:"#1E293B", lineHeight:1.5 }}>{e}</span>
-                        </div>))}
+                        </div>{/* */}))}
                     </div>
 
                     <div style={{ marginBottom:"14px" }}>
@@ -2105,7 +2034,7 @@ export default function KalaniPlanner() {
                             {r.label}
                           </div>
                           <div style={{ fontSize:"12px", color: i===0?"#166534":"#7C2D12" }}>{r.limit}</div>
-                        </div>))}
+                        </div>{/* */}))}
                     </div>
 
                     <div style={{ background:"#FFFBEB", border:"1.5px solid #FDE68A",
@@ -2119,7 +2048,7 @@ export default function KalaniPlanner() {
                           padding:"5px 0", borderBottom: i<selectedCourse.submissions.length-1?"1px solid #FDE68A":"none" }}>
                           <span style={{ fontWeight:800, flexShrink:0, color:"#92400E" }}>{String.fromCharCode(65+i)}.</span>
                           <span style={{ lineHeight:1.5 }}>{s}</span>
-                        </div>))}
+                        </div>{/* */}))}
                     </div>
 
                     <div style={{ background:"#FEF2F2", border:"1.5px solid #FECACA",
@@ -2134,7 +2063,7 @@ export default function KalaniPlanner() {
                         borderRadius:"9px", padding:"11px 14px",
                         fontSize:"12px", color:"#1E40AF", lineHeight:1.65 }}>
                         <strong>💡 </strong>{selectedCourse.tips}
-                      </div>)}
+                      </div>{/* */})}
                   </div>
                 ) : (
                   /* ── REGULAR COURSE BODY ── */
@@ -2148,18 +2077,18 @@ export default function KalaniPlanner() {
                           <div style={{ fontSize:"10px",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",
                             letterSpacing:"0.06em",marginBottom:"4px" }}>{k}</div>
                           <div style={{ fontSize:"15px",fontWeight:800,color:"var(--slate)" }}>{v}</div>
-                        </div>))}
+                        </div>{/* */}))}
                     </div>
                     {selectedCourse.isAP&&(
                       <div style={{ background:"#FFFBEB", border:"1.5px solid #F59E0B", borderRadius:"9px",
                         padding:"11px 14px", marginBottom:"14px", fontSize:"12px", color:"#78350F", fontWeight:600 }}>
                         ⭐ AP Course — Weighted on 5.0 scale. AP exam required in May (~$96). Signed contract + parent info session required.
-                      </div>)}
+                      </div>{/* */})}
                     {selectedCourse.teacherSigRequired&&(
                       <div style={{ background:"#FEF9C3", border:"1.5px solid #EAB308", borderRadius:"8px",
                         padding:"8px 13px", marginBottom:"12px", fontSize:"12px", color:"#78350F", fontWeight:600 }}>
                         ✍️ Teacher/counselor signature required for enrollment
-                      </div>)}
+                      </div>{/* */})}
                     <div style={{ marginBottom:"14px" }}>
                       <h3 style={{ fontSize:"11px",fontWeight:800,color:"var(--muted)",textTransform:"uppercase",
                         letterSpacing:"0.08em",marginBottom:"7px" }}>Description</h3>
@@ -2173,8 +2102,8 @@ export default function KalaniPlanner() {
                         {Object.entries(selectedCourse.gradeReqs).map(([pid,req])=>(
                           <div key={pid} style={{ fontSize:"12px",color:"#15803D", marginBottom:"3px" }}>
                             <strong>{getCourseName(pid)}</strong>: {req}
-                          </div>))}
-                      </div>)}
+                          </div>{/* */}))}
+                      </div>{/* */})}
                     {selectedCourse.concurrentOk && selectedCourse.concurrentOk.length>0 && (
                       <div style={{ background:"#EFF6FF", border:"1.5px solid #BFDBFE", borderRadius:"8px",
                         padding:"10px 13px", marginBottom:"12px" }}>
@@ -2183,8 +2112,8 @@ export default function KalaniPlanner() {
                         <div style={{ fontSize:"12px",color:"#1D4ED8" }}>
                           {selectedCourse.concurrentOk.map(id=>getCourseName(id)).join(" or ")}
                         </div>
-                      </div>)}
-                  </div>)}
+                      </div>{/* */})}
+                  </div>{/* */})}
                 {!selectedCourse.isOffCampus && (selectedCourse.prereqs.length>0 || (selectedCourse.concurrentOk||[]).length>0) &&(
                   <div style={{ marginBottom:"14px" }}>
                     <h3 style={{ fontSize:"11px",fontWeight:800,color:"var(--muted)",textTransform:"uppercase",
@@ -2206,7 +2135,7 @@ export default function KalaniPlanner() {
                                   style={{ background:"#FFF7ED", border:"1px solid #FED7AA", color:"#9A3412" }}>
                                   {getCourseName(eid)} →
                                 </div>
-                              </span>))}
+                              </span>{/* */}))}
                           </div>
                         );
                       })}
@@ -2231,13 +2160,13 @@ export default function KalaniPlanner() {
                                       style={{ background:"#EFF6FF", border:"1px solid #93C5FD", color:"#1D4ED8" }}>
                                       {getCourseName(eid)} 🔄
                                     </div>
-                                  </span>))}
+                                  </span>{/* */}))}
                               </div>
                             );
                           })}
                         </div>
-                      </div>)}
-                  </div>)}
+                      </div>{/* */})}
+                  </div>{/* */})}
                 {!selectedCourse.isOffCampus && (()=>{
                   const unlocks=liveCourses.filter(c=>c.prereqs.includes(selectedCourse.id));
                   return unlocks.length>0?(
@@ -2250,7 +2179,7 @@ export default function KalaniPlanner() {
                             style={{ background:deptColor(c.dept)+"14",
                               border:`1px solid ${deptColor(c.dept)}35`, color:deptColor(c.dept) }}>
                             {c.name}{c.isAP&&" ⭐"}
-                          </div>))}
+                          </div>{/* */}))}
                       </div>
                     </div>
                   ):null;
@@ -2260,7 +2189,7 @@ export default function KalaniPlanner() {
                     borderRadius:"9px", padding:"12px 14px", fontSize:"13px", color:"#1E40AF",
                     lineHeight:1.65, marginBottom:"16px" }}>
                     <strong>💡 Tip: </strong>{selectedCourse.tips}
-                  </div>)}
+                  </div>{/* */})}
                 {!selectedCourse.isOffCampus && <div style={{ borderTop:"1px solid var(--border)", paddingTop:"16px" }}>
                   <p style={{ fontSize:"12px",color:"var(--muted)",marginBottom:"9px",fontWeight:600 }}>
                     Add to 4-Year Plan:
@@ -2308,7 +2237,7 @@ export default function KalaniPlanner() {
                       );
                     })}
                   </div>
-                </div>}
+                </div>{null}}
 
                 {/* RATING SECTION */}
                 {!selectedCourse.isOffCampus && (
@@ -2420,13 +2349,13 @@ export default function KalaniPlanner() {
                                 cursor:"pointer", fontFamily:"inherit" }}>
                               Cancel
                             </button>
-                          </div>)}
-                      </div>)}
-                  </div>)}
+                          </div>{/* */})}
+                      </div>{/* */})}
+                  </div>{/* */})}
               </div>
             </motion.div>
             </motion.div>
-          </div>)}
+          </div>{/* */})}
 
         {/* ── ADD COURSE MODAL ── */}
         {addTarget!==null&&(
@@ -2464,7 +2393,8 @@ export default function KalaniPlanner() {
                               <li key={pid}>{getPrereqDisplay(pid)}</li>
                             ))}
                           </ul>
-                        </>) /* end prereq warn */}
+                        </>
+                      )}
                     </div>
                     <div style={{ display:"flex", gap:"8px" }}>
                       <button onClick={()=>forceAddCourse(prereqWarn.courseId)}
@@ -2479,13 +2409,13 @@ export default function KalaniPlanner() {
                         Cancel
                       </button>
                     </div>
-                  </div>)}
+                  </div>{/* */})}
 
                 {addTarget && gradeSlots(plan, addTarget) >= GRADE_MAX && (
                   <div style={{ background:"#FEF3C7", border:"1.5px solid #F59E0B", borderRadius:"9px",
                     padding:"10px 14px", marginBottom:"12px", fontSize:"12px", color:"#78350F", fontWeight:600 }}>
                     ✋ Grade {addTarget} is at the {GRADE_MAX}-slot limit. Remove a course first.
-                  </div>)}
+                  </div>{/* */})}
                 <div style={{ maxHeight:"320px", overflowY:"auto" }}>
                   {addSearchResults.map(c=>{
                     const already = !c.repeatable && Object.values(plan).flat().includes(c.id);
@@ -2518,16 +2448,14 @@ export default function KalaniPlanner() {
                         </div>
                         {already
                           ?<span style={{ fontSize:"11px",color:"var(--red)",fontWeight:700,flexShrink:0 }}>Added</span>
-                          :<span style={{ fontSize:"20px",color: hasWarn?"#D97706":"var(--red)",flexShrink:0 }}>{hasWarn?"⚠️":"+"}</span>}
+                          :<span style={{ fontSize:"20px",color: hasWarn?"#D97706":"var(--red)",flexShrink:0 }}>{hasWarn?"⚠️":"+"}</span>{null}}
                       </div>
                     );
                   })}
                 </div>
               </div>
             </div>
-          </div>)}
-        </AnimatePresence>
-
+          </div>{/* */})}
 
       </div>
 
@@ -2536,18 +2464,19 @@ export default function KalaniPlanner() {
 
       {/* ── TOAST ── */}
       <AnimatePresence>
-        {toast && (
+        {toast ? (
           <motion.div
             initial={{ opacity:0, y:10, x:"-50%" }}
-            animate={{ opacity:1, y:0,  x:"-50%" }}
-            exit={{    opacity:0, y:10,  x:"-50%" }}
+            animate={{ opacity:1, y:0, x:"-50%" }}
+            exit={{ opacity:0, y:10, x:"-50%" }}
             style={{ position:"fixed", bottom:"28px", left:"50%",
               background:"#1C2B3A", color:"white", padding:"11px 22px", borderRadius:"10px",
               fontSize:"13px", fontWeight:600, boxShadow:"0 4px 20px rgba(0,0,0,0.3)",
               zIndex:2000, pointerEvents:"none",
               display:"flex", alignItems:"center", gap:"8px" }}>
             ✅ {toast}
-          </motion.div>)}
+          </motion.div>
+        ) : null}
       </AnimatePresence>
     </>
   );
@@ -2606,10 +2535,10 @@ function DataCitationFooter() {
                       textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px" }}>{label}</div>
                     <div style={{ fontSize:"13px", color:"#374151", lineHeight:1.6 }}>{text}</div>
                   </div>
-                </div>))}
+                </div>{/* */}))}
             </div>
           </div>
-        </div>)}
+        </div>{/* */})}
     </>
   );
 }
