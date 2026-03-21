@@ -884,7 +884,7 @@ function calcPlannerCredits(plan) {
   return { cats, total };
 }
 
-// ─── FRAMER MOTION VARIANTS ──────────────────────────────────
+// ─── ANIMATION VARIANTS (from planner-demo.jsx) ───────────────
 const cardVariants = {
   hidden: { height:0, opacity:0, marginBottom:0 },
   show: {
@@ -897,18 +897,98 @@ const cardVariants = {
       delay:0.15,
       height:{ type:"spring", stiffness:400, damping:30 },
       opacity:{ delay:0.15 },
-      marginBottom:{ delay:0.15 }
+      marginBottom:{ delay:0.15 },
     }
   },
 };
 const contentVariants = {
   hidden: { x:50, opacity:0, scale:0.95 },
-  show: { x:0, opacity:1, scale:1,
-    transition:{ type:"spring", stiffness:350, damping:25, delay:0.05 } },
-  exit: { x:-60, opacity:0, scale:0.95, filter:"blur(8px)",
-    transition:{ type:"spring", stiffness:400, damping:25 } },
+  show:  { x:0, opacity:1, scale:1, transition:{ type:"spring", stiffness:350, damping:25, delay:0.05 } },
+  exit:  { x:-60, opacity:0, scale:0.95, filter:"blur(8px)", transition:{ type:"spring", stiffness:400, damping:25 } },
 };
 const shakeAnim = { x:[0,-8,8,-6,6,-3,3,0], transition:{ duration:0.4, ease:"easeInOut" } };
+
+// ─── PAGE TRANSITION WRAPPER (from nav-demo.jsx) ──────────────
+const pageVariants = {
+  initial: { opacity:0, y:15, filter:"blur(4px)", scale:0.98 },
+  animate: { opacity:1, y:0,  filter:"blur(0px)", scale:1,
+    transition:{ type:"spring", stiffness:300, damping:25, mass:0.8 } },
+  exit:    { opacity:0, y:-15, filter:"blur(4px)", scale:0.98,
+    transition:{ duration:0.2, ease:"easeIn" } },
+};
+// Wraps each page — the key prop on motion.div is what triggers AnimatePresence
+function AnimatedPageWrapper({ pageKey, children }) {
+  return (
+    <motion.div key={pageKey} variants={pageVariants}
+      initial="initial" animate="animate" exit="exit"
+      style={{ width:"100%" }}>
+      {children}
+    </motion.div>
+  );
+}
+
+// ─── NAV PILL INDICATOR (from nav-demo.jsx) ───────────────────
+function AnimatedTabIndicator() {
+  return (
+    <motion.div layoutId="nav-pill"
+      style={{ position:"absolute", inset:0, borderRadius:"8px",
+        background:"rgba(255,255,255,0.22)",
+        boxShadow:"0 2px 8px rgba(0,0,0,0.15) inset" }}
+      transition={{ type:"spring", stiffness:400, damping:25 }}/>
+  );
+}
+
+// ─── ANIMATED PROGRESS BAR (from planner-demo.jsx) ────────────
+function AnimatedProgressBar({ req, earned, color, label, done }) {
+  const pct = Math.min(100,(earned/req)*100);
+  const isDone = done || earned >= req;
+  const [justAdded, setJustAdded] = useState(false);
+  const prevRef = useRef(0);
+
+  useEffect(()=>{
+    if(earned > prevRef.current){ setJustAdded(true); setTimeout(()=>setJustAdded(false),800); }
+    prevRef.current = earned;
+  },[earned]);
+
+  return (
+    <div style={{ marginBottom:"12px" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"5px" }}>
+        <span style={{ fontSize:"11px", fontWeight:700,
+          color: isDone?"rgba(255,255,255,0.9)":"rgba(255,255,255,0.55)",
+          display:"flex", alignItems:"center", gap:"4px" }}>
+          {isDone && <motion.span initial={{scale:0}} animate={{scale:1}} style={{color,fontSize:"10px"}}>✓</motion.span>}
+          {label}
+        </span>
+        <motion.span
+          key={`${label}-${earned}`}
+          initial={{ scale:1.5, color:"#FBBF24" }}
+          animate={{ scale:1, color: isDone ? color : "rgba(255,255,255,0.35)" }}
+          transition={{ type:"spring", stiffness:400, damping:15 }}
+          style={{ fontSize:"11px", fontWeight:700, fontVariantNumeric:"tabular-nums", display:"inline-block" }}>
+          {earned.toFixed(1)}/{req}
+        </motion.span>
+      </div>
+      <div style={{ height:"6px", borderRadius:"999px", background:"rgba(255,255,255,0.1)", overflow:"hidden" }}>
+        <motion.div
+          initial={{ width:0 }}
+          animate={{ width:`${pct}%` }}
+          transition={{ type:"spring", stiffness:200, damping:15 }}
+          style={{ height:"100%", borderRadius:"999px", background:color,
+            overflow:"hidden", position:"relative" }}>
+          <AnimatePresence>
+            {justAdded && !isDone && (
+              <motion.div
+                initial={{ x:"-100%", opacity:1 }} animate={{ x:"100%", opacity:0 }}
+                transition={{ duration:0.6, ease:"easeOut" }}
+                style={{ position:"absolute", inset:0,
+                  background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.75),transparent)" }}/>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
 
 export default function KalaniPlanner() {
   // V4: courses fetched from Supabase, falls back to local COURSES if unavailable
@@ -950,7 +1030,6 @@ export default function KalaniPlanner() {
   const [gridKey, setGridKey] = useState(0);
   const [toast, setToast] = useState(null); // {msg, grade}
   const [shakeGrade, setShakeGrade] = useState(null);
-  const newCardKeys = useRef(new Set()); // tracks cards added THIS session (get shimmer)
   const [removingCards, setRemovingCards] = useState(new Set()); // keys being animated out
 
   useEffect(() => {
@@ -1196,11 +1275,8 @@ export default function KalaniPlanner() {
     <>
       <style>{`
         ${FONTS}
+        @keyframes cardIn{from{opacity:0;transform:translateY(24px) scale(0.97);}to{opacity:1;transform:translateY(0) scale(1);}}
         @keyframes annSlideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes cardIn{
-          from{opacity:0;transform:translateY(24px) scale(0.97);}
-          to{opacity:1;transform:translateY(0) scale(1);}
-        }
         @keyframes starPop{0%{opacity:0;transform:scale(0) rotate(-20deg)}60%{transform:scale(1.35) rotate(4deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
         /* Planner card animations */
         @keyframes planCardIn{
@@ -1282,30 +1358,27 @@ export default function KalaniPlanner() {
           margin:2px;font-size:12px;font-weight:600;flex:1 0 calc(50% - 4px);min-width:150px;}
         .rm-btn{margin-left:auto;cursor:pointer;color:#9CA3AF;font-size:16px;line-height:1;padding:0 2px;flex-shrink:0;}
         .rm-btn:hover{color:var(--red);}
+        /* Filter button sweep (animation-demo) */
+        .dept-btn{padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;
+          font-family:inherit;position:relative;overflow:hidden;border:1.5px solid var(--border);
+          background:white;color:var(--muted);
+          transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1),border-color 0.18s,color 0.18s;}
+        .dept-btn::before{content:'';position:absolute;left:0;right:0;bottom:0;height:0;
+          background:linear-gradient(to top,var(--red-dark),var(--red));
+          transition:height 0.3s cubic-bezier(0.25,0.46,0.45,0.94);z-index:0;}
+        .dept-btn span{position:relative;z-index:1;}
+        .dept-btn:hover{transform:scale(1.06) translateY(-1px);border-color:var(--red);color:var(--red);}
+        .dept-btn.active::before{height:100%;}
+        .dept-btn.active{color:white!important;border-color:var(--red)!important;
+          box-shadow:0 4px 14px rgba(176,8,4,0.3);}
+        .dept-btn.active:hover{transform:scale(1.03);color:white!important;}
+        /* Delete reveal (planner-demo) */
+        .delete-reveal{opacity:0;transform:translateX(12px);
+          transition:opacity 0.22s ease,transform 0.28s cubic-bezier(0.34,1.4,0.64,1);}
+        .card-hover-group:hover .delete-reveal{opacity:1;transform:translateX(0);}
         .add-btn{border:1.5px dashed #D1D5DB;border-radius:7px;padding:7px;text-align:center;
           font-size:11px;color:#9CA3AF;cursor:pointer;margin-top:6px;transition:all 0.2s;}
         .add-btn:hover{border-color:var(--red);color:var(--red);background:var(--light-red);}
-        /* Catalog filter button sweep */
-        .dept-filter-btn{
-          padding:6px 12px; border-radius:7px; cursor:pointer;
-          font-size:12px; font-weight:700; font-family:inherit;
-          position:relative; overflow:hidden;
-          transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1), border-color 0.18s, color 0.18s;
-        }
-        .dept-filter-btn::before{
-          content:''; position:absolute; left:0; right:0; bottom:0; height:0;
-          background:linear-gradient(to top,var(--red-dark),var(--red));
-          transition:height 0.3s cubic-bezier(0.25,0.46,0.45,0.94); z-index:0;
-        }
-        .dept-filter-btn span{ position:relative; z-index:1; }
-        .dept-filter-btn:hover{ transform:scale(1.06) translateY(-1px); border-color:var(--red) !important; color:var(--red) !important; }
-        .dept-filter-btn.active::before{ height:100%; }
-        .dept-filter-btn.active{ color:white !important; border-color:var(--red) !important; box-shadow:0 4px 14px rgba(176,8,4,0.3); }
-        .dept-filter-btn.active:hover{ transform:scale(1.03); }
-        /* Delete button hover reveal */
-        .delete-btn-wrap{ opacity:0; transform:translateX(12px);
-          transition:opacity 0.22s ease, transform 0.28s cubic-bezier(0.34,1.4,0.64,1); }
-        .card-hover-group:hover .delete-btn-wrap{ opacity:1; transform:translateX(0); }
         .overlay{position:fixed;inset:0;background:rgba(17,24,39,0.65);display:flex;align-items:center;
           justify-content:center;z-index:1000;padding:20px;backdrop-filter:blur(5px);}
         .modal{background:white;border-radius:20px;max-width:620px;width:100%;max-height:90vh;
@@ -1355,12 +1428,7 @@ export default function KalaniPlanner() {
           {[["home","Home"],["catalog","Courses"],["planner","4-Year Planner"]].map(([id,label])=>(
             <div key={id} onClick={()=>navigate(id)}
               style={{ position:"relative", cursor:"pointer", padding:"8px 15px", borderRadius:"8px" }}>
-              {page===id && (
-                <motion.div layoutId="nav-pill"
-                  style={{ position:"absolute", inset:0, borderRadius:"8px",
-                    background:"rgba(255,255,255,0.22)", boxShadow:"0 2px 8px rgba(0,0,0,0.15) inset" }}
-                  transition={{ type:"spring", stiffness:400, damping:28 }}/>
-              )}
+              {page===id && <AnimatedTabIndicator />}
               <span style={{ position:"relative", zIndex:1, fontWeight:600, fontSize:"14px",
                 color: page===id?"white":"rgba(255,255,255,0.65)",
                 transition:"color 0.2s", whiteSpace:"nowrap" }}>
@@ -1414,9 +1482,9 @@ export default function KalaniPlanner() {
           );
         })}
 
-        {/* ── HOME ── */}
+        <AnimatePresence mode="wait">
         {page==="home" && (
-          <div className="fade-in">
+          <AnimatedPageWrapper pageKey="home"><div className="fade-in">
             <div style={{ background:`linear-gradient(135deg,var(--red-deep) 0%,var(--red-dark) 55%,var(--red) 100%)`,
               padding:"64px 24px 72px", textAlign:"center", position:"relative", overflow:"hidden" }}>
               <div style={{ position:"absolute", inset:0, opacity:0.04,
@@ -1579,11 +1647,12 @@ export default function KalaniPlanner() {
               </div>
             </div>
           </div>
-        )}
+          </div>
+        </AnimatedPageWrapper>)}
 
         {/* ── CATALOG ── */}
         {page==="catalog" && (
-          <div className="fade-in" style={{ maxWidth:"1200px", margin:"0 auto", padding:"32px 24px" }}>
+          <AnimatedPageWrapper pageKey="catalog"><div className="fade-in" style={{ maxWidth:"1200px", margin:"0 auto", padding:"32px 24px" }}>
             <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"30px", color:"var(--red-dark)",
               marginBottom:"22px" }}>Course Catalog</h1>
             <div style={{ display:"flex", gap:"12px", marginBottom:"20px", flexWrap:"wrap", alignItems:"center" }}>
@@ -1593,11 +1662,8 @@ export default function KalaniPlanner() {
               <div style={{ display:"flex", flexWrap:"wrap", gap:"5px" }}>
                 {DEPTS.map(d=>(
                   <button key={d}
-                    className={`dept-filter-btn${filterDept===d?" active":""}`}
-                    onClick={()=>{ setFilterDept(d); setFilterCtePath("All CTE"); setFilterFineArts("All Fine Arts"); setFilterMisc("All Miscellaneous"); setGridKey(k=>k+1); }}
-                    style={{ background:"white",
-                      color:filterDept===d?"white":"var(--muted)",
-                      border:`1.5px solid ${filterDept===d?"var(--red)":"var(--border)"}` }}>
+                    className={`dept-btn${filterDept===d?" active":""}`}
+                    onClick={()=>{ setFilterDept(d); setFilterCtePath("All CTE"); setFilterFineArts("All Fine Arts"); setFilterMisc("All Miscellaneous"); setGridKey(k=>k+1); }}>
                     <span>{d}</span>
                   </button>
                 ))}
@@ -1651,7 +1717,7 @@ export default function KalaniPlanner() {
             <div key={gridKey} className="catalog-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(295px,1fr))", gap:"14px" }}>
               {filteredCourses.map(c=>(
                 <div key={c.id} className="c-card"
-                  style={{ animation:`cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) ${(filteredCourses.indexOf(c))*0.04}s both` }}
+                  style={{ animation:`cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) ${filteredCourses.indexOf(c)*0.045}s both` }}
                   onClick={()=>setSelectedCourse(c)}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"8px" }}>
                     <div style={{ display:"flex", flexWrap:"wrap", gap:"4px", alignItems:"center" }}>
@@ -1714,11 +1780,12 @@ export default function KalaniPlanner() {
               )}
             </div>
           </div>
-        )}
+        </div>
+        </AnimatedPageWrapper>)}
 
         {/* ── PLANNER ── */}
         {page==="planner" && (
-          <div className="fade-in" style={{ maxWidth:"1180px", margin:"0 auto", padding:"32px 24px" }}>
+          <AnimatedPageWrapper pageKey="planner"><div className="fade-in" style={{ maxWidth:"1180px", margin:"0 auto", padding:"32px 24px" }}>
             <div className="planner-layout" style={{ display:"flex", gap:"28px", alignItems:"flex-start", flexWrap:"wrap" }}>
               <div style={{ flex:"1", minWidth:0 }}>
                 <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", flexWrap:"wrap", gap:"10px", marginBottom:"6px" }}>
@@ -1754,7 +1821,7 @@ export default function KalaniPlanner() {
                   Click a course name to view details · ⚠️ = missing prereq · Click × to remove
                 </p>
 
-                <div className="plan-grid" style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:"16px", marginBottom:"8px" }}>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:"16px", marginBottom:"8px" }}>
                 {[9,10,11,12].map(grade=>{
                   const gradeCredits = plan[grade].reduce((s,cid)=>{ const c=getCourse(cid); return s+(c?.credits||0); },0);
                   const usedSlots = gradeSlots(plan, grade);
@@ -1785,6 +1852,7 @@ export default function KalaniPlanner() {
                             const before = getCoursesBeforeGrade(plan, grade);
                             const upTo = getAllCoursesUpTo(plan, grade);
                             const unmet = isOffCampus ? [] : getUnmetPrereqs(cid, before, upTo);
+                            const isNew = newCardKeys.current.has(`${grade}-${idx}`);
                             return (
                               <motion.div key={`${cid}-${idx}`}
                                 layout="position"
@@ -1802,7 +1870,7 @@ export default function KalaniPlanner() {
                                     position:"relative", marginBottom:"6px" }}>
                                   <div style={{ width:"4px", alignSelf:"stretch",
                                     background:isOffCampus?"#475569":col, flexShrink:0 }}/>
-                                  {newCardKeys.current.has(`${grade}-${idx}`) && (
+                                  {isNew && (
                                     <motion.div
                                       initial={{ x:"-150%", skewX:-12 }}
                                       animate={{ x:"250%", skewX:-12 }}
@@ -1810,13 +1878,12 @@ export default function KalaniPlanner() {
                                       style={{ position:"absolute", top:"-30%", bottom:"-30%",
                                         left:0, width:"55%", zIndex:20, pointerEvents:"none",
                                         background:`linear-gradient(to right,transparent,${
-                                          isOffCampus?"rgba(71,85,105,0.22)":col+"44"},transparent)` }}/>
+                                          isOffCampus?"rgba(71,85,105,0.25)":col+"60"},${col}35,transparent)` }}/>
                                   )}
                                   <div style={{ flex:1, padding:"9px 10px", minWidth:0, position:"relative" }}>
                                     <div style={{ display:"flex", alignItems:"center", gap:"4px", marginBottom:"2px" }}>
                                       <span style={{ fontSize:"9px", fontWeight:900, letterSpacing:"0.07em",
-                                        textTransform:"uppercase",
-                                        background:isOffCampus?"#E2E8F0":col+"18",
+                                        textTransform:"uppercase", background:isOffCampus?"#E2E8F0":col+"18",
                                         color:isOffCampus?"#475569":col,
                                         padding:"2px 6px", borderRadius:"4px", flexShrink:0 }}>
                                         {isOffCampus?"Off Campus":c.dept}
@@ -1839,9 +1906,10 @@ export default function KalaniPlanner() {
                                       {isOffCampus?"🚗 Off Campus":c.name}
                                     </span>
                                   </div>
-                                  <div className="delete-btn-wrap" style={{ padding:"0 10px", flexShrink:0 }}>
+                                  <div className="delete-reveal"
+                                    style={{ padding:"0 10px", flexShrink:0 }}>
                                     <motion.div
-                                      whileHover={{ backgroundColor:"#EF4444", scale:1.12,
+                                      whileHover={{ backgroundColor:"#EF4444", scale:1.1,
                                         boxShadow:"0 4px 12px rgba(239,68,68,0.4)" }}
                                       whileTap={{ scale:0.92 }}
                                       onClick={()=>removeCourse(grade,idx)}
@@ -1902,53 +1970,22 @@ export default function KalaniPlanner() {
                     overflow:"hidden", marginBottom:"20px" }}>
                     <motion.div
                       animate={{ width:`${Math.min(100,(total/24)*100)}%` }}
-                      transition={{ type:"spring", stiffness:200, damping:20 }}
+                      transition={{ type:"spring", stiffness:200, damping:15 }}
                       style={{ height:"100%", borderRadius:"5px",
-                        background:"linear-gradient(90deg,var(--red),#E53E3E)",
-                        overflow:"hidden", position:"relative" }}>
-                      {/* shimmer on total change — framer rerenders on key change */}
-                    </motion.div>
+                        background:"linear-gradient(90deg,var(--red),#E53E3E)" }}/>
                   </div>
                   {GRAD_REQUIREMENTS.map(r=>{
                     const earned=cats[r.id]||0;
-                    const pct=Math.min(100,(earned/r.required)*100);
                     const done=earned>=r.required;
                     return (
-                      <div key={r.id} style={{ marginBottom:"12px" }}>
-                        <div style={{ display:"flex", justifyContent:"space-between",
-                          fontSize:"11px", fontWeight:700, marginBottom:"5px" }}>
-                          <span style={{ color: done ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.65)",
-                            display:"flex", alignItems:"center", gap:"4px" }}>
-                            {done && <span style={{ color:r.color, fontSize:"10px" }}>✓</span>}
-                            {r.label}
-                          </span>
-                          <motion.span key={`${r.id}-${earned}`}
-                            initial={{ scale:1.5, color:"#FBBF24" }}
-                            animate={{ scale:1, color:done?r.color:"rgba(255,255,255,0.4)" }}
-                            transition={{ type:"spring", stiffness:400, damping:15 }}
-                            style={{ fontVariantNumeric:"tabular-nums", display:"inline-block",
-                              fontWeight:700, fontSize:"11px" }}>
-                            {earned.toFixed(1)}/{r.required}
-                          </motion.span>
-                        </div>
-                        <div className="req-bar" style={{ overflow:"hidden" }}>
-                          <motion.div
-                            animate={{ width:`${pct}%`,
-                              background:done?`linear-gradient(90deg,${r.color},${r.color}cc)`:r.color }}
-                            transition={{ type:"spring", stiffness:200, damping:20 }}
-                            style={{ height:"100%", borderRadius:"3px",
-                              overflow:"hidden", position:"relative" }}>
-                            {pct>0 && !done && (
-                              <motion.div key={earned}
-                                initial={{ x:"-100%" }} animate={{ x:"200%" }}
-                                transition={{ duration:0.7, ease:"easeOut", delay:0.1 }}
-                                style={{ position:"absolute", inset:"-50% 0", width:"45%",
-                                  background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent)",
-                                  pointerEvents:"none" }}/>
-                            )}
-                          </motion.div>
-                        </div>
-                      </div>
+                      <AnimatedProgressBar
+                        key={r.id}
+                        label={r.label}
+                        req={r.required}
+                        earned={Math.min(earned,r.required)}
+                        color={r.color}
+                        done={done}
+                      />
                     );
                   })}
 
@@ -2032,8 +2069,16 @@ export default function KalaniPlanner() {
                 {/* ── COURSE DETAIL MODAL ── */}
         {selectedCourse&&(
           <div className="overlay" onClick={()=>setSelectedCourse(null)}>
-            <div className="modal" onClick={e=>e.stopPropagation()}>
-              <div style={{ padding:"24px 26px", borderBottom:"1px solid var(--border)" }}>
+            <motion.div className="modal" onClick={e=>e.stopPropagation()}
+              initial={{ opacity:0, scale:0.88, y:24 }}
+              animate={{ opacity:1, scale:1,   y:0,
+                transition:{ type:"spring", stiffness:350, damping:22 } }}
+              exit={{ opacity:0, scale:0.92, y:16,
+                transition:{ duration:0.18, ease:"easeIn" } }}>
+              <motion.div
+                initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }}
+                transition={{ type:"spring", stiffness:300, damping:24, delay:0.06 }}
+                style={{ padding:"24px 26px", borderBottom:"1px solid var(--border)" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                   <div style={{ flex:1, paddingRight:"12px" }}>
                     <span className="badge" style={{ background:deptColor(selectedCourse.dept)+"1A",
@@ -2050,8 +2095,11 @@ export default function KalaniPlanner() {
                       height:"34px", cursor:"pointer", fontSize:"20px", color:"var(--red)",
                       display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>×</button>
                 </div>
-              </div>
-              <div style={{ padding:"22px 26px" }}>
+              </motion.div>
+              <motion.div
+                initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }}
+                transition={{ type:"spring", stiffness:300, damping:24, delay:0.14 }}
+                style={{ padding:"22px 26px" }}>
                 {selectedCourse.isOffCampus ? (
                   /* ── OFF CAMPUS STRUCTURED CARD ── */
                   <div>
@@ -2419,7 +2467,8 @@ export default function KalaniPlanner() {
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
+            </motion.div>
           </div>
         )}
 
@@ -2524,7 +2573,9 @@ export default function KalaniPlanner() {
               </div>
             </div>
           </div>
-        )}
+        </div></AnimatedPageWrapper>)}
+        </AnimatePresence>
+
 
       </div>
 
@@ -2532,15 +2583,21 @@ export default function KalaniPlanner() {
       <DataCitationFooter />
 
       {/* ── TOAST ── */}
-      {toast && (
-        <div style={{ position:"fixed", bottom:"28px", left:"50%", transform:"translateX(-50%)",
-          background:"#1C2B3A", color:"white", padding:"11px 22px", borderRadius:"10px",
-          fontSize:"13px", fontWeight:600, boxShadow:"0 4px 20px rgba(0,0,0,0.3)",
-          zIndex:2000, animation:"fadeIn 0.2s ease", pointerEvents:"none",
-          display:"flex", alignItems:"center", gap:"8px" }}>
-          ✅ {toast}
-        </div>
-      )}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity:0, y:10, x:"-50%" }}
+            animate={{ opacity:1, y:0,  x:"-50%" }}
+            exit={{    opacity:0, y:10,  x:"-50%" }}
+            style={{ position:"fixed", bottom:"28px", left:"50%",
+              background:"#1C2B3A", color:"white", padding:"11px 22px", borderRadius:"10px",
+              fontSize:"13px", fontWeight:600, boxShadow:"0 4px 20px rgba(0,0,0,0.3)",
+              zIndex:2000, pointerEvents:"none",
+              display:"flex", alignItems:"center", gap:"8px" }}>
+            ✅ {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
