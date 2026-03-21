@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./src/supabase.js";
 import AnimatedProgressBar from "./src/components/AnimatedProgressBar.jsx";
@@ -887,20 +887,27 @@ function calcPlannerCredits(plan) {
   return { cats, total };
 }
 
-// ── Gemini-exact variant structure ─────────────────────────────
-const cardContainerVariants = {
-  hidden: { height:0, opacity:0 },
-  show:   { height:"auto", opacity:1,
-    transition:{ type:"spring", stiffness:400, damping:30 } },
-  exit:   { height:0, opacity:0,
-    transition:{ delay:0.15, type:"spring", stiffness:400, damping:30 } },
+// ── Animation variants — exact copy from planner-demo.jsx ──────
+const cardVariants = {
+  hidden: { height:0, opacity:0, marginBottom:0 },
+  show: {
+    height:"auto", opacity:1, marginBottom:8,
+    transition:{ height:{ type:"spring", stiffness:400, damping:30 } }
+  },
+  exit: {
+    height:0, opacity:0, marginBottom:0,
+    transition:{
+      delay:0.15,
+      height:{ type:"spring", stiffness:400, damping:30 },
+      opacity:{ delay:0.15 },
+      marginBottom:{ delay:0.15 },
+    }
+  }
 };
-const cardContentVariants = {
-  hidden: { x:40, opacity:0 },
-  show:   { x:0, opacity:1,
-    transition:{ type:"spring", stiffness:350, damping:25 } },
-  exit:   { x:-80, opacity:0, filter:"blur(10px)",
-    transition:{ duration:0.2 } },
+const contentVariants = {
+  hidden: { x:50, opacity:0, scale:0.95 },
+  show:  { x:0, opacity:1, scale:1, transition:{ type:"spring", stiffness:350, damping:25, delay:0.05 } },
+  exit:  { x:-60, opacity:0, scale:0.95, filter:"blur(8px)", transition:{ type:"spring", stiffness:400, damping:25 } }
 };
 const shakeAnim = { x:[0,-8,8,-6,6,-3,3,0], transition:{ duration:0.4, ease:"easeInOut" } };
 
@@ -912,6 +919,149 @@ const pageVariants = {
   exit:    { opacity:0, y:-15, filter:"blur(4px)", scale:0.98,
     transition:{ duration:0.2, ease:"easeIn" } },
 };
+
+// ── GradeBtn — slide-text animation, supports add + remove toggle ──
+function GradeBtn({ grade, plan, selectedCourse, GRADE_MAX, gradeSlots,
+                   getCoursesBeforeGrade, getAllCoursesUpTo, getUnmetPrereqs,
+                   getCoreConflict, planUids, setPlan,
+                   showToast, modalWarn, setModalWarn }) {
+  // btnState: "idle" | "adding" | "done" | "removing"
+  const [btnState, setBtnState] = useState("idle");
+
+  const already     = !selectedCourse.repeatable && Object.values(plan).flat().includes(selectedCourse.id);
+  const inThisGrade = (plan[grade]||[]).includes(selectedCourse.id);
+  const full        = gradeSlots(plan, grade) >= GRADE_MAX;
+  // disabled only when another grade has it AND not repeatable, or grade is full (but not for the grade it's already IN)
+  const disabled    = (already && !inThisGrade && !selectedCourse.repeatable) || (full && !inThisGrade);
+  const isDone      = btnState === "done" || (btnState === "idle" && inThisGrade);
+  const isRemoving  = btnState === "removing";
+
+  function doAdd() {
+    setBtnState("adding");
+    setTimeout(() => {
+      planUids.current[grade].push(Math.random().toString(36).slice(2));
+      setPlan(p => {
+        const n = JSON.parse(JSON.stringify(p));
+        if (!selectedCourse.repeatable && Object.values(n).flat().includes(selectedCourse.id)) return p;
+        n[grade].push(selectedCourse.id);
+        return n;
+      });
+      setBtnState("done");
+      setModalWarn(null);
+      showToast("Added \"" + selectedCourse.name + "\" to Grade " + grade);
+    }, 320);
+  }
+
+  function doRemove() {
+    setBtnState("removing");
+    setTimeout(() => {
+      setPlan(p => {
+        const n = JSON.parse(JSON.stringify(p));
+        const idx = n[grade].indexOf(selectedCourse.id);
+        if (idx === -1) return p;
+        n[grade].splice(idx, 1);
+        planUids.current[grade].splice(idx, 1);
+        return n;
+      });
+      setBtnState("idle");
+      showToast("Removed \"" + selectedCourse.name + "\" from Grade " + grade);
+    }, 320);
+  }
+
+  function handleClick() {
+    if (disabled) return;
+    if (isDone || isRemoving) { doRemove(); return; }
+    if (btnState !== "idle") return;
+    const before = getCoursesBeforeGrade(plan, grade);
+    const upTo   = getAllCoursesUpTo(plan, grade);
+    const unmet  = getUnmetPrereqs(selectedCourse.id, before, upTo);
+    if (unmet.length > 0) {
+      setModalWarn({ grade, unmet, coreConflict: null });
+      return;
+    }
+    const conflict = getCoreConflict(selectedCourse.id, grade);
+    if (conflict) {
+      setModalWarn({ grade, unmet: [], coreConflict: conflict });
+      return;
+    }
+    doAdd();
+  }
+
+  // Visual state derivations
+  // "Grade X" visible when: idle and not done
+  // "✓ Added!" visible when: done
+  // "× Remove" label slides in from below when hovering done state — handled via CSS hover
+  // We use a third span for the remove hint on hover
+  const showDone    = isDone && !isRemoving;
+  const showLeaving = btnState === "adding" || (isRemoving);
+  // Border / bg based on state
+  const borderCol = isDone ? "#059669" : full ? "var(--border)" : "var(--border)";
+  const bgCol     = isDone ? "#F0FDF4" : full ? "#F9FAFB" : "white";
+  const textCol   = isDone ? "#166634" : full ? "var(--muted)" : "var(--text)";
+  const scaling   = (btnState === "adding" || isRemoving) ? "scale(0.93)" : "scale(1)";
+
+  return (
+    <button onClick={handleClick}
+      className={"grade-toggle-btn" + (isDone ? " grade-done" : "")}
+      style={{
+        fontSize:"13px", fontWeight:700,
+        cursor: disabled ? "not-allowed" : "pointer",
+        borderRadius:"8px", overflow:"hidden", position:"relative",
+        border:"1.5px solid " + borderCol,
+        background: bgCol, color: textCol,
+        fontFamily:"inherit", height:"40px", minWidth:"100px",
+        display:"flex", alignItems:"center", justifyContent:"center",
+        transform: scaling,
+        transition:"transform 0.2s cubic-bezier(0.34,1.56,0.64,1), background 0.25s, border-color 0.25s, color 0.25s",
+        opacity: disabled ? 0.45 : 1,
+      }}
+      onMouseEnter={e=>{ if(disabled) return;
+        if(isDone){
+          e.currentTarget.style.background="#FFF0F0";
+          e.currentTarget.style.color="var(--red)";
+          e.currentTarget.style.borderColor="var(--red)";
+          e.currentTarget.style.transform="scale(1.06)";
+        } else {
+          e.currentTarget.style.background="#B00804";
+          e.currentTarget.style.color="white";
+          e.currentTarget.style.borderColor="#B00804";
+          e.currentTarget.style.transform="scale(1.06)";
+        }
+      }}
+      onMouseLeave={e=>{ if(disabled) return;
+        e.currentTarget.style.background=bgCol;
+        e.currentTarget.style.color=textCol;
+        e.currentTarget.style.borderColor=borderCol;
+        e.currentTarget.style.transform="scale(1)";
+      }}>
+      {/* "Grade X" — idle label, slides out when adding or done */}
+      <span style={{
+        position:"absolute", left:0, right:0,
+        display:"flex", alignItems:"center", justifyContent:"center",
+        transition:"transform 0.3s cubic-bezier(0.19,1,0.22,1), opacity 0.25s",
+        transform: (showLeaving || showDone) ? "translateY(-110%)" : "translateY(0)",
+        opacity:   (showLeaving || showDone) ? 0 : 1,
+        pointerEvents:"none",
+      }}>
+        {full ? "Full " + grade : "Grade " + grade}
+      </span>
+      {/* "✓ Added!" — done label, with hover swap to "× Remove" via CSS */}
+      <span style={{
+        position:"absolute", left:0, right:0,
+        display:"flex", alignItems:"center", justifyContent:"center",
+        transition:"transform 0.35s cubic-bezier(0.19,1,0.22,1), opacity 0.3s",
+        transform: (showDone && !isRemoving) ? "translateY(0)" : isRemoving ? "translateY(-110%)" : "translateY(110%)",
+        opacity:   (showDone && !isRemoving) ? 1 : 0,
+        pointerEvents:"none",
+      }}>
+        <span className="grade-done-default">✓ Added!</span>
+        <span className="grade-done-hover">× Remove</span>
+      </span>
+      {/* "Grade X" slides back in after removal */}
+    </button>
+  );
+}
+
 // renderPage avoids putting </motion.div> before } which triggers esbuild
 function renderPage(condition, pageKey, children) {
   if (!condition) return null;
@@ -965,6 +1115,22 @@ export default function KalaniPlanner() {
   const [toast, setToast] = useState(null); // {msg, grade}
   const [shakeGrade, setShakeGrade] = useState(null);
   const [removingCards, setRemovingCards] = useState(new Set());
+  const [modalWarn, setModalWarn] = useState(null); // { grade, unmet, coreConflict }
+  // Stable UIDs for plan entries — prevents sibling cards re-animating on delete
+  const planUids = useRef({
+    9:  [], 10: [], 11: [], 12: [],
+  });
+  // Initialize UIDs lazily in render (for localStorage-restored plans)
+  function ensureUids(grade) {
+    const arr = planUids.current[grade];
+    const needed = (plan[grade]||[]).length;
+    while (arr.length < needed) arr.push(Math.random().toString(36).slice(2));
+    return arr;
+  }
+  const [burstKey, setBurstKey] = useState(0);
+  const [clickKey, setClickKey] = useState(0);
+  const [ratingParticles, setRatingParticles] = useState([]);
+  const starContainerRef = useRef(null);
 
   useEffect(() => {
     try { localStorage.setItem('kalani-compass-plan', JSON.stringify(plan)); } catch {}
@@ -972,7 +1138,7 @@ export default function KalaniPlanner() {
 
   // Pop stars in one-by-one when course modal opens
   useEffect(() => {
-    if (!selectedCourse) { setStarVisible([]); return; }
+    if (!selectedCourse) { setStarVisible([]); setModalWarn(null); return; }
     setStarVisible([]);
     setPendingRating(null);
     setHoverStar(0);
@@ -1119,12 +1285,8 @@ export default function KalaniPlanner() {
   const honorsProgress = useMemo(() => computeHonorsProgress(plan), [plan]);
 
   function removeCourse(grade, idx) {
-    const key = `${grade}-${idx}`;
-    setRemovingCards(prev => new Set([...prev, key]));
-    setTimeout(() => {
-      setPlan(p => { const n = JSON.parse(JSON.stringify(p)); n[grade].splice(idx, 1); return n; });
-      setRemovingCards(prev => { const s = new Set(prev); s.delete(key); return s; });
-    }, 360);
+    planUids.current[grade].splice(idx, 1);
+    setPlan(p => { const n = JSON.parse(JSON.stringify(p)); n[grade].splice(idx, 1); return n; });
   }
   const GRADE_MAX = 9.0; // 9 slots = up to 9 credits (0.5cr courses use 0.5 slot)
 
@@ -1164,6 +1326,7 @@ export default function KalaniPlanner() {
       setPrereqWarn({ courseId, grade: addTarget, unmet: [], coreConflict });
       return;
     }
+    planUids.current[addTarget].push(Math.random().toString(36).slice(2));
     setPlan(p => {
       const n = JSON.parse(JSON.stringify(p));
       if (!course?.repeatable && Object.values(n).flat().includes(courseId)) return p;
@@ -1176,6 +1339,7 @@ export default function KalaniPlanner() {
     if (!addTarget) return;
     const course = getCourse(courseId);
     if (gradeSlots(plan, addTarget) >= GRADE_MAX) return;
+    planUids.current[addTarget].push(Math.random().toString(36).slice(2));
     setPlan(p => {
       const n = JSON.parse(JSON.stringify(p));
       if (!course?.repeatable && Object.values(n).flat().includes(courseId)) return p;
@@ -1265,6 +1429,12 @@ export default function KalaniPlanner() {
           50%{transform:scale(0.82) rotate(-6deg);}75%{transform:scale(1.15) rotate(3deg);}
           100%{transform:scale(1) rotate(0);}
         }
+        /* GradeBtn hover: swap "✓ Added!" → "× Remove" */
+        .grade-done-default{ display:inline; }
+        .grade-done-hover{   display:none;   color:var(--red); }
+        .grade-done:hover .grade-done-default{ display:none; }
+        .grade-done:hover .grade-done-hover{   display:inline; }
+
         @keyframes particle{
           0%{opacity:1;transform:translate(-50%,-50%) scale(0);}
           40%{opacity:1;transform:translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1.3);}
@@ -1665,6 +1835,7 @@ export default function KalaniPlanner() {
                       {c.teacherSigRequired&&<span style={{ fontSize:"10px",background:"#FEF3C7",color:"#92400E",padding:"2px 6px",borderRadius:"4px",fontWeight:700 }}>✍ Sig. req.</span>}
                     </div>
                     <div style={{ display:"flex", gap:"5px", alignItems:"center" }}>
+
                       {c.isAP&&<span className="tag-ap">AP</span>}
                       <span style={{ fontSize:"12px", fontWeight:700, color:"var(--muted)" }}>{c.credits}cr</span>
                     </div>
@@ -1702,12 +1873,21 @@ export default function KalaniPlanner() {
                   <div style={{ marginTop:"8px", fontSize:"11px", color:"var(--muted)",
                     display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                     <span>Grade {c.gradeLevel.join("/")} · {c.credits===0.5?"Semester":"Year"}</span>
-                    {ratings[c.id] && (
-                      <span style={{ color:"#92400E", fontWeight:700 }}>
-                        ⭐ {ratings[c.id].avg.toFixed(1)}
-                        <span style={{ color:"var(--muted)", fontWeight:400 }}> ({ratings[c.id].count})</span>
-                      </span>
+                    <div style={{ display:"flex", alignItems:"center", gap:"5px" }}>
+                      {ratings[c.id] && (
+                        <span style={{ color:"#92400E", fontWeight:700 }}>
+                          ⭐ {ratings[c.id].avg.toFixed(1)}
+                          <span style={{ color:"var(--muted)", fontWeight:400 }}> ({ratings[c.id].count})</span>
+                        </span>
                       )}
+                      {Object.values(plan).flat().includes(c.id) && (
+                        <span style={{ fontSize:"11px", background:"#F0FDF4",
+                          color:"#166534", border:"1px solid #BBF7D0",
+                          borderRadius:"5px", padding:"2px 8px", fontWeight:700 }}>
+                          ✓ In plan
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 ))}
@@ -1792,30 +1972,31 @@ export default function KalaniPlanner() {
                             const upTo = getAllCoursesUpTo(plan, grade);
                             const unmet = isOffCampus ? [] : getUnmetPrereqs(cid, before, upTo);
                             return (
-                              <motion.div key={cid+"-"+idx}
+                              <motion.div key={ensureUids(grade)[idx] || cid+"-"+idx}
                                 layout
-                                variants={cardContainerVariants}
+                                variants={cardVariants}
                                 initial="hidden" animate="show" exit="exit"
                                 style={{ overflow:"hidden" }}>
                                 <motion.div
-                                  variants={cardContentVariants}
+                                  variants={contentVariants}
                                   className="card-hover-group"
                                   style={{ display:"flex", alignItems:"center",
                                     background:isOffCampus?"#F8FAFC":"white",
                                     border:"1px solid "+(isOffCampus?"#CBD5E1":col+"28"),
-                                    borderRadius:"12px", overflow:"hidden",
-                                    position:"relative", marginBottom:"8px" }}>
+                                    borderRadius:"12px", overflow:"hidden", position:"relative" }}>
                                   {/* Left color bar */}
                                   <div style={{ width:"4px", alignSelf:"stretch",
                                     background:isOffCampus?"#475569":col, flexShrink:0 }}/>
-                                  {/* Shimmer — plays unconditionally on every entry */}
+                                  {/* Shimmer — exact from planner-demo.jsx */}
                                   <motion.div
-                                    initial={{ x:"-150%", skewX:-20 }}
-                                    animate={{ x:"250%", skewX:-20 }}
-                                    transition={{ duration:0.9, ease:"easeOut", delay:0.1 }}
-                                    style={{ position:"absolute", top:0, bottom:0,
-                                      left:0, width:"55%", zIndex:20, pointerEvents:"none",
-                                      background:"linear-gradient(to right,transparent,"+(isOffCampus?"rgba(71,85,105,0.12)":col+"22")+",transparent)" }}/>
+                                    initial={{ x:"-150%", skewX:-12 }}
+                                    animate={{ x:"250%",  skewX:-12 }}
+                                    transition={{ duration:0.9, ease:"easeInOut", delay:0.12 }}
+                                    style={{
+                                      position:"absolute", top:"-30%", bottom:"-30%", left:0, width:"55%",
+                                      background:"linear-gradient(to right,transparent,"+(isOffCampus?"rgba(71,85,105,0.25)":col+"60")+","+(isOffCampus?"rgba(71,85,105,0.1)":col+"35")+",transparent)",
+                                      pointerEvents:"none", zIndex:20,
+                                    }}/>
                                   {/* Content */}
                                   <div style={{ flex:1, padding:"9px 10px", minWidth:0, position:"relative", zIndex:1 }}>
                                     <div style={{ display:"flex", alignItems:"center", gap:"4px", marginBottom:"2px" }}>
@@ -1863,9 +2044,19 @@ export default function KalaniPlanner() {
                             );
                           })}
                         </AnimatePresence>
-                        {/* ── INLINE SEARCH (replaces modal) ── */}
+                        {/* ── INLINE SEARCH — with open/close animation ── */}
+                        <AnimatePresence initial={false}>
                         {addTarget===grade ? (
-                          <div style={{ marginTop:"auto", paddingTop:"8px", paddingBottom:"14px" }}>
+                          <motion.div
+                            key="search-panel"
+                            initial={{ opacity:0, height:0, marginTop:0 }}
+                            animate={{ opacity:1, height:"auto", marginTop:"auto",
+                              transition:{ height:{ type:"spring", stiffness:400, damping:30 },
+                                opacity:{ duration:0.15, delay:0.05 } } }}
+                            exit={{ opacity:0, height:0, marginTop:0,
+                              transition:{ height:{ type:"spring", stiffness:400, damping:30 },
+                                opacity:{ duration:0.1 } } }}
+                            style={{ overflow:"hidden", paddingTop:"8px", paddingBottom:"14px" }}>
                             <div style={{ display:"flex", alignItems:"center", gap:"8px",
                               background:"#F8FAFC", border:"1.5px solid var(--red)", borderRadius:"10px",
                               padding:"8px 12px", marginBottom:"6px" }}>
@@ -1950,9 +2141,13 @@ export default function KalaniPlanner() {
                                 );
                               })}
                             </div>
-                          </div>
+                          </motion.div>
                         ) : (
-                          <div style={{ display:"flex", gap:"8px", marginTop:"auto", paddingBottom:"14px", paddingTop:"8px" }}>
+                          <motion.div
+                            key="add-btn"
+                            initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+                            transition={{ duration:0.15 }}
+                            style={{ display:"flex", gap:"8px", marginTop:"auto", paddingBottom:"14px", paddingTop:"8px" }}>
                             <div className="add-btn" style={{ flex:1, opacity:atCap?0.4:1,
                               cursor:atCap?"not-allowed":"pointer", pointerEvents:atCap?"none":"auto" }}
                               onClick={()=>{ if(!atCap) setAddTarget(grade); }}>
@@ -1963,12 +2158,14 @@ export default function KalaniPlanner() {
                                 style={{ flex:"0 0 auto", borderColor:"#64748B", color:"#64748B",
                                   opacity:atCap?0.4:1, cursor:atCap?"not-allowed":"pointer",
                                   pointerEvents:atCap?"none":"auto" }}
-                                onClick={()=>{ if(gradeSlots(plan,12)<GRADE_MAX){ setPlan(p=>{ const n=JSON.parse(JSON.stringify(p)); n[12].push("OFF_CAMPUS"); return n; }); } }}>
+                                onClick={()=>{ if(gradeSlots(plan,12)<GRADE_MAX){ planUids.current[12].push(Math.random().toString(36).slice(2)); setPlan(p=>{ const n=JSON.parse(JSON.stringify(p)); n[12].push("OFF_CAMPUS"); return n; }); } }}>
                                 🚗 Off Campus
                               </div>
                             ) : null}
                           </div>
-                        )}
+                          </motion.div>
+                        ) : null}
+                        </AnimatePresence>
                         </div>
                       </div>
                     </motion.div>
@@ -2316,55 +2513,74 @@ export default function KalaniPlanner() {
                     <strong>💡 Tip: </strong>{selectedCourse.tips}
                   </div>
                   )}
-                {!selectedCourse.isOffCampus && <div style={{ borderTop:"1px solid var(--border)", paddingTop:"16px" }}>
-                  <p style={{ fontSize:"12px",color:"var(--muted)",marginBottom:"9px",fontWeight:600 }}>
-                    Add to 4-Year Plan:
-                  </p>
-                  <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
-                    {[9,10,11,12].map(g=>{
-                      const already = !selectedCourse.repeatable && Object.values(plan).flat().includes(selectedCourse.id);
-                      const full = gradeSlots(plan, g) >= GRADE_MAX;
-                      const disabled = already || full;
-                      return (
-                        <button key={g} disabled={disabled}
-                          onClick={()=>{
-                            if (disabled) return;
-                            const before = getCoursesBeforeGrade(plan, g);
-                            const upTo = getAllCoursesUpTo(plan, g);
-                            const unmet = getUnmetPrereqs(selectedCourse.id, before, upTo);
-                            if (unmet.length > 0) {
-                              setAddTarget(g);
-                              setPrereqWarn({ courseId: selectedCourse.id, grade: g, unmet });
-                              setSelectedCourse(null);
-                              return;
-                            }
-                            const conflict = getCoreConflict(selectedCourse.id, g);
-                            if (conflict) {
-                              setAddTarget(g);
-                              setPrereqWarn({ courseId: selectedCourse.id, grade: g, unmet: [], coreConflict: conflict });
-                              setSelectedCourse(null);
-                              return;
-                            }
-                            setPlan(p=>{const n=JSON.parse(JSON.stringify(p));if(!selectedCourse.repeatable&&Object.values(n).flat().includes(selectedCourse.id))return p;n[g].push(selectedCourse.id);return n;});
-                            showToast(`Added "${selectedCourse.name}" to Grade ${g}`);
-                            setSelectedCourse(null);
-                          }}
-                          style={{ padding:"8px 16px",fontSize:"13px",fontWeight:700,
-                            cursor:disabled?"not-allowed":"pointer",
-                            borderRadius:"8px",border:"1.5px solid var(--border)",
-                            background:already?"#FFF0F0":full?"#F9FAFB":"white",
-                            color:already?"var(--red)":full?"var(--muted)":"var(--text)",
-                            transition:"all 0.15s",fontFamily:"inherit",
-                            opacity:disabled?0.6:1 }}
-                          onMouseEnter={e=>{ if(!disabled){e.currentTarget.style.background="var(--red)";e.currentTarget.style.color="white";e.currentTarget.style.borderColor="var(--red)";} }}
-                          onMouseLeave={e=>{ if(!disabled){e.currentTarget.style.background="white";e.currentTarget.style.color="var(--text)";e.currentTarget.style.borderColor="var(--border)";} }}>
-                          {already ? `✓ Gr ${g}` : full ? `Full ${g}` : `Grade ${g}`}
-                        </button>
-                      );
-                    })}
+                {!selectedCourse.isOffCampus && (
+                  <div style={{ borderTop:"1px solid var(--border)", paddingTop:"16px" }}>
+                    <p style={{ fontSize:"12px",color:"var(--muted)",marginBottom:"9px",fontWeight:600 }}>
+                      Add to 4-Year Plan:
+                    </p>
+                    <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
+                      {[9,10,11,12].map(g=>(
+                        <GradeBtn key={g} grade={g}
+                          plan={plan}
+                          selectedCourse={selectedCourse}
+                          GRADE_MAX={GRADE_MAX}
+                          gradeSlots={gradeSlots}
+                          getCoursesBeforeGrade={getCoursesBeforeGrade}
+                          getAllCoursesUpTo={getAllCoursesUpTo}
+                          getUnmetPrereqs={getUnmetPrereqs}
+                          getCoreConflict={getCoreConflict}
+                          planUids={planUids}
+                          setPlan={setPlan}
+                          showToast={showToast}
+                          modalWarn={modalWarn}
+                          setModalWarn={setModalWarn}
+                        />
+                      ))}
+                      {/* Inline warning — appears below grade buttons, stays in modal */}
+                      {modalWarn && (
+                        <div style={{ width:"100%", marginTop:"10px",
+                          background:"#FEF9C3", border:"1.5px solid #EAB308",
+                          borderRadius:"10px", padding:"12px 14px" }}>
+                          <div style={{ fontWeight:700, fontSize:"12px",
+                            color:"#78350F", marginBottom:"6px" }}>
+                            {modalWarn.coreConflict ? "⚠️ Subject Conflict" : "⚠️ Missing Prerequisites"}
+                          </div>
+                          <div style={{ fontSize:"12px", color:"#78350F", marginBottom:"10px",
+                            lineHeight:1.5 }}>
+                            {modalWarn.coreConflict ? (
+                              <span>You already have <strong>{modalWarn.coreConflict}</strong> in Grade {modalWarn.grade}. Only one course from this subject is allowed per year.</span>
+                            ) : (
+                              <span><strong>{selectedCourse?.name}</strong> requires: {modalWarn.unmet.map(getPrereqDisplay).join(", ")}</span>
+                            )}
+                          </div>
+                          <div style={{ display:"flex", gap:"8px" }}>
+                            <button
+                              onClick={()=>{
+                                planUids.current[modalWarn.grade].push(Math.random().toString(36).slice(2));
+                                setPlan(p=>{const n=JSON.parse(JSON.stringify(p));if(!selectedCourse.repeatable&&Object.values(n).flat().includes(selectedCourse.id))return p;n[modalWarn.grade].push(selectedCourse.id);return n;});
+                                showToast("Added \""+selectedCourse.name+"\" to Grade "+modalWarn.grade);
+                                setModalWarn(null);
+                                setSelectedCourse(null);
+                              }}
+                              style={{ flex:1, background:"#B45309", color:"white",
+                                border:"none", borderRadius:"7px", padding:"8px",
+                                fontSize:"12px", fontWeight:700, cursor:"pointer",
+                                fontFamily:"inherit" }}>
+                              Add Anyway
+                            </button>
+                            <button onClick={()=>setModalWarn(null)}
+                              style={{ flex:1, background:"white", color:"#374151",
+                                border:"1.5px solid #D1D5DB", borderRadius:"7px",
+                                padding:"8px", fontSize:"12px", fontWeight:600,
+                                cursor:"pointer", fontFamily:"inherit" }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-                }
+                )}
 
                 {/* RATING SECTION */}
                 {!selectedCourse.isOffCampus && (
@@ -2401,7 +2617,7 @@ export default function KalaniPlanner() {
                       // Stars + inline confirm
                       <div style={{ display:"flex", alignItems:"center", gap:"14px", minHeight:"44px" }}>
                         {/* Star picker */}
-                        <div style={{ display:"flex", gap:"5px", flexShrink:0 }}
+                        <div ref={starContainerRef} style={{ display:"flex", gap:"5px", flexShrink:0, position:"relative" }}
                           id={`stars-${selectedCourse.id}`}>
                           {[1,2,3,4,5].map(star => (
                             <span
@@ -2410,6 +2626,7 @@ export default function KalaniPlanner() {
                               onClick={()=>{
                                 if(ratingAnimating) return;
                                 setPendingRating({ courseId:selectedCourse.id, stars:star });
+                                setClickKey(k=>k+1);
                                 // Elastic pop animation via animejs
                                 if(typeof anime !== "undefined") {
                                   const targets = [];
@@ -2444,7 +2661,7 @@ export default function KalaniPlanner() {
                           {ratingParticles.map(p=>(
                             <span key={p.id} style={{
                               position:"absolute",
-                              left:`${(pendingRating?.stars||3)*39}px`,
+                              left:`${((pendingRating?.stars||1)-0.5)*39}px`,
                               top:"50%",
                               width:`${p.size}px`,height:`${p.size}px`,
                               borderRadius:"50%",background:p.color,
