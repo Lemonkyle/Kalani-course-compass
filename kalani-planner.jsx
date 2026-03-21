@@ -884,18 +884,20 @@ function calcPlannerCredits(plan) {
   return { cats, total };
 }
 
-const cardVariants = {
-  hidden: { height:0, opacity:0, marginBottom:0 },
-  show: { height:"auto", opacity:1, marginBottom:8,
-    transition:{ height:{ type:"spring", stiffness:400, damping:30 } } },
-  exit: { height:0, opacity:0, marginBottom:0,
-    transition:{ delay:0.15, height:{ type:"spring", stiffness:400, damping:30 },
-      opacity:{delay:0.15}, marginBottom:{delay:0.15} } },
+// ── Gemini-exact variant structure ─────────────────────────────
+const cardContainerVariants = {
+  hidden: { height:0, opacity:0 },
+  show:   { height:"auto", opacity:1,
+    transition:{ type:"spring", stiffness:400, damping:30 } },
+  exit:   { height:0, opacity:0,
+    transition:{ delay:0.15, type:"spring", stiffness:400, damping:30 } },
 };
-const contentVariants = {
-  hidden: { x:50, opacity:0, scale:0.95 },
-  show:  { x:0, opacity:1, scale:1, transition:{ type:"spring", stiffness:350, damping:25, delay:0.05 } },
-  exit:  { x:-60, opacity:0, scale:0.95, filter:"blur(8px)", transition:{ type:"spring", stiffness:400, damping:25 } },
+const cardContentVariants = {
+  hidden: { x:40, opacity:0 },
+  show:   { x:0, opacity:1,
+    transition:{ type:"spring", stiffness:350, damping:25 } },
+  exit:   { x:-80, opacity:0, filter:"blur(10px)",
+    transition:{ duration:0.2 } },
 };
 const shakeAnim = { x:[0,-8,8,-6,6,-3,3,0], transition:{ duration:0.4, ease:"easeInOut" } };
 
@@ -1000,7 +1002,6 @@ export default function KalaniPlanner() {
   const [toast, setToast] = useState(null); // {msg, grade}
   const [shakeGrade, setShakeGrade] = useState(null);
   const [removingCards, setRemovingCards] = useState(new Set());
-  const newCardKeys = useRef(new Set()); // keys being animated out
 
   useEffect(() => {
     try { localStorage.setItem('kalani-compass-plan', JSON.stringify(plan)); } catch {}
@@ -1223,7 +1224,6 @@ export default function KalaniPlanner() {
       setPrereqWarn({ courseId, grade: addTarget, unmet: [], coreConflict });
       return;
     }
-    newCardKeys.current.add(addTarget+"-"+(plan[addTarget]||[]).length);
     setPlan(p => {
       const n = JSON.parse(JSON.stringify(p));
       if (!course?.repeatable && Object.values(n).flat().includes(courseId)) return p;
@@ -1236,7 +1236,6 @@ export default function KalaniPlanner() {
     if (!addTarget) return;
     const course = getCourse(courseId);
     if (gradeSlots(plan, addTarget) >= GRADE_MAX) return;
-    newCardKeys.current.add(addTarget+"-"+(plan[addTarget]||[]).length);
     setPlan(p => {
       const n = JSON.parse(JSON.stringify(p));
       if (!course?.repeatable && Object.values(n).flat().includes(courseId)) return p;
@@ -1852,33 +1851,33 @@ export default function KalaniPlanner() {
                             const before = getCoursesBeforeGrade(plan, grade);
                             const upTo = getAllCoursesUpTo(plan, grade);
                             const unmet = isOffCampus ? [] : getUnmetPrereqs(cid, before, upTo);
-                            const isNew = newCardKeys.current.has(grade+"-"+idx);
                             return (
-                              <motion.div key={cid+"-"+idx} layout="position"
-                                initial={{ height:0, opacity:0 }}
-                                animate={{ height:"auto", opacity:1, transition:{ height:{ type:"spring", stiffness:400, damping:30 }, opacity:{ duration:0.2 } } }}
-                                exit={{ height:0, opacity:0, marginBottom:0, transition:{ delay:0.12, duration:0.28, ease:"easeIn" } }}
+                              <motion.div key={cid+"-"+idx}
+                                layout
+                                variants={cardContainerVariants}
+                                initial="hidden" animate="show" exit="exit"
                                 style={{ overflow:"hidden" }}>
-                                <motion.div className="card-hover-group"
-                                  whileHover={{ x:3, boxShadow:"0 4px 14px rgba(0,0,0,0.08)" }}
-                                  transition={{ type:"spring", stiffness:400, damping:28 }}
+                                <motion.div
+                                  variants={cardContentVariants}
+                                  className="card-hover-group"
                                   style={{ display:"flex", alignItems:"center",
                                     background:isOffCampus?"#F8FAFC":"white",
                                     border:"1px solid "+(isOffCampus?"#CBD5E1":col+"28"),
                                     borderRadius:"12px", overflow:"hidden",
-                                    position:"relative", marginBottom:"6px" }}>
+                                    position:"relative", marginBottom:"8px" }}>
+                                  {/* Left color bar */}
                                   <div style={{ width:"4px", alignSelf:"stretch",
                                     background:isOffCampus?"#475569":col, flexShrink:0 }}/>
-                                  {isNew ? (
-                                    <motion.div
-                                      initial={{ x:"-150%", skewX:-12 }}
-                                      animate={{ x:"250%", skewX:-12 }}
-                                      transition={{ duration:0.9, ease:"easeInOut", delay:0.12 }}
-                                      style={{ position:"absolute", top:"-30%", bottom:"-30%",
-                                        left:0, width:"55%", zIndex:20, pointerEvents:"none",
-                                        background:"linear-gradient(to right,transparent,"+(isOffCampus?"rgba(71,85,105,0.25)":col+"60")+","+(isOffCampus?"rgba(71,85,105,0.1)":col+"35")+",transparent)" }}/>
-                                  ) : null}
-                                  <div style={{ flex:1, padding:"9px 10px", minWidth:0, position:"relative" }}>
+                                  {/* Shimmer — plays unconditionally on every entry */}
+                                  <motion.div
+                                    initial={{ x:"-150%", skewX:-20 }}
+                                    animate={{ x:"250%", skewX:-20 }}
+                                    transition={{ duration:0.9, ease:"easeOut", delay:0.1 }}
+                                    style={{ position:"absolute", top:0, bottom:0,
+                                      left:0, width:"55%", zIndex:20, pointerEvents:"none",
+                                      background:"linear-gradient(to right,transparent,"+(isOffCampus?"rgba(71,85,105,0.12)":col+"22")+",transparent)" }}/>
+                                  {/* Content */}
+                                  <div style={{ flex:1, padding:"9px 10px", minWidth:0, position:"relative", zIndex:1 }}>
                                     <div style={{ display:"flex", alignItems:"center", gap:"4px", marginBottom:"2px" }}>
                                       <span style={{ fontSize:"9px", fontWeight:900, letterSpacing:"0.07em",
                                         textTransform:"uppercase", background:isOffCampus?"#E2E8F0":col+"18",
@@ -1901,7 +1900,8 @@ export default function KalaniPlanner() {
                                       {isOffCampus?"🚗 Off Campus":c.name}
                                     </span>
                                   </div>
-                                  <div className="delete-reveal" style={{ padding:"0 10px", flexShrink:0 }}>
+                                  {/* Delete button — hover reveal */}
+                                  <div className="delete-reveal" style={{ padding:"0 10px", flexShrink:0, zIndex:1 }}>
                                     <motion.div
                                       whileHover={{ backgroundColor:"#EF4444", scale:1.1, boxShadow:"0 4px 12px rgba(239,68,68,0.4)" }}
                                       whileTap={{ scale:0.92 }}
@@ -1923,22 +1923,112 @@ export default function KalaniPlanner() {
                             );
                           })}
                         </AnimatePresence>
-                        <div style={{ display:"flex", gap:"8px", marginTop:"auto", paddingBottom:"14px", paddingTop:"8px" }}>
-                          <div className="add-btn" style={{ flex:1, opacity: atCap?0.4:1, cursor: atCap?"not-allowed":"pointer",
-                            pointerEvents: atCap?"none":"auto" }}
-                            onClick={()=>{ if(!atCap) setAddTarget(grade); }}>
-                            {atCap ? "✋ Full ("+GRADE_MAX+" slots used)" : "+ Add a Course"}
-                          </div>
-                          {grade===12 ? (
-                            <div className="add-btn"
-                              style={{ flex:"0 0 auto", borderColor:"#64748B", color:"#64748B",
-                                opacity: atCap?0.4:1, cursor: atCap?"not-allowed":"pointer",
-                                pointerEvents: atCap?"none":"auto" }}
-                              onClick={()=>{ if(gradeSlots(plan,12)<GRADE_MAX){ newCardKeys.current.add("12-"+(plan[12]||[]).length); setPlan(p=>{ const n=JSON.parse(JSON.stringify(p)); n[12].push("OFF_CAMPUS"); return n; }); } }}>
-                              🚗 Off Campus
+                        {/* ── INLINE SEARCH (replaces modal) ── */}
+                        {addTarget===grade ? (
+                          <div style={{ marginTop:"auto", paddingTop:"8px", paddingBottom:"14px" }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:"8px",
+                              background:"#F8FAFC", border:"1.5px solid var(--red)", borderRadius:"10px",
+                              padding:"8px 12px", marginBottom:"6px" }}>
+                              <span style={{ fontSize:"13px", color:"#94A3B8" }}>🔍</span>
+                              <input autoFocus value={addSearch}
+                                onChange={e=>setAddSearch(e.target.value)}
+                                placeholder="Search courses…"
+                                style={{ flex:1, border:"none", background:"transparent", outline:"none",
+                                  fontSize:"13px", fontWeight:500, color:"#0F172A", fontFamily:"inherit" }}
+                                onKeyDown={e=>{ if(e.key==="Escape"){ setAddTarget(null); setAddSearch(""); setPrereqWarn(null); } }}/>
+                              <button onClick={()=>{ setAddTarget(null); setAddSearch(""); setPrereqWarn(null); }}
+                                style={{ background:"none", border:"none", cursor:"pointer",
+                                  color:"#94A3B8", fontSize:"16px", lineHeight:1, padding:"0 2px" }}>×</button>
                             </div>
-                          ) : null}
-                        </div>
+                            {/* Prereq warning inline */}
+                            {prereqWarn && prereqWarn.grade===grade && (
+                              <div style={{ background:"#FEF9C3", border:"1.5px solid #EAB308", borderRadius:"8px",
+                                padding:"10px 12px", marginBottom:"6px" }}>
+                                <div style={{ fontWeight:700, fontSize:"12px", color:"#78350F", marginBottom:"5px" }}>
+                                  {prereqWarn.coreConflict ? "⚠️ Subject Conflict" : "⚠️ Missing Prerequisites"}
+                                </div>
+                                <div style={{ fontSize:"11px", color:"#78350F", marginBottom:"8px" }}>
+                                  {prereqWarn.coreConflict ? (
+                                    <span>Conflicts with <strong>{prereqWarn.coreConflict}</strong> already in this grade.</span>
+                                  ) : (
+                                    <span><strong>{getCourse(prereqWarn.courseId)?.name}</strong> needs: {prereqWarn.unmet.map(getPrereqDisplay).join(", ")}</span>
+                                  )}
+                                </div>
+                                <div style={{ display:"flex", gap:"6px" }}>
+                                  <button onClick={()=>forceAddCourse(prereqWarn.courseId)}
+                                    style={{ flex:1, background:"#B45309", color:"white", border:"none", borderRadius:"6px",
+                                      padding:"6px", fontSize:"11px", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                                    Add Anyway
+                                  </button>
+                                  <button onClick={()=>setPrereqWarn(null)}
+                                    style={{ flex:1, background:"white", color:"#374151", border:"1px solid #D1D5DB",
+                                      borderRadius:"6px", padding:"6px", fontSize:"11px", fontWeight:600,
+                                      cursor:"pointer", fontFamily:"inherit" }}>
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                            {/* Results list */}
+                            <div style={{ maxHeight:"200px", overflowY:"auto", borderRadius:"10px",
+                              border:"1px solid #E2E8F0", background:"white",
+                              boxShadow:"0 4px 16px rgba(0,0,0,0.08)" }}>
+                              {addSearchResults.map(c=>{
+                                const already = !c.repeatable && Object.values(plan).flat().includes(c.id);
+                                const courseSlots = c.id==="OFF_CAMPUS"?1:(c.credits||0);
+                                const wouldExceed = gradeSlots(plan, grade) + courseSlots > GRADE_MAX;
+                                const blocked = already || wouldExceed;
+                                const completedBefore = getCoursesBeforeGrade(plan, grade);
+                                const completedUpTo = getAllCoursesUpTo(plan, grade);
+                                const unmet = c.id==="OFF_CAMPUS" ? [] : getUnmetPrereqs(c.id, completedBefore, completedUpTo);
+                                const hasWarn = unmet.length > 0;
+                                return (
+                                  <div key={c.id}
+                                    onClick={()=>{ if(!blocked) addCourseToPlan(c.id); }}
+                                    style={{ display:"flex", alignItems:"center", gap:"9px",
+                                      padding:"9px 12px", cursor:blocked?"default":"pointer",
+                                      borderBottom:"1px solid #F3F4F6", opacity:blocked?0.45:1,
+                                      transition:"background 0.1s" }}
+                                    onMouseEnter={e=>{ if(!blocked) e.currentTarget.style.background="#FFF1F0"; }}
+                                    onMouseLeave={e=>{ e.currentTarget.style.background="transparent"; }}>
+                                    <div style={{ width:"8px", height:"8px", borderRadius:"50%",
+                                      background:deptColor(c.dept), flexShrink:0 }}/>
+                                    <div style={{ flex:1, minWidth:0 }}>
+                                      <div style={{ fontSize:"13px", fontWeight:700, color:"var(--text)",
+                                        whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                                        {c.name}{c.isAP?" ⭐":""}
+                                      </div>
+                                      <div style={{ fontSize:"11px", color:hasWarn?"#D97706":"var(--muted)" }}>
+                                        {c.dept} · {c.credits}cr{hasWarn?" · ⚠️ needs: "+unmet.map(getPrereqDisplay).join(", "):""}
+                                      </div>
+                                    </div>
+                                    {already
+                                      ? <span style={{ fontSize:"11px", color:"var(--red)", fontWeight:700, flexShrink:0 }}>Added</span>
+                                      : <span style={{ fontSize:"18px", color:hasWarn?"#D97706":"var(--red)", flexShrink:0 }}>{hasWarn?"⚠️":"+"}</span>
+                                    }
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ display:"flex", gap:"8px", marginTop:"auto", paddingBottom:"14px", paddingTop:"8px" }}>
+                            <div className="add-btn" style={{ flex:1, opacity:atCap?0.4:1,
+                              cursor:atCap?"not-allowed":"pointer", pointerEvents:atCap?"none":"auto" }}
+                              onClick={()=>{ if(!atCap) setAddTarget(grade); }}>
+                              {atCap ? "✋ Full ("+GRADE_MAX+" slots used)" : "+ Add a Course"}
+                            </div>
+                            {grade===12 ? (
+                              <div className="add-btn"
+                                style={{ flex:"0 0 auto", borderColor:"#64748B", color:"#64748B",
+                                  opacity:atCap?0.4:1, cursor:atCap?"not-allowed":"pointer",
+                                  pointerEvents:atCap?"none":"auto" }}
+                                onClick={()=>{ if(gradeSlots(plan,12)<GRADE_MAX){ setPlan(p=>{ const n=JSON.parse(JSON.stringify(p)); n[12].push("OFF_CAMPUS"); return n; }); } }}>
+                                🚗 Off Campus
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
                         </div>
                       </div>
                     </motion.div>
@@ -2053,8 +2143,12 @@ export default function KalaniPlanner() {
           </div>
           )}
 
-                {/* ── COURSE DETAIL MODAL ── */}
-        {selectedCourse&&(
+
+
+
+      {/* ── COURSE DETAIL MODAL — lives outside renderPage so catalog page can open it too ── */}
+      <AnimatePresence>
+        {selectedCourse ? (
           <div className="overlay" onClick={()=>setSelectedCourse(null)}>
             <motion.div className="modal" onClick={e=>e.stopPropagation()}
               initial={{ opacity:0, scale:0.88, y:24 }}
@@ -2475,109 +2569,8 @@ export default function KalaniPlanner() {
             </motion.div>
           </div>
           )}
-
-        {/* ── ADD COURSE MODAL ── */}
-        {addTarget!==null&&(
-          <div className="overlay" onClick={()=>{ setAddTarget(null); setAddSearch(""); setPrereqWarn(null); }}>
-            <div className="modal" style={{ maxWidth:"450px" }} onClick={e=>e.stopPropagation()}>
-              <div style={{ padding:"20px 22px", borderBottom:"1px solid var(--border)" }}>
-                <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:"19px", color:"var(--red-dark)", marginBottom:"3px" }}>
-                  Add Course to Grade {addTarget}
-                </h2>
-                <p style={{ fontSize:"13px",color:"var(--muted)" }}>Search by name, code, or department · ⚠️ = missing prereqs</p>
-              </div>
-              <div style={{ padding:"14px 18px" }}>
-                <input className="si" placeholder="e.g. Chemistry, AP, Japanese, Engineering…"
-                  autoFocus value={addSearch} onChange={e=>setAddSearch(e.target.value)}
-                  style={{ marginBottom:"10px" }} />
-
-                {/* Prereq warning dialog */}
-                {prereqWarn && (
-                  <div style={{ background:"#FEF9C3", border:"1.5px solid #EAB308", borderRadius:"10px",
-                    padding:"12px 14px", marginBottom:"10px" }}>
-                    <div style={{ fontWeight:700, fontSize:"13px", color:"#78350F", marginBottom:"6px" }}>
-                      {prereqWarn.coreConflict ? "⚠️ Subject Conflict" : "⚠️ Missing Prerequisites"}
-                    </div>
-                    <div style={{ fontSize:"12px", color:"#78350F", marginBottom:"10px" }}>
-                      {prereqWarn.coreConflict ? (
-                        <span>
-                          You already have <strong>{prereqWarn.coreConflict}</strong> in Grade {prereqWarn.grade}.
-                          Only one {getCourse(prereqWarn.courseId)?.dept} course is allowed per year.
-                        </span>
-                      ) : (
-                        <>
-                          <strong>{getCourse(prereqWarn.courseId)?.name}</strong> requires:
-                          <ul style={{ marginTop:"4px", paddingLeft:"18px" }}>
-                            {prereqWarn.unmet.map(pid=>(
-                              <li key={pid}>{getPrereqDisplay(pid)}</li>
-                            ))}
-                          </ul>
-                        </>
-                      )}
-                    </div>
-                    <div style={{ display:"flex", gap:"8px" }}>
-                      <button onClick={()=>forceAddCourse(prereqWarn.courseId)}
-                        style={{ flex:1, background:"#B45309", color:"white", border:"none", borderRadius:"7px",
-                          padding:"8px", fontSize:"12px", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                        Add Anyway
-                      </button>
-                      <button onClick={()=>setPrereqWarn(null)}
-                        style={{ flex:1, background:"white", color:"#374151", border:"1.5px solid #D1D5DB",
-                          borderRadius:"7px", padding:"8px", fontSize:"12px", fontWeight:600,
-                          cursor:"pointer", fontFamily:"inherit" }}>
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                  )}
-
-                {addTarget && gradeSlots(plan, addTarget) >= GRADE_MAX && (
-                  <div style={{ background:"#FEF3C7", border:"1.5px solid #F59E0B", borderRadius:"9px",
-                    padding:"10px 14px", marginBottom:"12px", fontSize:"12px", color:"#78350F", fontWeight:600 }}>
-                    ✋ Grade {addTarget} is at the {GRADE_MAX}-slot limit. Remove a course first.
-                  </div>
-                  )}
-                <div style={{ maxHeight:"320px", overflowY:"auto" }}>
-                  {addSearchResults.map(c=>{
-                    const already = !c.repeatable && Object.values(plan).flat().includes(c.id);
-                    const courseSlots = c.id==="OFF_CAMPUS"?1:(c.credits||0);
-                    const atCap = gradeSlots(plan, addTarget) + (already?0:courseSlots) > GRADE_MAX;
-                    const blocked = already || atCap;
-                    const completedBefore = getCoursesBeforeGrade(plan, addTarget);
-                    const completedUpTo = getAllCoursesUpTo(plan, addTarget);
-                    const unmet = c.id==="OFF_CAMPUS" ? [] : getUnmetPrereqs(c.id, completedBefore, completedUpTo);
-                    const hasWarn = unmet.length > 0;
-                    return (
-                      <div key={c.id} onClick={()=>{ if(!blocked) addCourseToPlan(c.id); }}
-                        style={{ display:"flex",alignItems:"center",gap:"10px",padding:"9px 10px",
-                          borderRadius:"8px",cursor:blocked?"default":"pointer",transition:"background 0.12s",
-                          background:already?"#FFF0F0":"transparent",opacity:blocked?0.45:1 }}
-                        onMouseEnter={e=>{ if(!blocked) e.currentTarget.style.background="var(--light-red)"; }}
-                        onMouseLeave={e=>{ e.currentTarget.style.background=already?"#FFF0F0":"transparent"; }}>
-                        <div style={{ width:"8px",height:"8px",borderRadius:"50%",flexShrink:0,background:deptColor(c.dept) }}/>
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontSize:"13px",fontWeight:700,color:"var(--text)",
-                            whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>
-                            {c.id==="OFF_CAMPUS"?"🚗 "+c.name:c.name}{c.isAP&&" ⭐"}
-                          </div>
-                          <div style={{ fontSize:"11px",color: hasWarn?"#D97706":"var(--muted)" }}>
-                            {c.dept} · {c.credits>0?c.credits+"cr":"free period"} · Gr {c.gradeLevel.join("/")}
-                            {c.repeatable&&" · can add multiple times"}
-                            {hasWarn && ` · ⚠️ needs: ${unmet.map(getPrereqDisplay).join(", ")}`}
-                            {!hasWarn && getCoreConflict(c.id, addTarget) && ` · ⚠️ conflicts with: ${getCoreConflict(c.id, addTarget)}`}
-                          </div>
-                        </div>
-                        {already
-                          ?<span style={{ fontSize:"11px",color:"var(--red)",fontWeight:700,flexShrink:0 }}>Added</span>
-                          :<span style={{ fontSize:"20px",color: hasWarn?"#D97706":"var(--red)",flexShrink:0 }}>{hasWarn?"⚠️":"+"}</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        ) : null}
+      </AnimatePresence>
 
         </AnimatePresence>
       </div>
