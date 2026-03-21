@@ -916,8 +916,10 @@ const pageVariants = {
   exit:    { opacity:0, y:-15, filter:"blur(4px)", scale:0.98,
     transition:{ duration:0.2, ease:"easeIn" } },
 };
-// Wraps each page — the key prop on motion.div is what triggers AnimatePresence
-function AnimatedPageWrapper({ pageKey, children }) {
+// renderPage: avoids custom component closing tag + } esbuild bug
+// returns a motion.div when condition is true, null otherwise
+function renderPage(condition, pageKey, children) {
+  if (!condition) return null;
   return (
     <motion.div key={pageKey} variants={pageVariants}
       initial="initial" animate="animate" exit="exit"
@@ -1483,7 +1485,8 @@ export default function KalaniPlanner() {
         })}
 
         <AnimatePresence mode="wait">
-        {page==="home" ? <AnimatedPageWrapper pageKey="home"><div className="fade-in">
+        {renderPage(page==="home","home",
+          <div className="fade-in">
             <div style={{ background:`linear-gradient(135deg,var(--red-deep) 0%,var(--red-dark) 55%,var(--red) 100%)`,
               padding:"64px 24px 72px", textAlign:"center", position:"relative", overflow:"hidden" }}>
               <div style={{ position:"absolute", inset:0, opacity:0.04,
@@ -1647,10 +1650,11 @@ export default function KalaniPlanner() {
             </div>
           </div>
           </div>
-        </AnimatedPageWrapper> : null}
+        )}
 
         {/* ── CATALOG ── */}
-        {page==="catalog" ? <AnimatedPageWrapper pageKey="catalog"><div className="fade-in" style={{ maxWidth:"1200px", margin:"0 auto", padding:"32px 24px" }}>
+        {renderPage(page==="catalog","catalog",
+          <div className="fade-in" style={{ maxWidth:"1200px", margin:"0 auto", padding:"32px 24px" }}>
             <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"30px", color:"var(--red-dark)",
               marginBottom:"22px" }}>Course Catalog</h1>
             <div style={{ display:"flex", gap:"12px", marginBottom:"20px", flexWrap:"wrap", alignItems:"center" }}>
@@ -1779,10 +1783,11 @@ export default function KalaniPlanner() {
             </div>
           </div>
         </div>
-        </AnimatedPageWrapper> : null}
+        )}
 
         {/* ── PLANNER ── */}
-        {page==="planner" ? <AnimatedPageWrapper pageKey="planner"><div className="fade-in" style={{ maxWidth:"1180px", margin:"0 auto", padding:"32px 24px" }}>
+        {renderPage(page==="planner","planner",
+          <div className="fade-in" style={{ maxWidth:"1180px", margin:"0 auto", padding:"32px 24px" }}>
             <div className="planner-layout" style={{ display:"flex", gap:"28px", alignItems:"flex-start", flexWrap:"wrap" }}>
               <div style={{ flex:"1", minWidth:0 }}>
                 <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", flexWrap:"wrap", gap:"10px", marginBottom:"6px" }}>
@@ -2570,7 +2575,7 @@ export default function KalaniPlanner() {
               </div>
             </div>
           </div>
-        </div></AnimatedPageWrapper> : null}
+        )}
         </AnimatePresence>
 
 
