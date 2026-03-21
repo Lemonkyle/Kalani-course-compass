@@ -159,6 +159,20 @@ const DEPT_COLORS = {
   "Miscellaneous":"#6B7280","Off Campus":"#475569",
 };
 
+const DEPTS = [
+  "All","English","Social Studies","Mathematics","Science",
+  "Health & PE","CTE","World Language","Fine Arts","Miscellaneous","Off Campus"
+];
+const CTE_PATHS = ["All CTE","AFNR","Business","Arts & Media","Engineering","Health Services","Culinary Arts","Computer Science","JROTC"];
+const FINE_ARTS_TYPES = ["All Fine Arts","Performing","Visual"];
+const MISC_TYPES = ["All Miscellaneous","General","Journalism","ESOL"];
+const DEPT_COLORS = {
+  "English":"#C84B31","Social Studies":"#7C3AED","Mathematics":"#059669",
+  "Science":"#D97706","Health & PE":"#0891B2","CTE":"#B00804",
+  "World Language":"#0284C7","Fine Arts":"#DB2777",
+  "Miscellaneous":"#6B7280","Off Campus":"#475569",
+};
+
 const DEFAULT_PLAN = {
   9:  ["GEO","ELA1","PID","MHH","ISCI","PE_LF","HEALTH","PTP"],
   10: ["ALG1","ELA2","USH","BIO1_10","PE_LA","JPN1"],
