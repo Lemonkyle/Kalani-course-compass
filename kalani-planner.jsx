@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./src/supabase.js";
 import AnimatedProgressBar from "./src/components/AnimatedProgressBar.jsx";
@@ -887,20 +887,27 @@ function calcPlannerCredits(plan) {
   return { cats, total };
 }
 
-// ── Gemini-exact variant structure ─────────────────────────────
-const cardContainerVariants = {
-  hidden: { height:0, opacity:0 },
-  show:   { height:"auto", opacity:1,
-    transition:{ type:"spring", stiffness:400, damping:30 } },
-  exit:   { height:0, opacity:0,
-    transition:{ delay:0.15, type:"spring", stiffness:400, damping:30 } },
+// ── Animation variants — exact copy from planner-demo.jsx ──────
+const cardVariants = {
+  hidden: { height:0, opacity:0, marginBottom:0 },
+  show: {
+    height:"auto", opacity:1, marginBottom:8,
+    transition:{ height:{ type:"spring", stiffness:400, damping:30 } }
+  },
+  exit: {
+    height:0, opacity:0, marginBottom:0,
+    transition:{
+      delay:0.15,
+      height:{ type:"spring", stiffness:400, damping:30 },
+      opacity:{ delay:0.15 },
+      marginBottom:{ delay:0.15 },
+    }
+  }
 };
-const cardContentVariants = {
-  hidden: { x:40, opacity:0 },
-  show:   { x:0, opacity:1,
-    transition:{ type:"spring", stiffness:350, damping:25 } },
-  exit:   { x:-80, opacity:0, filter:"blur(10px)",
-    transition:{ duration:0.2 } },
+const contentVariants = {
+  hidden: { x:50, opacity:0, scale:0.95 },
+  show:  { x:0, opacity:1, scale:1, transition:{ type:"spring", stiffness:350, damping:25, delay:0.05 } },
+  exit:  { x:-60, opacity:0, scale:0.95, filter:"blur(8px)", transition:{ type:"spring", stiffness:400, damping:25 } }
 };
 const shakeAnim = { x:[0,-8,8,-6,6,-3,3,0], transition:{ duration:0.4, ease:"easeInOut" } };
 
@@ -965,6 +972,10 @@ export default function KalaniPlanner() {
   const [toast, setToast] = useState(null); // {msg, grade}
   const [shakeGrade, setShakeGrade] = useState(null);
   const [removingCards, setRemovingCards] = useState(new Set());
+  const [burstKey, setBurstKey] = useState(0);
+  const [clickKey, setClickKey] = useState(0);
+  const [ratingParticles, setRatingParticles] = useState([]);
+  const starContainerRef = useRef(null);
 
   useEffect(() => {
     try { localStorage.setItem('kalani-compass-plan', JSON.stringify(plan)); } catch {}
@@ -1794,28 +1805,29 @@ export default function KalaniPlanner() {
                             return (
                               <motion.div key={cid+"-"+idx}
                                 layout
-                                variants={cardContainerVariants}
+                                variants={cardVariants}
                                 initial="hidden" animate="show" exit="exit"
                                 style={{ overflow:"hidden" }}>
                                 <motion.div
-                                  variants={cardContentVariants}
+                                  variants={contentVariants}
                                   className="card-hover-group"
                                   style={{ display:"flex", alignItems:"center",
                                     background:isOffCampus?"#F8FAFC":"white",
                                     border:"1px solid "+(isOffCampus?"#CBD5E1":col+"28"),
-                                    borderRadius:"12px", overflow:"hidden",
-                                    position:"relative", marginBottom:"8px" }}>
+                                    borderRadius:"12px", overflow:"hidden", position:"relative" }}>
                                   {/* Left color bar */}
                                   <div style={{ width:"4px", alignSelf:"stretch",
                                     background:isOffCampus?"#475569":col, flexShrink:0 }}/>
-                                  {/* Shimmer — plays unconditionally on every entry */}
+                                  {/* Shimmer — exact from planner-demo.jsx */}
                                   <motion.div
-                                    initial={{ x:"-150%", skewX:-20 }}
-                                    animate={{ x:"250%", skewX:-20 }}
-                                    transition={{ duration:0.9, ease:"easeOut", delay:0.1 }}
-                                    style={{ position:"absolute", top:0, bottom:0,
-                                      left:0, width:"55%", zIndex:20, pointerEvents:"none",
-                                      background:"linear-gradient(to right,transparent,"+(isOffCampus?"rgba(71,85,105,0.12)":col+"22")+",transparent)" }}/>
+                                    initial={{ x:"-150%", skewX:-12 }}
+                                    animate={{ x:"250%",  skewX:-12 }}
+                                    transition={{ duration:0.9, ease:"easeInOut", delay:0.12 }}
+                                    style={{
+                                      position:"absolute", top:"-30%", bottom:"-30%", left:0, width:"55%",
+                                      background:"linear-gradient(to right,transparent,"+(isOffCampus?"rgba(71,85,105,0.25)":col+"60")+","+(isOffCampus?"rgba(71,85,105,0.1)":col+"35")+",transparent)",
+                                      pointerEvents:"none", zIndex:20,
+                                    }}/>
                                   {/* Content */}
                                   <div style={{ flex:1, padding:"9px 10px", minWidth:0, position:"relative", zIndex:1 }}>
                                     <div style={{ display:"flex", alignItems:"center", gap:"4px", marginBottom:"2px" }}>
@@ -2410,6 +2422,7 @@ export default function KalaniPlanner() {
                               onClick={()=>{
                                 if(ratingAnimating) return;
                                 setPendingRating({ courseId:selectedCourse.id, stars:star });
+                                setClickKey(k=>k+1);
                                 // Elastic pop animation via animejs
                                 if(typeof anime !== "undefined") {
                                   const targets = [];
