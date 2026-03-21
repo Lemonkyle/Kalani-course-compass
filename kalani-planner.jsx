@@ -88,7 +88,7 @@ function useCourseData() {
 
       if (error) {
         console.error("[Kalani Compass] fetchCourses error:", error.message);
-        // Fallback: keep using local COURSES array
+        // No local fallback — Supabase required
         setLoading(false);
         return;
       }
@@ -166,7 +166,7 @@ const DEFAULT_PLAN = {
   12: ["TRIG","ELA4","ECON","PSYCH","MARINE"],
 };
 
-function getCourse(id) { return COURSES.find(c => c.id === id); }
+function getCourse(id) { return null; } // overridden inside component with liveCourses
 function getCourseName(id) { const c = getCourse(id); return c ? c.name : id; }
 
 // Returns display string for a prereq, including equivalents: "Chemistry or Honors Chemistry"
