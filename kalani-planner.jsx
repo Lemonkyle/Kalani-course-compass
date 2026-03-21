@@ -884,7 +884,7 @@ function calcPlannerCredits(plan) {
   return { cats, total };
 }
 
-// ─── FRAMER MOTION VARIANTS ──────────────────────────────────────────────────
+// ─── FRAMER MOTION VARIANTS ──────────────────────────────────
 const cardVariants = {
   hidden: { height:0, opacity:0, marginBottom:0 },
   show: {
@@ -909,122 +909,6 @@ const contentVariants = {
     transition:{ type:"spring", stiffness:400, damping:25 } },
 };
 const shakeAnim = { x:[0,-8,8,-6,6,-3,3,0], transition:{ duration:0.4, ease:"easeInOut" } };
-
-// CourseCard — shimmer only fires once on mount (i.e. when card is newly added)
-// On page revisit, cards are already mounted so shimmer does NOT replay
-function PlannerCourseCard({ cid, grade, idx, getCourse, deptColor, getPrereqDisplay,
-  getUnmetPrereqs, getCoursesBeforeGrade, getAllCoursesUpTo, plan,
-  onSelect, onRemove }) {
-  const c = getCourse(cid);
-  if (!c) return null;
-  const col = deptColor(c.dept);
-  const isOffCampus = cid === "OFF_CAMPUS";
-  const before = getCoursesBeforeGrade(plan, grade);
-  const upTo   = getAllCoursesUpTo(plan, grade);
-  const unmet  = isOffCampus ? [] : getUnmetPrereqs(cid, before, upTo);
-
-  // Shimmer fires once on first mount only
-  const [showShimmer, setShowShimmer] = useState(true);
-  useEffect(() => {
-    const t = setTimeout(() => setShowShimmer(false), 1200);
-    return () => clearTimeout(t);
-  }, []);
-
-  const [btnHover, setBtnHover] = useState(false);
-
-  return (
-    <motion.div
-      layout="position"
-      variants={cardVariants}
-      initial="hidden" animate="show" exit="exit"
-      style={{ overflow:"hidden" }}>
-      <motion.div
-        className="card-hover-group"
-        variants={contentVariants}
-        whileHover={{ x:3, boxShadow:"0 4px 14px rgba(0,0,0,0.09)" }}
-        transition={{ type:"spring", stiffness:400, damping:28 }}
-        style={{ display:"flex", alignItems:"center",
-          background:isOffCampus?"#F8FAFC":"white",
-          border:`1px solid ${isOffCampus?"#CBD5E1":col+"28"}`,
-          borderRadius:"12px", overflow:"hidden",
-          position:"relative", marginBottom:"6px" }}>
-
-        {/* Left colour bar */}
-        <div style={{ width:"4px", alignSelf:"stretch",
-          background:isOffCampus?"#475569":col, flexShrink:0 }}/>
-
-        {/* Shimmer — only on first mount, dept colour so visible on white */}
-        {showShimmer && (
-          <motion.div
-            initial={{ x:"-150%", skewX:-12 }}
-            animate={{ x:"250%",  skewX:-12 }}
-            transition={{ duration:0.85, ease:"easeInOut", delay:0.2 }}
-            style={{ position:"absolute", top:"-30%", bottom:"-30%",
-              left:0, width:"55%", zIndex:20, pointerEvents:"none",
-              background:`linear-gradient(to right,transparent,${
-                isOffCampus?"rgba(71,85,105,0.25)":col+"55"},${
-                isOffCampus?"rgba(71,85,105,0.1)":col+"22"},transparent)` }}/>
-        )}
-
-        {/* Text content */}
-        <div style={{ flex:1, padding:"9px 10px", minWidth:0, position:"relative" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:"4px", marginBottom:"2px" }}>
-            <span style={{ fontSize:"9px", fontWeight:900, letterSpacing:"0.07em",
-              textTransform:"uppercase",
-              background:isOffCampus?"#E2E8F0":col+"18",
-              color:isOffCampus?"#475569":col,
-              padding:"2px 6px", borderRadius:"4px", flexShrink:0 }}>
-              {isOffCampus?"Off Campus":c.dept}
-            </span>
-            <span style={{ fontSize:"9px", fontWeight:800, color:"#94A3B8",
-              background:"#F1F5F9", padding:"2px 5px",
-              borderRadius:"4px", flexShrink:0 }}>{c.credits}cr</span>
-            {c.isAP&&<span className="tag-ap" style={{fontSize:"9px"}}>AP</span>}
-            {unmet.length>0 && (
-              <span title={`Missing prereqs: ${unmet.map(getPrereqDisplay).join(", ")}`}
-                style={{ fontSize:"11px", cursor:"help", flexShrink:0 }}>⚠️</span>
-            )}
-          </div>
-          <span style={{ fontSize:"13px", fontWeight:700,
-            color:isOffCampus?"#475569":"#0F172A",
-            letterSpacing:"-0.01em", cursor:"pointer",
-            overflow:"hidden", textOverflow:"ellipsis",
-            display:"block", whiteSpace:"nowrap" }}
-            onClick={()=>onSelect(c)}>
-            {isOffCampus?"🚗 Off Campus":c.name}
-          </span>
-        </div>
-
-        {/* Hover-reveal delete button */}
-        <div className="delete-btn-wrap" style={{ padding:"0 10px", flexShrink:0 }}>
-          <motion.div
-            onHoverStart={()=>setBtnHover(true)}
-            onHoverEnd={()=>setBtnHover(false)}
-            animate={{
-              backgroundColor: btnHover ? "#EF4444" : "#FEF2F2",
-              scale: btnHover ? 1.12 : 1,
-              boxShadow: btnHover ? "0 4px 12px rgba(239,68,68,0.4)" : "0 0 0 rgba(0,0,0,0)"
-            }}
-            transition={{ type:"spring", stiffness:400, damping:25 }}
-            onClick={()=>onRemove(grade,idx)}
-            style={{ width:"30px", height:"30px", borderRadius:"50%",
-              display:"flex", alignItems:"center",
-              justifyContent:"center", cursor:"pointer" }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-              stroke={btnHover?"white":"#EF4444"} strokeWidth="2.5"
-              strokeLinecap="round" strokeLinejoin="round"
-              style={{ transition:"stroke 0.15s" }}>
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-              <path d="M10 11v6M14 11v6"/>
-              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-            </svg>
-          </motion.div>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-}
 
 export default function KalaniPlanner() {
   // V4: courses fetched from Supabase, falls back to local COURSES if unavailable
@@ -1063,8 +947,10 @@ export default function KalaniPlanner() {
   const [filterCtePath, setFilterCtePath] = useState("All CTE");
   const [filterFineArts, setFilterFineArts] = useState("All Fine Arts");
   const [filterMisc, setFilterMisc] = useState("All Miscellaneous");
+  const [gridKey, setGridKey] = useState(0);
   const [toast, setToast] = useState(null); // {msg, grade}
   const [shakeGrade, setShakeGrade] = useState(null);
+  const newCardKeys = useRef(new Set()); // tracks cards added THIS session (get shimmer)
   const [removingCards, setRemovingCards] = useState(new Set()); // keys being animated out
 
   useEffect(() => {
@@ -1311,6 +1197,10 @@ export default function KalaniPlanner() {
       <style>{`
         ${FONTS}
         @keyframes annSlideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes cardIn{
+          from{opacity:0;transform:translateY(24px) scale(0.97);}
+          to{opacity:1;transform:translateY(0) scale(1);}
+        }
         @keyframes starPop{0%{opacity:0;transform:scale(0) rotate(-20deg)}60%{transform:scale(1.35) rotate(4deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
         /* Planner card animations */
         @keyframes planCardIn{
@@ -1392,12 +1282,30 @@ export default function KalaniPlanner() {
           margin:2px;font-size:12px;font-weight:600;flex:1 0 calc(50% - 4px);min-width:150px;}
         .rm-btn{margin-left:auto;cursor:pointer;color:#9CA3AF;font-size:16px;line-height:1;padding:0 2px;flex-shrink:0;}
         .rm-btn:hover{color:var(--red);}
-        .delete-btn-wrap{ opacity:0; transform:translateX(12px);
-          transition:opacity 0.22s ease, transform 0.28s cubic-bezier(0.34,1.4,0.64,1); }
-        .card-hover-group:hover .delete-btn-wrap{ opacity:1; transform:translateX(0); }
         .add-btn{border:1.5px dashed #D1D5DB;border-radius:7px;padding:7px;text-align:center;
           font-size:11px;color:#9CA3AF;cursor:pointer;margin-top:6px;transition:all 0.2s;}
         .add-btn:hover{border-color:var(--red);color:var(--red);background:var(--light-red);}
+        /* Catalog filter button sweep */
+        .dept-filter-btn{
+          padding:6px 12px; border-radius:7px; cursor:pointer;
+          font-size:12px; font-weight:700; font-family:inherit;
+          position:relative; overflow:hidden;
+          transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1), border-color 0.18s, color 0.18s;
+        }
+        .dept-filter-btn::before{
+          content:''; position:absolute; left:0; right:0; bottom:0; height:0;
+          background:linear-gradient(to top,var(--red-dark),var(--red));
+          transition:height 0.3s cubic-bezier(0.25,0.46,0.45,0.94); z-index:0;
+        }
+        .dept-filter-btn span{ position:relative; z-index:1; }
+        .dept-filter-btn:hover{ transform:scale(1.06) translateY(-1px); border-color:var(--red) !important; color:var(--red) !important; }
+        .dept-filter-btn.active::before{ height:100%; }
+        .dept-filter-btn.active{ color:white !important; border-color:var(--red) !important; box-shadow:0 4px 14px rgba(176,8,4,0.3); }
+        .dept-filter-btn.active:hover{ transform:scale(1.03); }
+        /* Delete button hover reveal */
+        .delete-btn-wrap{ opacity:0; transform:translateX(12px);
+          transition:opacity 0.22s ease, transform 0.28s cubic-bezier(0.34,1.4,0.64,1); }
+        .card-hover-group:hover .delete-btn-wrap{ opacity:1; transform:translateX(0); }
         .overlay{position:fixed;inset:0;background:rgba(17,24,39,0.65);display:flex;align-items:center;
           justify-content:center;z-index:1000;padding:20px;backdrop-filter:blur(5px);}
         .modal{background:white;border-radius:20px;max-width:620px;width:100%;max-height:90vh;
@@ -1450,8 +1358,7 @@ export default function KalaniPlanner() {
               {page===id && (
                 <motion.div layoutId="nav-pill"
                   style={{ position:"absolute", inset:0, borderRadius:"8px",
-                    background:"rgba(255,255,255,0.22)",
-                    boxShadow:"0 2px 8px rgba(0,0,0,0.15) inset" }}
+                    background:"rgba(255,255,255,0.22)", boxShadow:"0 2px 8px rgba(0,0,0,0.15) inset" }}
                   transition={{ type:"spring", stiffness:400, damping:28 }}/>
               )}
               <span style={{ position:"relative", zIndex:1, fontWeight:600, fontSize:"14px",
@@ -1685,14 +1592,14 @@ export default function KalaniPlanner() {
                 style={{ flex:"1", minWidth:"200px", maxWidth:"320px" }} />
               <div style={{ display:"flex", flexWrap:"wrap", gap:"5px" }}>
                 {DEPTS.map(d=>(
-                  <div key={d} onClick={()=>{ setFilterDept(d); setFilterCtePath("All CTE"); setFilterFineArts("All Fine Arts"); setFilterMisc("All Miscellaneous"); }}
-                    style={{ padding:"6px 12px", borderRadius:"7px", cursor:"pointer", fontSize:"12px",
-                      fontWeight:700, transition:"all 0.15s",
-                      background:filterDept===d?"var(--red)":"white",
+                  <button key={d}
+                    className={`dept-filter-btn${filterDept===d?" active":""}`}
+                    onClick={()=>{ setFilterDept(d); setFilterCtePath("All CTE"); setFilterFineArts("All Fine Arts"); setFilterMisc("All Miscellaneous"); setGridKey(k=>k+1); }}
+                    style={{ background:"white",
                       color:filterDept===d?"white":"var(--muted)",
                       border:`1.5px solid ${filterDept===d?"var(--red)":"var(--border)"}` }}>
-                    {d}
-                  </div>
+                    <span>{d}</span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -1741,9 +1648,11 @@ export default function KalaniPlanner() {
             <p style={{ fontSize:"13px", color:"var(--muted)", marginBottom:"18px" }}>
               Showing {filteredCourses.length} course{filteredCourses.length!==1?"s":""}
             </p>
-            <div className="catalog-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(295px,1fr))", gap:"14px" }}>
+            <div key={gridKey} className="catalog-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(295px,1fr))", gap:"14px" }}>
               {filteredCourses.map(c=>(
-                <div key={c.id} className="c-card" onClick={()=>setSelectedCourse(c)}>
+                <div key={c.id} className="c-card"
+                  style={{ animation:`cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) ${(filteredCourses.indexOf(c))*0.04}s both` }}
+                  onClick={()=>setSelectedCourse(c)}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"8px" }}>
                     <div style={{ display:"flex", flexWrap:"wrap", gap:"4px", alignItems:"center" }}>
                       <span className="badge" style={{ background:deptColor(c.dept)+"1A", color:deptColor(c.dept) }}>{c.ctePath||c.fineArtsType||c.miscType||c.dept}</span>
@@ -1868,20 +1777,91 @@ export default function KalaniPlanner() {
                         </div>
                         <div style={{ padding:"12px 14px 0" }}>
                         <AnimatePresence>
-                          {plan[grade].map((cid,idx)=>(
-                            <PlannerCourseCard
-                              key={`${grade}-${cid}-${idx}`}
-                              cid={cid} grade={grade} idx={idx}
-                              getCourse={getCourse} deptColor={deptColor}
-                              getPrereqDisplay={getPrereqDisplay}
-                              getUnmetPrereqs={getUnmetPrereqs}
-                              getCoursesBeforeGrade={getCoursesBeforeGrade}
-                              getAllCoursesUpTo={getAllCoursesUpTo}
-                              plan={plan}
-                              onSelect={setSelectedCourse}
-                              onRemove={removeCourse}
-                            />
-                          ))}
+                          {plan[grade].map((cid,idx)=>{
+                            const c=getCourse(cid);
+                            if(!c) return null;
+                            const col=deptColor(c.dept);
+                            const isOffCampus = cid==="OFF_CAMPUS";
+                            const before = getCoursesBeforeGrade(plan, grade);
+                            const upTo = getAllCoursesUpTo(plan, grade);
+                            const unmet = isOffCampus ? [] : getUnmetPrereqs(cid, before, upTo);
+                            return (
+                              <motion.div key={`${cid}-${idx}`}
+                                layout="position"
+                                variants={cardVariants}
+                                initial="hidden" animate="show" exit="exit"
+                                style={{ overflow:"hidden" }}>
+                                <motion.div className="card-hover-group"
+                                  variants={contentVariants}
+                                  whileHover={{ x:3, boxShadow:"0 4px 14px rgba(0,0,0,0.08)" }}
+                                  transition={{ type:"spring", stiffness:400, damping:28 }}
+                                  style={{ display:"flex", alignItems:"center",
+                                    background:isOffCampus?"#F8FAFC":"white",
+                                    border:`1px solid ${isOffCampus?"#CBD5E1":col+"28"}`,
+                                    borderRadius:"12px", overflow:"hidden",
+                                    position:"relative", marginBottom:"6px" }}>
+                                  <div style={{ width:"4px", alignSelf:"stretch",
+                                    background:isOffCampus?"#475569":col, flexShrink:0 }}/>
+                                  {newCardKeys.current.has(`${grade}-${idx}`) && (
+                                    <motion.div
+                                      initial={{ x:"-150%", skewX:-12 }}
+                                      animate={{ x:"250%", skewX:-12 }}
+                                      transition={{ duration:0.9, ease:"easeInOut", delay:0.12 }}
+                                      style={{ position:"absolute", top:"-30%", bottom:"-30%",
+                                        left:0, width:"55%", zIndex:20, pointerEvents:"none",
+                                        background:`linear-gradient(to right,transparent,${
+                                          isOffCampus?"rgba(71,85,105,0.22)":col+"44"},transparent)` }}/>
+                                  )}
+                                  <div style={{ flex:1, padding:"9px 10px", minWidth:0, position:"relative" }}>
+                                    <div style={{ display:"flex", alignItems:"center", gap:"4px", marginBottom:"2px" }}>
+                                      <span style={{ fontSize:"9px", fontWeight:900, letterSpacing:"0.07em",
+                                        textTransform:"uppercase",
+                                        background:isOffCampus?"#E2E8F0":col+"18",
+                                        color:isOffCampus?"#475569":col,
+                                        padding:"2px 6px", borderRadius:"4px", flexShrink:0 }}>
+                                        {isOffCampus?"Off Campus":c.dept}
+                                      </span>
+                                      <span style={{ fontSize:"9px", fontWeight:800, color:"#94A3B8",
+                                        background:"#F1F5F9", padding:"2px 5px",
+                                        borderRadius:"4px", flexShrink:0 }}>{c.credits}cr</span>
+                                      {c.isAP&&<span className="tag-ap" style={{fontSize:"9px"}}>AP</span>}
+                                      {unmet.length>0 && (
+                                        <span title={`Missing prereqs: ${unmet.map(getPrereqDisplay).join(", ")}`}
+                                          style={{ fontSize:"11px", cursor:"help", flexShrink:0 }}>⚠️</span>
+                                      )}
+                                    </div>
+                                    <span style={{ fontSize:"13px", fontWeight:700,
+                                      color:isOffCampus?"#475569":"#0F172A",
+                                      letterSpacing:"-0.01em", cursor:"pointer",
+                                      overflow:"hidden", textOverflow:"ellipsis",
+                                      display:"block", whiteSpace:"nowrap" }}
+                                      onClick={()=>setSelectedCourse(c)}>
+                                      {isOffCampus?"🚗 Off Campus":c.name}
+                                    </span>
+                                  </div>
+                                  <div className="delete-btn-wrap" style={{ padding:"0 10px", flexShrink:0 }}>
+                                    <motion.div
+                                      whileHover={{ backgroundColor:"#EF4444", scale:1.12,
+                                        boxShadow:"0 4px 12px rgba(239,68,68,0.4)" }}
+                                      whileTap={{ scale:0.92 }}
+                                      onClick={()=>removeCourse(grade,idx)}
+                                      style={{ width:"30px", height:"30px", borderRadius:"50%",
+                                        background:"#FEF2F2", display:"flex", alignItems:"center",
+                                        justifyContent:"center", cursor:"pointer" }}>
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                        stroke="#EF4444" strokeWidth="2.5"
+                                        strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="3 6 5 6 21 6"/>
+                                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                        <path d="M10 11v6M14 11v6"/>
+                                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                                      </svg>
+                                    </motion.div>
+                                  </div>
+                                </motion.div>
+                              </motion.div>
+                            );
+                          })}
                         </AnimatePresence>
                         <div style={{ display:"flex", gap:"8px", marginTop:"6px" }}>
                           <div className="add-btn" style={{ flex:1, opacity: atCap?0.4:1, cursor: atCap?"not-allowed":"pointer",
@@ -1894,7 +1874,7 @@ export default function KalaniPlanner() {
                               style={{ flex:"0 0 auto", borderColor:"#64748B", color:"#64748B",
                                 opacity: atCap?0.4:1, cursor: atCap?"not-allowed":"pointer",
                                 pointerEvents: atCap?"none":"auto" }}
-                              onClick={()=>{ if(gradeSlots(plan,12)<GRADE_MAX) setPlan(p=>{ const n=JSON.parse(JSON.stringify(p)); n[12].push("OFF_CAMPUS"); return n; }); }}>
+                              onClick={()=>{ if(gradeSlots(plan,12)<GRADE_MAX){ const nk=`12-${(plan[12]||[]).length}`; newCardKeys.current.add(nk); setPlan(p=>{ const n=JSON.parse(JSON.stringify(p)); n[12].push("OFF_CAMPUS"); return n; }); } }}>
                               🚗 Off Campus
                             </div>
                           )}
@@ -1907,7 +1887,7 @@ export default function KalaniPlanner() {
                 </div>
               </div>
 
-              {/* ── SIDEBAR ── */
+              {/* ── SIDEBAR ── */}
               <div className="planner-sidebar" style={{ width:"265px", flexShrink:0 }}>
                 <div style={{ background:`linear-gradient(170deg,var(--slate) 0%,var(--slate-mid) 100%)`,
                   borderRadius:"16px", padding:"22px", position:"sticky", top:"72px",
@@ -1926,12 +1906,7 @@ export default function KalaniPlanner() {
                       style={{ height:"100%", borderRadius:"5px",
                         background:"linear-gradient(90deg,var(--red),#E53E3E)",
                         overflow:"hidden", position:"relative" }}>
-                      <motion.div key={total}
-                        initial={{ x:"-100%" }} animate={{ x:"200%" }}
-                        transition={{ duration:0.9, ease:"easeOut", delay:0.1 }}
-                        style={{ position:"absolute", inset:"-50% 0", width:"50%",
-                          background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent)",
-                          pointerEvents:"none" }}/>
+                      {/* shimmer on total change — framer rerenders on key change */}
                     </motion.div>
                   </div>
                   {GRAD_REQUIREMENTS.map(r=>{
