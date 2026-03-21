@@ -10,9 +10,33 @@ import { buildCourseSearchIndex, filterIndexedCourses } from "./src/utils/course
 // DATA_SOURCE: "local" | "supabase" — now fetching from Supabase with local fallback
 const DATA_SOURCE = "supabase";
 
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function sanitizeCourse(course) {
+  if (!course) return null;
+  return {
+    ...course,
+    code: course.code || "",
+    subtitle: course.subtitle || "",
+    gradeLevel: asArray(course.gradeLevel),
+    prereqs: asArray(course.prereqs),
+    concurrentOk: asArray(course.concurrentOk),
+    gradeReqs: course.gradeReqs && typeof course.gradeReqs === "object" ? course.gradeReqs : {},
+    desc: course.desc || "",
+    tips: course.tips || "",
+    eligibility: asArray(course.eligibility),
+    reasons: asArray(course.reasons),
+    submissions: asArray(course.submissions),
+    warning: course.warning || "",
+    deadline: course.deadline || "",
+  };
+}
+
 function normalizeCourse(row) {
   // Convert Supabase row (snake_case, pg arrays) back to the shape the app expects
-  return {
+  return sanitizeCourse({
     id:                  row.id,
     code:                row.code || "",
     name:                row.name,
@@ -53,7 +77,7 @@ function normalizeCourse(row) {
       warning: "Off Campus approval is not automatic. All three eligibility conditions must be met and administrative approval granted.",
       deadline: "See counselor for current deadline",
     } : {}),
-  };
+  });
 }
 
 // Custom dept + grade sort order matching original catalog
@@ -889,18 +913,27 @@ function calcPlannerCredits(plan) {
 
 // ── Gemini-exact variant structure ─────────────────────────────
 const cardContainerVariants = {
-  hidden: { height:0, opacity:0 },
-  show:   { height:"auto", opacity:1,
-    transition:{ type:"spring", stiffness:400, damping:30 } },
-  exit:   { height:0, opacity:0,
-    transition:{ delay:0.15, type:"spring", stiffness:400, damping:30 } },
+  hidden: { height:0, opacity:0, marginBottom:0 },
+  show:   { height:"auto", opacity:1, marginBottom:12,
+    transition:{
+      opacity:{ duration:0.18 },
+      marginBottom:{ duration:0.18 },
+      height:{ type:"spring", stiffness:500, damping:35 },
+    } },
+  exit:   { height:0, opacity:0, marginBottom:0,
+    transition:{
+      delay:0.15,
+      opacity:{ duration:0.15 },
+      marginBottom:{ duration:0.18 },
+      height:{ type:"spring", stiffness:500, damping:35 },
+    } },
 };
 const cardContentVariants = {
-  hidden: { x:40, opacity:0 },
+  hidden: { x:50, opacity:0 },
   show:   { x:0, opacity:1,
-    transition:{ type:"spring", stiffness:350, damping:25 } },
-  exit:   { x:-80, opacity:0, filter:"blur(10px)",
-    transition:{ duration:0.2 } },
+    transition:{ type:"spring", stiffness:400, damping:28 } },
+  exit:   { x:-120, scale:0.9, opacity:0, filter:"blur(8px)",
+    transition:{ type:"spring", stiffness:400, damping:30 } },
 };
 const shakeAnim = { x:[0,-8,8,-6,6,-3,3,0], transition:{ duration:0.4, ease:"easeInOut" } };
 
@@ -964,7 +997,11 @@ export default function KalaniPlanner() {
   const [gridKey, setGridKey] = useState(0);
   const [toast, setToast] = useState(null); // {msg, grade}
   const [shakeGrade, setShakeGrade] = useState(null);
-  const [removingCards, setRemovingCards] = useState(new Set());
+  function openCourseDetails(course) {
+    const safeCourse = sanitizeCourse(course);
+    if (!safeCourse) return;
+    setSelectedCourse(safeCourse);
+  }
 
   useEffect(() => {
     try { localStorage.setItem('kalani-compass-plan', JSON.stringify(plan)); } catch {}
@@ -1119,12 +1156,11 @@ export default function KalaniPlanner() {
   const honorsProgress = useMemo(() => computeHonorsProgress(plan), [plan]);
 
   function removeCourse(grade, idx) {
-    const key = `${grade}-${idx}`;
-    setRemovingCards(prev => new Set([...prev, key]));
-    setTimeout(() => {
-      setPlan(p => { const n = JSON.parse(JSON.stringify(p)); n[grade].splice(idx, 1); return n; });
-      setRemovingCards(prev => { const s = new Set(prev); s.delete(key); return s; });
-    }, 360);
+    setPlan(p => {
+      const n = JSON.parse(JSON.stringify(p));
+      n[grade].splice(idx, 1);
+      return n;
+    });
   }
   const GRADE_MAX = 9.0; // 9 slots = up to 9 credits (0.5cr courses use 0.5 slot)
 
@@ -1490,7 +1526,7 @@ export default function KalaniPlanner() {
                     return (
                       <div key={c.id}
                         onMouseDown={()=>{
-                          setSelectedCourse(c);
+                          openCourseDetails(c);
                           setHomeSearchFocus(false);
                           setSearchQuery(homeSearch);
                           navigate("catalog");
@@ -1658,7 +1694,7 @@ export default function KalaniPlanner() {
               {filteredCourses.map((c, index)=>(
                 <div key={c.id} className="c-card"
                   style={{ animation:"cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) "+(index*0.045)+"s both" }}
-                  onClick={()=>setSelectedCourse(c)}>
+                  onClick={()=>openCourseDetails(c)}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"8px" }}>
                     <div style={{ display:"flex", flexWrap:"wrap", gap:"4px", alignItems:"center" }}>
                       <span className="badge" style={{ background:deptColor(c.dept)+"1A", color:deptColor(c.dept) }}>{c.ctePath||c.fineArtsType||c.miscType||c.dept}</span>
@@ -1794,9 +1830,10 @@ export default function KalaniPlanner() {
                             return (
                               <motion.div key={cid+"-"+idx}
                                 layout
+                                transition={{ layout:{ type:"spring", stiffness:500, damping:35 } }}
                                 variants={cardContainerVariants}
                                 initial="hidden" animate="show" exit="exit"
-                                style={{ overflow:"hidden" }}>
+                                style={{ position:"relative", overflow:"hidden" }}>
                                 <motion.div
                                   variants={cardContentVariants}
                                   className="card-hover-group"
@@ -1804,7 +1841,7 @@ export default function KalaniPlanner() {
                                     background:isOffCampus?"#F8FAFC":"white",
                                     border:"1px solid "+(isOffCampus?"#CBD5E1":col+"28"),
                                     borderRadius:"12px", overflow:"hidden",
-                                    position:"relative", marginBottom:"8px" }}>
+                                    position:"relative" }}>
                                   {/* Left color bar */}
                                   <div style={{ width:"4px", alignSelf:"stretch",
                                     background:isOffCampus?"#475569":col, flexShrink:0 }}/>
@@ -1836,7 +1873,7 @@ export default function KalaniPlanner() {
                                       color:isOffCampus?"#475569":"#0F172A", letterSpacing:"-0.01em",
                                       cursor:"pointer", overflow:"hidden", textOverflow:"ellipsis",
                                       display:"block", whiteSpace:"nowrap" }}
-                                      onClick={()=>setSelectedCourse(c)}>
+                                      onClick={()=>openCourseDetails(c)}>
                                       {isOffCampus?"🚗 Off Campus":c.name}
                                     </span>
                                   </div>
@@ -2244,14 +2281,14 @@ export default function KalaniPlanner() {
                         const equivIds = PREREQ_EQUIV[pid]||[];
                         return (
                           <div key={pid} style={{ display:"flex", alignItems:"center", gap:"4px", flexWrap:"wrap" }}>
-                            <div className="prereq-chip" onClick={()=>setSelectedCourse(pc)}
+                            <div className="prereq-chip" onClick={()=>openCourseDetails(pc)}
                               style={{ background:"#FEF2F2", border:"1px solid #FCA5A5", color:"#B91C1C" }}>
                               {getCourseName(pid)} →
                             </div>
                             {equivIds.map(eid=>(
                               <span key={eid} style={{ display:"flex", alignItems:"center", gap:"4px" }}>
                                 <span style={{ fontSize:"11px", color:"var(--muted)", fontWeight:600 }}>or</span>
-                                <div className="prereq-chip" onClick={()=>setSelectedCourse(getCourse(eid))}
+                                <div className="prereq-chip" onClick={()=>openCourseDetails(getCourse(eid))}
                                   style={{ background:"#FFF7ED", border:"1px solid #FED7AA", color:"#9A3412" }}>
                                   {getCourseName(eid)} →
                                 </div>
@@ -2270,14 +2307,14 @@ export default function KalaniPlanner() {
                             const equivIds = PREREQ_EQUIV[cid]||[];
                             return (
                               <div key={cid} style={{ display:"flex", alignItems:"center", gap:"4px", flexWrap:"wrap" }}>
-                                <div className="prereq-chip" onClick={()=>setSelectedCourse(getCourse(cid))}
+                                <div className="prereq-chip" onClick={()=>openCourseDetails(getCourse(cid))}
                                   style={{ background:"#EFF6FF", border:"1px solid #93C5FD", color:"#1D4ED8" }}>
                                   {getCourseName(cid)} 🔄
                                 </div>
                                 {equivIds.map(eid=>(
                                   <span key={eid} style={{ display:"flex", alignItems:"center", gap:"4px" }}>
                                     <span style={{ fontSize:"11px", color:"var(--muted)", fontWeight:600 }}>or</span>
-                                    <div className="prereq-chip" onClick={()=>setSelectedCourse(getCourse(eid))}
+                                    <div className="prereq-chip" onClick={()=>openCourseDetails(getCourse(eid))}
                                       style={{ background:"#EFF6FF", border:"1px solid #93C5FD", color:"#1D4ED8" }}>
                                       {getCourseName(eid)} 🔄
                                     </div>
@@ -2299,7 +2336,7 @@ export default function KalaniPlanner() {
                         letterSpacing:"0.08em",marginBottom:"7px" }}>Leads To</h3>
                       <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
                         {unlocks.map(c=>(
-                          <div key={c.id} className="prereq-chip" onClick={()=>setSelectedCourse(c)}
+                          <div key={c.id} className="prereq-chip" onClick={()=>openCourseDetails(c)}
                             style={{ background:deptColor(c.dept)+"14",
                               border:`1px solid ${deptColor(c.dept)}35`, color:deptColor(c.dept) }}>
                             {c.name}{c.isAP&&" ⭐"}
