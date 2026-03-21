@@ -2397,7 +2397,6 @@ export default function KalaniPlanner() {
                       )}
                   </div>
                   )}
-              </div>
             </motion.div>
             </motion.div>
           </div>
