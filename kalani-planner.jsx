@@ -1559,11 +1559,10 @@ export default function KalaniPlanner() {
                 </div>
               </div>
             </div>
-          </div>
         </motion.div>
         ) : null}
 
-        {/* ── CATALOG ── */
+        {/* ── CATALOG ── */}
         {page==="catalog" ? (
           <motion.div key="catalog" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="fade-in" style={{ maxWidth:"1200px", margin:"0 auto", padding:"32px 24px" }}>
             <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"30px", color:"var(--red-dark)",
@@ -1693,7 +1692,6 @@ export default function KalaniPlanner() {
                 </div>
               )}
             </div>
-          </div>
         </motion.div>
         ) : null}
 
@@ -2015,10 +2013,10 @@ export default function KalaniPlanner() {
                 </div>
               </div>
             </div>
-          </div>
-        )}
+        </motion.div>
+        ) : null}
 
-                {/* ── COURSE DETAIL MODAL ── */}
+        {/* ── COURSE DETAIL MODAL ── */}
         {selectedCourse&&(
           <div className="overlay" onClick={()=>setSelectedCourse(null)}>
             <div className="modal" onClick={e=>e.stopPropagation()}>
@@ -2513,8 +2511,7 @@ export default function KalaniPlanner() {
               </div>
             </div>
           </div>
-        </motion.div>
-        ) : null}
+        )}
         </AnimatePresence>
 
 
@@ -2528,6 +2525,7 @@ export default function KalaniPlanner() {
           ✅ {toast}
         </div>
       )}
+    </div>
     </>
   );
 }
