@@ -885,13 +885,6 @@ function calcPlannerCredits(plan) {
 }
 
 // ─── FRAMER MOTION VARIANTS ──────────────────────────────────────────────────
-const pageVariants = {
-  initial: { opacity:0, y:14, filter:"blur(4px)", scale:0.98 },
-  animate: { opacity:1, y:0,  filter:"blur(0px)", scale:1,
-    transition:{ type:"spring", stiffness:300, damping:25, mass:0.8 } },
-  exit: { opacity:0, y:-14, filter:"blur(4px)", scale:0.98,
-    transition:{ duration:0.18, ease:"easeIn" } },
-};
 const cardVariants = {
   hidden: { height:0, opacity:0, marginBottom:0 },
   show: {
@@ -1338,8 +1331,7 @@ export default function KalaniPlanner() {
               {page===id && (
                 <motion.div layoutId="nav-pill"
                   style={{ position:"absolute", inset:0, borderRadius:"8px",
-                    background:"rgba(255,255,255,0.22)",
-                    boxShadow:"0 2px 8px rgba(0,0,0,0.15) inset" }}
+                    background:"rgba(255,255,255,0.22)", boxShadow:"0 2px 8px rgba(0,0,0,0.15) inset" }}
                   transition={{ type:"spring", stiffness:400, damping:28 }}/>
               )}
               <span style={{ position:"relative", zIndex:1, fontWeight:600, fontSize:"14px",
@@ -1395,9 +1387,9 @@ export default function KalaniPlanner() {
           );
         })}
 
-        <AnimatePresence mode="wait">
-        {page==="home" ? (
-          <motion.div key="home" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="fade-in">
+        {/* ── HOME ── */}
+        {page==="home" && (
+          <div className="fade-in">
             <div style={{ background:`linear-gradient(135deg,var(--red-deep) 0%,var(--red-dark) 55%,var(--red) 100%)`,
               padding:"64px 24px 72px", textAlign:"center", position:"relative", overflow:"hidden" }}>
               <div style={{ position:"absolute", inset:0, opacity:0.04,
@@ -1560,12 +1552,11 @@ export default function KalaniPlanner() {
               </div>
             </div>
           </div>
-        </motion.div>
-        ) : null}
+        )}
 
-        {/* ── CATALOG ── */
-        {page==="catalog" ? (
-          <motion.div key="catalog" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="fade-in" style={{ maxWidth:"1200px", margin:"0 auto", padding:"32px 24px" }}>
+        {/* ── CATALOG ── */}
+        {page==="catalog" && (
+          <div className="fade-in" style={{ maxWidth:"1200px", margin:"0 auto", padding:"32px 24px" }}>
             <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"30px", color:"var(--red-dark)",
               marginBottom:"22px" }}>Course Catalog</h1>
             <div style={{ display:"flex", gap:"12px", marginBottom:"20px", flexWrap:"wrap", alignItems:"center" }}>
@@ -1694,12 +1685,11 @@ export default function KalaniPlanner() {
               )}
             </div>
           </div>
-        </motion.div>
-        ) : null}
+        )}
 
         {/* ── PLANNER ── */}
-        {page==="planner" ? (
-          <motion.div key="planner" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="fade-in" style={{ maxWidth:"1180px", margin:"0 auto", padding:"32px 24px" }}>
+        {page==="planner" && (
+          <div className="fade-in" style={{ maxWidth:"1180px", margin:"0 auto", padding:"32px 24px" }}>
             <div className="planner-layout" style={{ display:"flex", gap:"28px", alignItems:"flex-start", flexWrap:"wrap" }}>
               <div style={{ flex:"1", minWidth:0 }}>
                 <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", flexWrap:"wrap", gap:"10px", marginBottom:"6px" }}>
@@ -1781,19 +1771,16 @@ export default function KalaniPlanner() {
                                     border:`1px solid ${isOffCampus?"#CBD5E1":col+"28"}`,
                                     borderRadius:"12px", overflow:"hidden",
                                     position:"relative", marginBottom:"6px" }}>
-                                  {/* Left colour bar */}
                                   <div style={{ width:"4px", alignSelf:"stretch",
                                     background:isOffCampus?"#475569":col, flexShrink:0 }}/>
-                                  {/* Skewed shimmer — dept colour so it shows on white bg */}
                                   <motion.div
                                     initial={{ x:"-150%", skewX:-12 }}
-                                    animate={{ x:"250%",  skewX:-12 }}
+                                    animate={{ x:"250%", skewX:-12 }}
                                     transition={{ duration:0.9, ease:"easeInOut", delay:0.12 }}
                                     style={{ position:"absolute", top:"-30%", bottom:"-30%",
                                       left:0, width:"55%", zIndex:20, pointerEvents:"none",
                                       background:`linear-gradient(to right,transparent,${
                                         isOffCampus?"rgba(71,85,105,0.22)":col+"44"},transparent)` }}/>
-                                  {/* Text content */}
                                   <div style={{ flex:1, padding:"9px 10px", minWidth:0, position:"relative" }}>
                                     <div style={{ display:"flex", alignItems:"center", gap:"4px", marginBottom:"2px" }}>
                                       <span style={{ fontSize:"9px", fontWeight:900, letterSpacing:"0.07em",
@@ -1821,9 +1808,7 @@ export default function KalaniPlanner() {
                                       {isOffCampus?"🚗 Off Campus":c.name}
                                     </span>
                                   </div>
-                                  {/* Hover-reveal delete button */}
-                                  <div className="delete-btn-wrap"
-                                    style={{ padding:"0 10px", flexShrink:0 }}>
+                                  <div className="delete-btn-wrap" style={{ padding:"0 10px", flexShrink:0 }}>
                                     <motion.div
                                       whileHover={{ backgroundColor:"#EF4444", scale:1.12,
                                         boxShadow:"0 4px 12px rgba(239,68,68,0.4)" }}
@@ -1863,12 +1848,12 @@ export default function KalaniPlanner() {
                             </div>
                           )}
                         </div>
-                        </div>{/* card-inner-pad */}
-                      </div>{/* card-outer */}
+                        </div>
+                      </div>
                     </motion.div>
                   );
                 })}
-                </div>{/* plan-grid */}
+                </div>
               </div>
 
               {/* ── SIDEBAR ── */}
@@ -2513,10 +2498,12 @@ export default function KalaniPlanner() {
               </div>
             </div>
           </div>
-        </motion.div>
-        ) : null}
-        </AnimatePresence>
+        )}
 
+      </div>
+
+      {/* ── DATA CITATION FOOTER ── */}
+      <DataCitationFooter />
 
       {/* ── TOAST ── */}
       {toast && (
