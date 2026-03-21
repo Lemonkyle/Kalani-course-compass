@@ -1560,7 +1560,8 @@ export default function KalaniPlanner() {
               </div>
             </div>
           </div>
-        </motion.div>)}
+        </motion.div>
+        )}
 
         {/* ── CATALOG ── */}
         {page==="catalog" && (
@@ -1693,7 +1694,8 @@ export default function KalaniPlanner() {
               )}
             </div>
           </div>
-        </motion.div>)}
+        </motion.div>
+        )}
 
         {/* ── PLANNER ── */}
         {page==="planner" && (
@@ -2511,7 +2513,8 @@ export default function KalaniPlanner() {
               </div>
             </div>
           </div>
-        </motion.div>)}
+        </motion.div>
+        )}
         </AnimatePresence>
 
 
