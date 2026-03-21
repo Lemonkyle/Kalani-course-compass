@@ -1853,7 +1853,7 @@ export default function KalaniPlanner() {
                   {c.code&&<p style={{ fontSize:"11px", color:"#A08080", marginBottom:"6px" }}>{c.code}</p>}
                   <p style={{ fontSize:"12px", color:"var(--muted)", lineHeight:1.5,
                     display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden",
-                    flex:1, minHeight:0 }}>{c.desc}</p>
+                     }}>{c.desc}</p>
                   {(c.prereqs.length>0 || (c.concurrentOk||[]).length>0)&&(
                     <div style={{ marginTop:"9px", fontSize:"11px", fontWeight:700 }}>
                       {c.prereqs.length>0&&(
@@ -1879,7 +1879,8 @@ export default function KalaniPlanner() {
                         )}
                     </div>
                     )}
-                  <div style={{ marginTop:"auto", paddingTop:"8px", fontSize:"11px", color:"var(--muted)",
+                  <div style={{ flex:1 }}/>
+                  <div style={{ marginTop:"8px", paddingTop:"8px", fontSize:"11px", color:"var(--muted)",
                     display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                     <span>Grade {c.gradeLevel.join("/")} · {c.credits===0.5?"Semester":"Year"}</span>
                     <div style={{ display:"flex", alignItems:"center", gap:"5px" }}>
