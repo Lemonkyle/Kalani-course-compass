@@ -1,6 +1,9 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./src/supabase.js";
+import AnimatedProgressBar from "./src/components/AnimatedProgressBar.jsx";
+import DataCitationFooter from "./src/components/DataCitationFooter.jsx";
+import { buildCourseSearchIndex, filterIndexedCourses } from "./src/utils/courseSearch.js";
 
 // ─── BACKEND ADAPTER ─────────────────────────────────────────────────────────────────────────────────
 // V2: data is hardcoded below. V3: swap useCourseData() to fetch from Supabase/Firebase.
@@ -901,46 +904,6 @@ const cardContentVariants = {
 };
 const shakeAnim = { x:[0,-8,8,-6,6,-3,3,0], transition:{ duration:0.4, ease:"easeInOut" } };
 
-function AnimatedProgressBar({ req, earned, color, label, done }) {
-  const pct = Math.min(100,(earned/req)*100);
-  const isDone = done || earned >= req;
-  const prevRef = useRef(0);
-  const [justAdded, setJustAdded] = useState(false);
-  useEffect(()=>{
-    if(earned > prevRef.current){ setJustAdded(true); setTimeout(()=>setJustAdded(false),800); }
-    prevRef.current = earned;
-  },[earned]);
-  return (
-    <div style={{ marginBottom:"12px" }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"5px" }}>
-        <span style={{ fontSize:"11px", fontWeight:700, color:isDone?"rgba(255,255,255,0.9)":"rgba(255,255,255,0.55)", display:"flex", alignItems:"center", gap:"4px" }}>
-          {isDone ? <motion.span initial={{scale:0}} animate={{scale:1}} style={{color,fontSize:"10px"}}>✓</motion.span> : null}
-          {label}
-        </span>
-        <motion.span key={label+earned}
-          initial={{ scale:1.5, color:"#FBBF24" }}
-          animate={{ scale:1, color:isDone?color:"rgba(255,255,255,0.35)" }}
-          transition={{ type:"spring", stiffness:400, damping:15 }}
-          style={{ fontSize:"11px", fontWeight:700, fontVariantNumeric:"tabular-nums", display:"inline-block" }}>
-          {earned.toFixed(1)}/{req}
-        </motion.span>
-      </div>
-      <div style={{ height:"6px", borderRadius:"999px", background:"rgba(255,255,255,0.1)", overflow:"hidden" }}>
-        <motion.div animate={{ width:pct+"%" }} transition={{ type:"spring", stiffness:200, damping:15 }}
-          style={{ height:"100%", borderRadius:"999px", background:color, overflow:"hidden", position:"relative" }}>
-          <AnimatePresence>
-            {justAdded && !isDone ? (
-              <motion.div initial={{ x:"-100%", opacity:1 }} animate={{ x:"100%", opacity:0 }}
-                transition={{ duration:0.6, ease:"easeOut" }}
-                style={{ position:"absolute", inset:0, background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.75),transparent)" }}/>
-            ) : null}
-          </AnimatePresence>
-        </motion.div>
-      </div>
-    </div>
-  );
-}
-
 // ── PAGE TRANSITION (from nav-demo.jsx) ──────────────────────────────
 const pageVariants = {
   initial: { opacity:0, y:15, filter:"blur(4px)", scale:0.98 },
@@ -1126,6 +1089,7 @@ export default function KalaniPlanner() {
   function navigate(p) { setPage(p); window.scrollTo({ top:0, behavior:"instant" }); }
 
   const { cats, total } = useMemo(() => calcPlannerCredits(plan), [plan]);
+  const indexedCourses = useMemo(() => buildCourseSearchIndex(liveCourses), [liveCourses]);
 
   const filteredCourses = useMemo(() => {
     let list = liveCourses;
@@ -1137,44 +1101,20 @@ export default function KalaniPlanner() {
     if (filterDept === "Miscellaneous" && filterMisc !== "All Miscellaneous")
       list = list.filter(c => c.miscType === filterMisc);
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(c =>
-        c.name.toLowerCase().includes(q) ||
-        (c.subtitle||"").toLowerCase().includes(q) ||
-        c.code.toLowerCase().includes(q) ||
-        c.dept.toLowerCase().includes(q) ||
-        (c.ctePath||c.fineArtsType||c.miscType||"").toLowerCase().includes(q) ||
-        (c.desc||"").toLowerCase().includes(q)
-      );
+      const allowedIds = new Set(filterIndexedCourses(indexedCourses, searchQuery).map(course => course.id));
+      list = list.filter(c => allowedIds.has(c.id));
     }
     return list;
-  }, [filterDept, filterCtePath, filterFineArts, filterMisc, searchQuery, liveCourses]);
+  }, [filterDept, filterCtePath, filterFineArts, filterMisc, searchQuery, liveCourses, indexedCourses]);
 
   const homeSearchResults = useMemo(() => {
-    if (!homeSearch.trim()) return [];
-    const q = homeSearch.toLowerCase();
-    return liveCourses.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      (c.subtitle||"").toLowerCase().includes(q) ||
-      c.code.toLowerCase().includes(q) ||
-      c.dept.toLowerCase().includes(q) ||
-      (c.ctePath||c.fineArtsType||c.miscType||"").toLowerCase().includes(q) ||
-      (c.desc||"").toLowerCase().includes(q)
-    ).slice(0, 4);
-  }, [homeSearch, liveCourses]);
+    return filterIndexedCourses(indexedCourses, homeSearch, 4);
+  }, [homeSearch, indexedCourses]);
 
   const addSearchResults = useMemo(() => {
     if (!addSearch.trim()) return liveCourses.slice(0, 14);
-    const q = addSearch.toLowerCase();
-    return liveCourses.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      (c.subtitle||"").toLowerCase().includes(q) ||
-      c.code.toLowerCase().includes(q) ||
-      c.dept.toLowerCase().includes(q) ||
-      (c.ctePath||c.fineArtsType||c.miscType||"").toLowerCase().includes(q) ||
-      (c.desc||"").toLowerCase().includes(q)
-    ).slice(0, 16);
-  }, [addSearch, liveCourses]);
+    return filterIndexedCourses(indexedCourses, addSearch, 16);
+  }, [addSearch, liveCourses, indexedCourses]);
 
   const honorsProgress = useMemo(() => computeHonorsProgress(plan), [plan]);
 
@@ -1715,9 +1655,9 @@ export default function KalaniPlanner() {
               Showing {filteredCourses.length} course{filteredCourses.length!==1?"s":""}
             </p>
             <div key={gridKey} className="catalog-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(295px,1fr))", gap:"14px" }}>
-              {filteredCourses.map(c=>(
+              {filteredCourses.map((c, index)=>(
                 <div key={c.id} className="c-card"
-                  style={{ animation:"cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) "+(filteredCourses.indexOf(c)*0.045)+"s both" }}
+                  style={{ animation:"cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) "+(index*0.045)+"s both" }}
                   onClick={()=>setSelectedCourse(c)}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"8px" }}>
                     <div style={{ display:"flex", flexWrap:"wrap", gap:"4px", alignItems:"center" }}>
@@ -2142,9 +2082,7 @@ export default function KalaniPlanner() {
             </div>
           </div>
           )}
-
-
-
+        </AnimatePresence>
 
       {/* ── COURSE DETAIL MODAL — lives outside renderPage so catalog page can open it too ── */}
       <AnimatePresence>
@@ -2568,11 +2506,8 @@ export default function KalaniPlanner() {
             </motion.div>
             </motion.div>
           </div>
-          )}
         ) : null}
       </AnimatePresence>
-
-        </AnimatePresence>
       </div>
 
       {/* ── DATA CITATION FOOTER ── */}
@@ -2594,69 +2529,6 @@ export default function KalaniPlanner() {
           </motion.div>
         ) : null}
       </AnimatePresence>
-    </>
-  );
-}
-
-function DataCitationFooter() {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <footer style={{ background:"#F1F5F9", borderTop:"1px solid #E2E8F0", padding:"14px 24px",
-        display:"flex", alignItems:"center", justifyContent:"center", gap:"16px", flexWrap:"wrap" }}>
-        <span style={{ fontSize:"12px", color:"#64748B", lineHeight:1.5 }}>
-          📋 Course data sourced from{" "}
-          <em>Kalani High School 2026–27 Registration Guide & Course Catalog</em>{" "}
-          and{" "}
-          <em>Hawaii DOE Graduation Requirements (July 2023)</em>.
-          For planning reference only.
-        </span>
-        <a href="https://www.kalanihighschool.org/admissions/course-registration-information/"
-          target="_blank" rel="noopener noreferrer"
-          style={{ fontSize:"11px", color:"#0369A1", background:"#EFF6FF", border:"1px solid #BFDBFE",
-            borderRadius:"6px", padding:"4px 10px", textDecoration:"none", whiteSpace:"nowrap", fontWeight:700 }}>
-          📋 Official Catalog ↗
-        </a>
-        <button onClick={()=>setOpen(true)}
-          style={{ fontSize:"11px", color:"#475569", background:"white", border:"1px solid #CBD5E1",
-            borderRadius:"6px", padding:"4px 10px", cursor:"pointer", whiteSpace:"nowrap",
-            fontFamily:"inherit" }}>
-          Data Sources &amp; Disclaimer ›
-        </button>
-      </footer>
-
-      {open && (
-        <div className="overlay" onClick={()=>setOpen(false)}>
-          <div className="modal" onClick={e=>e.stopPropagation()}
-            style={{ maxWidth:"520px", width:"92vw" }}>
-            <div style={{ padding:"24px 26px", borderBottom:"1px solid #E5E7EB",
-              display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <h2 style={{ fontSize:"17px", fontWeight:700, color:"#1C2B3A",
-                fontFamily:"'Playfair Display',serif" }}>Data Sources &amp; Disclaimer</h2>
-              <button onClick={()=>setOpen(false)}
-                style={{ background:"#FFF1F0", border:"none", borderRadius:"50%", width:"32px",
-                  height:"32px", cursor:"pointer", fontSize:"16px", color:"#B00804" }}>✕</button>
-            </div>
-            <div style={{ padding:"22px 26px", display:"flex", flexDirection:"column", gap:"16px" }}>
-              {[
-                { icon:"📖", label:"Primary Source", text:"Kalani High School 2024–2025 Manual of Studies. All course names, codes, credit values, grade levels, and prerequisite chains are derived from this document." },
-                { icon:"🎓", label:"Graduation Requirements", text:"Hawaii Department of Education Graduation Requirements, effective July 2023. Credit minimums and subject-area breakdowns follow this policy document." },
-                { icon:"⚠️", label:"Planning Reference Only", text:"Kalani Compass is an unofficial planning tool built by a student volunteer. It is not affiliated with Kalani High School or the Hawaii DOE. Course availability, prerequisites, and requirements may change. Always confirm your 4-year plan with your school counselor before submitting your registration card." },
-                { icon:"🔄", label:"Last Data Update", text:"Course catalog last reviewed: March 2026. Based on the 2026–2027 Kalani High School Course Catalog (Manual of Studies)." },
-              ].map(({icon,label,text})=>(
-                <div key={label} style={{ display:"flex", gap:"13px", alignItems:"flex-start" }}>
-                  <span style={{ fontSize:"20px", flexShrink:0, marginTop:"2px" }}>{icon}</span>
-                  <div>
-                    <div style={{ fontSize:"12px", fontWeight:700, color:"#475569",
-                      textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px" }}>{label}</div>
-                    <div style={{ fontSize:"13px", color:"#374151", lineHeight:1.6 }}>{text}</div>
-                  </div>
-                </div>
-                ))}
-            </div>
-          </div>
-        </div>
-        )}
     </>
   );
 }
