@@ -1436,8 +1436,7 @@ export default function KalaniPlanner() {
                 transition:"color 0.2s", whiteSpace:"nowrap" }}>
                 {label}
               </span>
-            </div>
-          ))}
+            </div>))}
           <div style={{ marginLeft:"auto" }} />
         </nav>
 
@@ -1470,8 +1469,7 @@ export default function KalaniPlanner() {
                   onMouseEnter={e=>e.currentTarget.style.opacity="0.8"}
                   onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
                   {a.type==="new"?"Take Survey ↗":"Learn More ↗"}
-                </a>
-              )}
+                </a>)}
               <button
                 onClick={()=>setDismissedAnns(d=>[...d,a.id])}
                 style={{ background:"rgba(255,255,255,0.18)", border:"none", borderRadius:"50%",
@@ -1585,8 +1583,7 @@ export default function KalaniPlanner() {
                     onMouseLeave={e=>e.currentTarget.style.background="#FFF8F8"}>
                     See all results for "{homeSearch}" →
                   </div>
-                </div>
-              )}
+                </div>)}
             </div>
 
             {/* Stats */}
@@ -1600,8 +1597,7 @@ export default function KalaniPlanner() {
                   <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"34px", fontWeight:700,
                     color:s.c }}>{s.n}</div>
                   <div style={{ fontSize:"12px", color:"var(--muted)", lineHeight:1.4 }}>{s.l}</div>
-                </div>
-              ))}
+                </div>))}
             </div>
 
             {/* Dept links */}
@@ -1617,8 +1613,7 @@ export default function KalaniPlanner() {
                     onMouseEnter={e=>e.currentTarget.style.background=deptColor(d)+"28"}
                     onMouseLeave={e=>e.currentTarget.style.background=deptColor(d)+"14"}>
                     {d}
-                  </div>
-                ))}
+                  </div>))}
               </div>
             </div>
 
@@ -1643,14 +1638,12 @@ export default function KalaniPlanner() {
                       <div style={{ fontSize:"11px", color:"rgba(255,255,255,0.48)", lineHeight:1.55 }}>
                         {r.breakdown.join(" • ")}
                       </div>
-                    </div>
-                  ))}
+                    </div>))}
                 </div>
               </div>
             </div>
           </div>
-          </div>
-        )}
+          </div>)}
 
         {/* ── CATALOG ── */}
         {renderPage(page==="catalog","catalog",
@@ -1667,8 +1660,7 @@ export default function KalaniPlanner() {
                     className={`dept-btn${filterDept===d?" active":""}`}
                     onClick={()=>{ setFilterDept(d); setFilterCtePath("All CTE"); setFilterFineArts("All Fine Arts"); setFilterMisc("All Miscellaneous"); setGridKey(k=>k+1); }}>
                     <span>{d}</span>
-                  </button>
-                ))}
+                  </button>))}
               </div>
             </div>
             {filterDept === "CTE" && (
@@ -1681,10 +1673,8 @@ export default function KalaniPlanner() {
                       color:filterCtePath===p?"white":"var(--muted)",
                       border:`1.5px solid ${filterCtePath===p?"var(--red)":"var(--border)"}` }}>
                     {p}
-                  </div>
-                ))}
-              </div>
-            )}
+                  </div>))}
+              </div>)}
             {filterDept === "Fine Arts" && (
               <div style={{ display:"flex", flexWrap:"wrap", gap:"5px", marginBottom:"12px" }}>
                 {FINE_ARTS_TYPES.map(t=>(
@@ -1695,10 +1685,8 @@ export default function KalaniPlanner() {
                       color:filterFineArts===t?"white":"var(--muted)",
                       border:`1.5px solid ${filterFineArts===t?"#DB2777":"var(--border)"}` }}>
                     {t}
-                  </div>
-                ))}
-              </div>
-            )}
+                  </div>))}
+              </div>)}
             {filterDept === "Miscellaneous" && (
               <div style={{ display:"flex", flexWrap:"wrap", gap:"5px", marginBottom:"12px" }}>
                 {MISC_TYPES.map(t=>(
@@ -1709,10 +1697,8 @@ export default function KalaniPlanner() {
                       color:filterMisc===t?"white":"var(--muted)",
                       border:`1.5px solid ${filterMisc===t?"#6B7280":"var(--border)"}` }}>
                     {t}
-                  </div>
-                ))}
-              </div>
-            )}
+                  </div>))}
+              </div>)}
             <p style={{ fontSize:"13px", color:"var(--muted)", marginBottom:"18px" }}>
               Showing {filteredCourses.length} course{filteredCourses.length!==1?"s":""}
             </p>
@@ -1746,8 +1732,7 @@ export default function KalaniPlanner() {
                               ? `${getCourseName(pid)} (or ${equivs.map(getCourseName).join("/")})`
                               : getCourseName(pid);
                           }).join(" + ")}
-                        </span>
-                      )}
+                        </span>)}
                       {c.prereqs.length>0&&(c.concurrentOk||[]).length>0&&<span style={{color:"var(--muted)"}}> · </span>}
                       {(c.concurrentOk||[]).length>0&&(
                         <span style={{ color:"#1D4ED8" }}>
@@ -1757,10 +1742,8 @@ export default function KalaniPlanner() {
                               ? `${getCourseName(cid)} (or ${equivs.map(getCourseName).join("/")})`
                               : getCourseName(cid);
                           }).join(" or ")}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                        </span>)}
+                    </div>)}
                   <div style={{ marginTop:"8px", fontSize:"11px", color:"var(--muted)",
                     display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                     <span>Grade {c.gradeLevel.join("/")} · {c.credits===0.5?"Semester":"Year"}</span>
@@ -1768,22 +1751,18 @@ export default function KalaniPlanner() {
                       <span style={{ color:"#92400E", fontWeight:700 }}>
                         ⭐ {ratings[c.id].avg.toFixed(1)}
                         <span style={{ color:"var(--muted)", fontWeight:400 }}> ({ratings[c.id].count})</span>
-                      </span>
-                    )}
+                      </span>)}
                   </div>
-                </div>
-              ))}
+                </div>))}
               {filteredCourses.length===0&&(
                 <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"60px", color:"var(--muted)" }}>
                   <div style={{ fontSize:"44px", marginBottom:"16px" }}>🔍</div>
                   <p style={{ fontSize:"16px", fontWeight:700 }}>No courses found</p>
                   <p style={{ fontSize:"13px" }}>Try a different search term or department filter</p>
-                </div>
-              )}
+                </div>)}
             </div>
           </div>
-        </div>
-        )}
+        </div>)}
 
         {/* ── PLANNER ── */}
         {renderPage(page==="planner","planner",
@@ -1816,8 +1795,7 @@ export default function KalaniPlanner() {
                       borderRadius:"8px", padding:"6px 13px", fontSize:"12px", fontWeight:600,
                       cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
                     ↺ Reset Plan
-                  </button>
-                  )}
+                  </button>)}
                 </div>
                 <p style={{ fontSize:"13px", color:"var(--muted)", marginBottom:"22px" }}>
                   Click a course name to view details · ⚠️ = missing prereq · Click × to remove
@@ -1946,8 +1924,7 @@ export default function KalaniPlanner() {
                                 pointerEvents: atCap?"none":"auto" }}
                               onClick={()=>{ if(gradeSlots(plan,12)<GRADE_MAX){ const nk=`12-${(plan[12]||[]).length}`; newCardKeys.current.add(nk); setPlan(p=>{ const n=JSON.parse(JSON.stringify(p)); n[12].push("OFF_CAMPUS"); return n; }); } }}>
                               🚗 Off Campus
-                            </div>
-                          )}
+                            </div>)}
                         </div>
                         </div>
                       </div>
@@ -2055,8 +2032,7 @@ export default function KalaniPlanner() {
                             <p style={{ fontSize:"10px", color:"rgba(255,255,255,0.3)", marginTop:"8px", lineHeight:1.4 }}>
                               ⚠️ GPA &amp; performance assessments cannot be tracked here.
                             </p>
-                          </div>
-                        )}
+                          </div>)}
                       </div>
                     );
                   })}
@@ -2065,8 +2041,7 @@ export default function KalaniPlanner() {
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          </div>)}
 
                 {/* ── COURSE DETAIL MODAL ── */}
         {selectedCourse&&(
@@ -2116,8 +2091,7 @@ export default function KalaniPlanner() {
                             width:"18px", height:"18px", display:"flex", alignItems:"center", justifyContent:"center",
                             fontSize:"10px", fontWeight:700, flexShrink:0, marginTop:"1px" }}>{i+1}</span>
                           <span style={{ fontSize:"13px", color:"#1E293B", lineHeight:1.5 }}>{e}</span>
-                        </div>
-                      ))}
+                        </div>))}
                     </div>
 
                     <div style={{ marginBottom:"14px" }}>
@@ -2131,8 +2105,7 @@ export default function KalaniPlanner() {
                             {r.label}
                           </div>
                           <div style={{ fontSize:"12px", color: i===0?"#166534":"#7C2D12" }}>{r.limit}</div>
-                        </div>
-                      ))}
+                        </div>))}
                     </div>
 
                     <div style={{ background:"#FFFBEB", border:"1.5px solid #FDE68A",
@@ -2146,8 +2119,7 @@ export default function KalaniPlanner() {
                           padding:"5px 0", borderBottom: i<selectedCourse.submissions.length-1?"1px solid #FDE68A":"none" }}>
                           <span style={{ fontWeight:800, flexShrink:0, color:"#92400E" }}>{String.fromCharCode(65+i)}.</span>
                           <span style={{ lineHeight:1.5 }}>{s}</span>
-                        </div>
-                      ))}
+                        </div>))}
                     </div>
 
                     <div style={{ background:"#FEF2F2", border:"1.5px solid #FECACA",
@@ -2162,8 +2134,7 @@ export default function KalaniPlanner() {
                         borderRadius:"9px", padding:"11px 14px",
                         fontSize:"12px", color:"#1E40AF", lineHeight:1.65 }}>
                         <strong>💡 </strong>{selectedCourse.tips}
-                      </div>
-                    )}
+                      </div>)}
                   </div>
                 ) : (
                   /* ── REGULAR COURSE BODY ── */
@@ -2177,21 +2148,18 @@ export default function KalaniPlanner() {
                           <div style={{ fontSize:"10px",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",
                             letterSpacing:"0.06em",marginBottom:"4px" }}>{k}</div>
                           <div style={{ fontSize:"15px",fontWeight:800,color:"var(--slate)" }}>{v}</div>
-                        </div>
-                      ))}
+                        </div>))}
                     </div>
                     {selectedCourse.isAP&&(
                       <div style={{ background:"#FFFBEB", border:"1.5px solid #F59E0B", borderRadius:"9px",
                         padding:"11px 14px", marginBottom:"14px", fontSize:"12px", color:"#78350F", fontWeight:600 }}>
                         ⭐ AP Course — Weighted on 5.0 scale. AP exam required in May (~$96). Signed contract + parent info session required.
-                      </div>
-                    )}
+                      </div>)}
                     {selectedCourse.teacherSigRequired&&(
                       <div style={{ background:"#FEF9C3", border:"1.5px solid #EAB308", borderRadius:"8px",
                         padding:"8px 13px", marginBottom:"12px", fontSize:"12px", color:"#78350F", fontWeight:600 }}>
                         ✍️ Teacher/counselor signature required for enrollment
-                      </div>
-                    )}
+                      </div>)}
                     <div style={{ marginBottom:"14px" }}>
                       <h3 style={{ fontSize:"11px",fontWeight:800,color:"var(--muted)",textTransform:"uppercase",
                         letterSpacing:"0.08em",marginBottom:"7px" }}>Description</h3>
@@ -2205,10 +2173,8 @@ export default function KalaniPlanner() {
                         {Object.entries(selectedCourse.gradeReqs).map(([pid,req])=>(
                           <div key={pid} style={{ fontSize:"12px",color:"#15803D", marginBottom:"3px" }}>
                             <strong>{getCourseName(pid)}</strong>: {req}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          </div>))}
+                      </div>)}
                     {selectedCourse.concurrentOk && selectedCourse.concurrentOk.length>0 && (
                       <div style={{ background:"#EFF6FF", border:"1.5px solid #BFDBFE", borderRadius:"8px",
                         padding:"10px 13px", marginBottom:"12px" }}>
@@ -2217,10 +2183,8 @@ export default function KalaniPlanner() {
                         <div style={{ fontSize:"12px",color:"#1D4ED8" }}>
                           {selectedCourse.concurrentOk.map(id=>getCourseName(id)).join(" or ")}
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                      </div>)}
+                  </div>)}
                 {!selectedCourse.isOffCampus && (selectedCourse.prereqs.length>0 || (selectedCourse.concurrentOk||[]).length>0) &&(
                   <div style={{ marginBottom:"14px" }}>
                     <h3 style={{ fontSize:"11px",fontWeight:800,color:"var(--muted)",textTransform:"uppercase",
@@ -2242,8 +2206,7 @@ export default function KalaniPlanner() {
                                   style={{ background:"#FFF7ED", border:"1px solid #FED7AA", color:"#9A3412" }}>
                                   {getCourseName(eid)} →
                                 </div>
-                              </span>
-                            ))}
+                              </span>))}
                           </div>
                         );
                       })}
@@ -2268,16 +2231,13 @@ export default function KalaniPlanner() {
                                       style={{ background:"#EFF6FF", border:"1px solid #93C5FD", color:"#1D4ED8" }}>
                                       {getCourseName(eid)} 🔄
                                     </div>
-                                  </span>
-                                ))}
+                                  </span>))}
                               </div>
                             );
                           })}
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                      </div>)}
+                  </div>)}
                 {!selectedCourse.isOffCampus && (()=>{
                   const unlocks=liveCourses.filter(c=>c.prereqs.includes(selectedCourse.id));
                   return unlocks.length>0?(
@@ -2290,8 +2250,7 @@ export default function KalaniPlanner() {
                             style={{ background:deptColor(c.dept)+"14",
                               border:`1px solid ${deptColor(c.dept)}35`, color:deptColor(c.dept) }}>
                             {c.name}{c.isAP&&" ⭐"}
-                          </div>
-                        ))}
+                          </div>))}
                       </div>
                     </div>
                   ):null;
@@ -2301,8 +2260,7 @@ export default function KalaniPlanner() {
                     borderRadius:"9px", padding:"12px 14px", fontSize:"13px", color:"#1E40AF",
                     lineHeight:1.65, marginBottom:"16px" }}>
                     <strong>💡 Tip: </strong>{selectedCourse.tips}
-                  </div>
-                )}
+                  </div>)}
                 {!selectedCourse.isOffCampus && <div style={{ borderTop:"1px solid var(--border)", paddingTop:"16px" }}>
                   <p style={{ fontSize:"12px",color:"var(--muted)",marginBottom:"9px",fontWeight:600 }}>
                     Add to 4-Year Plan:
@@ -2462,17 +2420,13 @@ export default function KalaniPlanner() {
                                 cursor:"pointer", fontFamily:"inherit" }}>
                               Cancel
                             </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
+                          </div>)}
+                      </div>)}
+                  </div>)}
               </div>
             </motion.div>
             </motion.div>
-          </div>
-        )}
+          </div>)}
 
         {/* ── ADD COURSE MODAL ── */}
         {addTarget!==null&&(
@@ -2510,8 +2464,7 @@ export default function KalaniPlanner() {
                               <li key={pid}>{getPrereqDisplay(pid)}</li>
                             ))}
                           </ul>
-                        </>
-                      )}
+                        </>) /* end prereq warn */}
                     </div>
                     <div style={{ display:"flex", gap:"8px" }}>
                       <button onClick={()=>forceAddCourse(prereqWarn.courseId)}
@@ -2526,15 +2479,13 @@ export default function KalaniPlanner() {
                         Cancel
                       </button>
                     </div>
-                  </div>
-                )}
+                  </div>)}
 
                 {addTarget && gradeSlots(plan, addTarget) >= GRADE_MAX && (
                   <div style={{ background:"#FEF3C7", border:"1.5px solid #F59E0B", borderRadius:"9px",
                     padding:"10px 14px", marginBottom:"12px", fontSize:"12px", color:"#78350F", fontWeight:600 }}>
                     ✋ Grade {addTarget} is at the {GRADE_MAX}-slot limit. Remove a course first.
-                  </div>
-                )}
+                  </div>)}
                 <div style={{ maxHeight:"320px", overflowY:"auto" }}>
                   {addSearchResults.map(c=>{
                     const already = !c.repeatable && Object.values(plan).flat().includes(c.id);
@@ -2574,8 +2525,7 @@ export default function KalaniPlanner() {
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          </div>)}
         </AnimatePresence>
 
 
@@ -2597,8 +2547,7 @@ export default function KalaniPlanner() {
               zIndex:2000, pointerEvents:"none",
               display:"flex", alignItems:"center", gap:"8px" }}>
             ✅ {toast}
-          </motion.div>
-        )}
+          </motion.div>)}
       </AnimatePresence>
     </>
   );
@@ -2657,12 +2606,10 @@ function DataCitationFooter() {
                       textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px" }}>{label}</div>
                     <div style={{ fontSize:"13px", color:"#374151", lineHeight:1.6 }}>{text}</div>
                   </div>
-                </div>
-              ))}
+                </div>))}
             </div>
           </div>
-        </div>
-      )}
+        </div>)}
     </>
   );
 }
