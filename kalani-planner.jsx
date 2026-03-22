@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "./src/supabase.js";
+import { isSupabaseConfigured, supabase } from "./src/supabase.js";
 import AnimatedProgressBar from "./src/components/AnimatedProgressBar.jsx";
 import DataCitationFooter from "./src/components/DataCitationFooter.jsx";
 import { buildCourseSearchIndex, filterIndexedCourses } from "./src/utils/courseSearch.js";
@@ -83,10 +83,16 @@ function useCourseData() {
 
   useEffect(() => {
     async function fetchCourses() {
+      if (!isSupabaseConfigured) {
+        console.warn("[Kalani Compass] Supabase env vars are missing, using local fallback data.");
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("courses")
         .select("*")
-        .eq("archived", false)
+        .or("archived.is.null,archived.eq.false")
         .limit(500);
 
       if (error) {
