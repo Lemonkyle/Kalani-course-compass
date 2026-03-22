@@ -33,7 +33,7 @@ export default function RatingsPanel() {
     setLoading(true);
     const [{ data: rData }, { data: cData }] = await Promise.all([
       supabase.from("ratings").select("course_id, rating, fingerprint, semester, created_at"),
-      supabase.from("courses").select("id, name, dept, cte_path, fine_arts_type").eq("archived", false),
+      supabase.from("courses").select("id, name, dept, cte_path, fine_arts_type").or("archived.is.null,archived.eq.false"),
     ]);
     if (rData) setRatings(rData);
     if (cData) setCourses(cData);

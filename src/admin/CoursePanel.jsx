@@ -215,7 +215,7 @@ export default function CoursePanel() {
   async function fetchCourses() {
     setLoading(true);
     const { data, error } = await supabase
-      .from("courses").select("*");
+      .from("courses").select("*").order("name", { ascending: true });
     if (!error && data) setCourses(sortCourses(data));
     setLoading(false);
   }
