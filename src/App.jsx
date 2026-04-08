@@ -17,6 +17,17 @@ import {
 } from "./lib/utils.jsx";
 
 export default function App() {
+  function sanitizePlan(rawPlan) {
+    const base = JSON.parse(JSON.stringify(DEFAULT_PLAN));
+    if (!rawPlan || typeof rawPlan !== "object") return base;
+    [9, 10, 11, 12].forEach((grade) => {
+      const rawGrade = rawPlan[grade];
+      if (!Array.isArray(rawGrade)) return;
+      base[grade] = rawGrade.filter((id) => typeof id === "string");
+    });
+    return base;
+  }
+
   // V4: courses fetched from Supabase, falls back to local COURSES if unavailable
   const { courses: liveCourses, gradReqs: liveGradReqs, loading: dataLoading } = useCourseData();
 
@@ -41,7 +52,7 @@ export default function App() {
   const [plan, setPlan] = useState(() => {
     try {
       const saved = localStorage.getItem('kalani-compass-plan');
-      if (saved) return JSON.parse(saved);
+      if (saved) return sanitizePlan(JSON.parse(saved));
     } catch {}
     return JSON.parse(JSON.stringify(DEFAULT_PLAN));
   });
