@@ -353,7 +353,7 @@ export function calcPlannerCredits(plan) {
 }
 
 // ── Animation variants — exact copy from planner-demo.jsx ──────
-const cardVariants = {
+export const cardVariants = {
   hidden: { height:0, opacity:0, marginBottom:0 },
   show: {
     height:"auto", opacity:1, marginBottom:8,
@@ -369,12 +369,12 @@ const cardVariants = {
     }
   }
 };
-const contentVariants = {
+export const contentVariants = {
   hidden: { x:50, opacity:0, scale:0.95 },
   show:  { x:0, opacity:1, scale:1, transition:{ type:"spring", stiffness:350, damping:25, delay:0.05 } },
   exit:  { x:-60, opacity:0, scale:0.95, filter:"blur(8px)", transition:{ type:"spring", stiffness:400, damping:25 } }
 };
-const shakeAnim = { x:[0,-8,8,-6,6,-3,3,0], transition:{ duration:0.4, ease:"easeInOut" } };
+export const shakeAnim = { x:[0,-8,8,-6,6,-3,3,0], transition:{ duration:0.4, ease:"easeInOut" } };
 
 // ── PAGE TRANSITION (from nav-demo.jsx) ──────────────────────────────
 const pageVariants = {
