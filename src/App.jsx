@@ -6,27 +6,37 @@ import { supabase } from "./supabase.js";
 function buildCourseSearchIndex(courses) {
   const index = new Map();
   for (const c of courses) {
-    const text = [c.name, c.desc, c.dept, c.code, c.id,
+    // name/code/dept/id → searched as substrings (precise fields)
+    const nameText = [c.name, c.code, c.dept, c.id,
       c.ctePath, c.fineArtsType, c.miscType]
       .filter(Boolean).join(" ").toLowerCase();
-    index.set(c.id, { course: c, text });
+    // desc/tips → tokenised into individual words for whole-word matching only
+    const descWords = new Set(
+      [c.desc, c.tips].filter(Boolean).join(" ")
+        .toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(w => w.length > 2)
+    );
+    index.set(c.id, { course: c, nameText, descWords });
   }
   return index;
 }
 function filterIndexedCourses(index, query, limit) {
   if (!query || !query.trim()) return [];
-  // Split into tokens so "AP" only matches the token "ap", not substrings
   const tokens = query.trim().toLowerCase().split(/\s+/);
   const results = [];
-  for (const { course, text } of index.values()) {
-    // Score: name match worth more than desc match
+  for (const { course, nameText, descWords } of index.values()) {
     let score = 0;
     const nameLow = (course.name || "").toLowerCase();
     for (const token of tokens) {
+      // Tier 1 (10): exact full-name match
       if (nameLow === token) { score += 10; continue; }
-      if (nameLow.startsWith(token)) { score += 6; continue; }
-      if (nameLow.includes(token)) { score += 4; continue; }
-      if (text.includes(token)) { score += 1; }
+      // Tier 2 (7): name starts with token (e.g. "AP " matches all AP courses)
+      if (nameLow.startsWith(token + " ") || nameLow === token) { score += 7; continue; }
+      // Tier 3 (5): name contains token as word (e.g. "calculus" in "AP Calculus")
+      if (new RegExp("\\b" + token).test(nameLow)) { score += 5; continue; }
+      // Tier 4 (3): code / dept / id / pathway substring match
+      if (nameText.includes(token)) { score += 3; continue; }
+      // Tier 5 (1): whole-word match in description only — no substring
+      if (descWords.has(token)) { score += 1; }
     }
     if (score > 0) results.push({ course, score });
   }
