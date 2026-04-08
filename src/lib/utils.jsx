@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../supabase.js";
 import {
-  COURSES, GRAD_REQUIREMENTS, PREREQ_EQUIV, HONORS_DEFS,
-  BEYOND_ALG2_IDS, DEPT_COLORS, DEFAULT_PLAN, DEPT_ORDER,
+  COURSES, GRAD_REQUIREMENTS, PREREQ_EQUIV,
+  BEYOND_ALG2_IDS, DEPT_COLORS, DEPT_ORDER,
 } from "./data.js";
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -109,12 +109,6 @@ export function normalizeCourse(row) {
     } : {}),
   };
 }
-
-// Custom dept + grade sort order matching original catalog
-const DEPT_ORDER = [
-  "English","Social Studies","Mathematics","Science",
-  "Health & PE","CTE","World Language","Fine Arts","Miscellaneous","Off Campus"
-];
 
 export function sortCourses(arr) {
   return [...arr].sort((a, b) => {
@@ -227,46 +221,6 @@ export function getUnmetPrereqs(courseId, completedBefore, completedUpTo) {
   const concurrentUnmet = (course.concurrentOk||[]).filter(pid => !isPrereqSatisfied(pid, completedUpTo||completedBefore));
   return [...strictUnmet, ...concurrentUnmet];
 }
-
-const HONORS_DEFS = [
-  {
-    id: "academic",
-    label: "Academic Honors",
-    color: "#7C3AED",
-    icon: "\ud83c\udf96",
-    description: "Cumulative GPA 3.500+ required",
-    checks: [
-      { id:"math4", label:"4 credits Math (Algebra 2 + one beyond)", desc:"Algebra 2 + one of: Trig/PreCal, Alg3/Stats, Calculus, AP Calculus, AP Stats, AP CS A, AP CS Principles, Intro to College Math" },
-      { id:"sci4",  label:"4 credits Science (incl. Biology 1)",     desc:"Biology 1 + 3 other science credits" },
-      { id:"ap2",   label:"2+ AP/IB/Running Start credits",          desc:"At least 2 credits from AP, IB, or Running Start courses" },
-    ],
-  },
-  {
-    id: "stem",
-    label: "STEM Honors",
-    color: "#0891B2",
-    icon: "\ud83d\udd2c",
-    description: "Cumulative GPA 3.500+ required",
-    checks: [
-      { id:"math4",    label:"4 credits Math (Algebra 2 + one beyond)", desc:"Same math requirement as Academic Honors" },
-      { id:"sci4",     label:"4 credits Science (incl. Biology 1)",     desc:"Same science requirement as Academic Honors" },
-      { id:"stem_cap", label:"STEM Capstone Project (XAT1000)",         desc:"Successful completion of STEM Capstone. Required for class of 2016 and beyond." },
-    ],
-  },
-  {
-    id: "cte",
-    label: "CTE Honors",
-    color: "#B00804",
-    icon: "\ud83d\udee0",
-    description: "Cumulative GPA 3.0+ required",
-    checks: [
-      { id:"cte_seq",  label:"Complete 2–3 course CTE pathway sequence", desc:"2-3 courses in the same approved CTE pathway with B or better in each. \u26a0\ufe0f Computer Science pathway requires BOTH AP CSP AND AP CSA. JROTC courses do NOT count toward CTE Honors." },
-      { id:"cte_perf", label:"Meet/exceed proficiency on performance assessment", desc:"Assessed per program of study by teacher — cannot be tracked here." },
-    ],
-  },
-];
-
-const BEYOND_ALG2_IDS = ["TRIG","ALG3","CALC","AP_CALC","AP_STATS","AP_CSA","AP_CSP","ICMATH"];
 
 export function computeHonorsProgress(plan) {
   const allIds = Object.values(plan).flat();
