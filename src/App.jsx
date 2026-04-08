@@ -14,6 +14,7 @@ import {
   isPrereqSatisfied, getCoursesBeforeGrade, getAllCoursesUpTo, getUnmetPrereqs,
   computeHonorsProgress, deptColor, calcWlfa, calcPlannerCredits,
   AnimatedProgressBar, DataCitationFooter, GradeBtn, renderPage,
+  cardVariants, contentVariants, shakeAnim,
 } from "./lib/utils.jsx";
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');`;
