@@ -14,7 +14,7 @@ import {
   isPrereqSatisfied, getCoursesBeforeGrade, getAllCoursesUpTo, getUnmetPrereqs,
   computeHonorsProgress, deptColor, calcWlfa, calcPlannerCredits,
   AnimatedProgressBar, DataCitationFooter, GradeBtn, renderPage,
-} from "./lib/utils.js";
+} from "./lib/utils.jsx";
 
 export default function App() {
   // V4: courses fetched from Supabase, falls back to local COURSES if unavailable
