@@ -541,9 +541,9 @@ const DEPT_COLORS = {
 };
 
 const DEFAULT_PLAN = {
-  9:  ["GEO","ELA1","PID","MHH","ISCI","PE_LF","HEALTH","PTP"],
+  9:  ["GEO","ELA1","PID","MHH","ISCI","PE_LF","HEALTH"],
   10: ["ALG1","ELA2","USH","BIO1_10","PE_LA","JPN1"],
-  11: ["ALG2","ELA3","WH","HCHEM","JPN2"],
+  11: ["ALG2","ELA3","WH","HCHEM","JPN2","PTP"],
   12: ["TRIG","ELA4","ECON","PSYCH","MARINE"],
 };
 
