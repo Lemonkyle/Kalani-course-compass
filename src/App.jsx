@@ -16,6 +16,8 @@ import {
   AnimatedProgressBar, DataCitationFooter, GradeBtn, renderPage,
 } from "./lib/utils.jsx";
 
+const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');`;
+
 export default function App() {
   // V4: courses fetched from Supabase, falls back to local COURSES if unavailable
   const { courses: liveCourses, gradReqs: liveGradReqs, loading: dataLoading } = useCourseData();
