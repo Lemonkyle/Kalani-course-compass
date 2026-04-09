@@ -14,23 +14,9 @@ import {
   isPrereqSatisfied, getCoursesBeforeGrade, getAllCoursesUpTo, getUnmetPrereqs,
   computeHonorsProgress, deptColor, calcWlfa, calcPlannerCredits,
   AnimatedProgressBar, DataCitationFooter, GradeBtn, renderPage,
-  cardVariants, contentVariants, shakeAnim,
-} from "./lib/utils.jsx";
-
-const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');`;
+} from "./lib/utils.js";
 
 export default function App() {
-  function sanitizePlan(rawPlan) {
-    const base = JSON.parse(JSON.stringify(DEFAULT_PLAN));
-    if (!rawPlan || typeof rawPlan !== "object") return base;
-    [9, 10, 11, 12].forEach((grade) => {
-      const rawGrade = rawPlan[grade];
-      if (!Array.isArray(rawGrade)) return;
-      base[grade] = rawGrade.filter((id) => typeof id === "string");
-    });
-    return base;
-  }
-
   // V4: courses fetched from Supabase, falls back to local COURSES if unavailable
   const { courses: liveCourses, gradReqs: liveGradReqs, loading: dataLoading } = useCourseData();
 
@@ -55,7 +41,7 @@ export default function App() {
   const [plan, setPlan] = useState(() => {
     try {
       const saved = localStorage.getItem('kalani-compass-plan');
-      if (saved) return sanitizePlan(JSON.parse(saved));
+      if (saved) return JSON.parse(saved);
     } catch {}
     return JSON.parse(JSON.stringify(DEFAULT_PLAN));
   });
@@ -72,6 +58,11 @@ export default function App() {
   const [shakeGrade, setShakeGrade] = useState(null);
   const [removingCards, setRemovingCards] = useState(new Set());
   const [modalWarn, setModalWarn] = useState(null); // { grade, unmet, coreConflict }
+  // Middle-school prior credits (e.g. ALG1 completed before 9th grade)
+  const [priorCredits, setPriorCredits] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("kalani-prior-credits") || "[]"); } catch { return []; }
+  });
+  const [alg1Anim, setAlg1Anim] = useState("idle"); // idle|toggling — for ALG1 toggle button
   // Stable UIDs for plan entries — prevents sibling cards re-animating on delete
   const planUids = useRef({
     9:  [], 10: [], 11: [], 12: [],
@@ -91,6 +82,9 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem('kalani-compass-plan', JSON.stringify(plan)); } catch {}
   }, [plan]);
+  useEffect(() => {
+    try { localStorage.setItem("kalani-prior-credits", JSON.stringify(priorCredits)); } catch {}
+  }, [priorCredits]);
 
   // Pop stars in one-by-one when course modal opens
   useEffect(() => {
@@ -270,8 +264,8 @@ export default function App() {
       showToast(`✋ Grade ${addTarget} is full — max ${GRADE_MAX} slots`);
       return;
     }
-    const completedBefore = getCoursesBeforeGrade(plan, addTarget);
-    const completedUpTo = getAllCoursesUpTo(plan, addTarget);
+    const completedBefore = [...getCoursesBeforeGrade(plan, addTarget), ...priorCredits];
+    const completedUpTo = [...getAllCoursesUpTo(plan, addTarget), ...priorCredits];
     const unmet = getUnmetPrereqs(courseId, completedBefore, completedUpTo);
     if (unmet.length > 0) {
       setPrereqWarn({ courseId, grade: addTarget, unmet });
@@ -432,8 +426,11 @@ export default function App() {
         .dept-btn.active:hover{transform:scale(1.03);color:white!important;}
         .delete-reveal{transition:opacity 0.22s ease,transform 0.28s cubic-bezier(0.34,1.4,0.64,1);}
         .add-btn{border:1.5px dashed #D1D5DB;border-radius:7px;padding:7px;text-align:center;
-          font-size:11px;color:#9CA3AF;cursor:pointer;margin-top:6px;transition:all 0.2s;}
+          font-size:11px;color:#9CA3AF;cursor:pointer;margin-top:6px;transition:all 0.2s;touch-action:manipulation;}
         .add-btn:hover{border-color:var(--red);color:var(--red);background:var(--light-red);}
+        .dept-btn{touch-action:manipulation;}
+        .prereq-chip{touch-action:manipulation;}
+        button{touch-action:manipulation;}
         .overlay{position:fixed;inset:0;background:rgba(17,24,39,0.65);display:flex;align-items:center;
           justify-content:center;z-index:1000;padding:20px;backdrop-filter:blur(5px);}
         .modal{background:white;border-radius:20px;max-width:620px;width:100%;max-height:90vh;
@@ -851,12 +848,6 @@ export default function App() {
                     display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                     <span>Grade {c.gradeLevel.join("/")} · {c.credits===0.5?"Semester":"Year"}</span>
                     <div style={{ display:"flex", alignItems:"center", gap:"5px" }}>
-                      {ratings[c.id] && (
-                        <span style={{ color:"#92400E", fontWeight:700 }}>
-                          ⭐ {ratings[c.id].avg.toFixed(1)}
-                          <span style={{ color:"var(--muted)", fontWeight:400 }}> ({ratings[c.id].count})</span>
-                        </span>
-                      )}
                       {Object.values(plan).flat().includes(c.id) && (
                         <span style={{ fontSize:"11px", background:"#F0FDF4",
                           color:"#166534", border:"1px solid #BBF7D0",
@@ -913,9 +904,67 @@ export default function App() {
                   </button>
                   )}
                 </div>
-                <p className="planner-hint" style={{ fontSize:"13px", color:"var(--muted)", marginBottom:"22px" }}>
+                <p className="planner-hint" style={{ fontSize:"13px", color:"var(--muted)", marginBottom:"12px" }}>
                   Click a course name to view details · ⚠️ = missing prereq · Click × to remove
                 </p>
+
+                {/* ── Middle-school ALG1 toggle ── */}
+                {(()=>{
+                  const alg1Active = priorCredits.includes("ALG1");
+                  function toggleAlg1() {
+                    if (alg1Anim !== "idle") return;
+                    setAlg1Anim("toggling");
+                    setTimeout(() => {
+                      setPriorCredits(prev =>
+                        prev.includes("ALG1") ? prev.filter(x => x !== "ALG1") : [...prev, "ALG1"]
+                      );
+                      setAlg1Anim("idle");
+                    }, 280);
+                  }
+                  const isDone = alg1Active;
+                  const isLeaving = alg1Anim === "toggling";
+                  const borderCol = isDone ? "#059669" : "var(--border)";
+                  const bgCol     = isDone ? "#F0FDF4" : "white";
+                  const textCol   = isDone ? "#166634" : "var(--muted)";
+                  return (
+                    <div style={{ marginBottom:"18px" }}>
+                      <button onClick={toggleAlg1}
+                        style={{
+                          fontSize:"12px", fontWeight:700, cursor:"pointer", touchAction:"manipulation",
+                          borderRadius:"8px", overflow:"hidden", position:"relative",
+                          border:"1.5px solid "+borderCol, background:bgCol, color:textCol,
+                          fontFamily:"inherit", height:"36px", minWidth:"260px",
+                          display:"inline-flex", alignItems:"center", justifyContent:"center",
+                          transform: isLeaving ? "scale(0.94)" : "scale(1)",
+                          transition:"transform 0.2s cubic-bezier(0.34,1.56,0.64,1), background 0.25s, border-color 0.25s, color 0.25s",
+                        }}
+                        onMouseEnter={e=>{ if(!isDone){e.currentTarget.style.background="#B00804";e.currentTarget.style.color="white";e.currentTarget.style.borderColor="#B00804";} else {e.currentTarget.style.background="#FFF0F0";e.currentTarget.style.color="var(--red)";e.currentTarget.style.borderColor="var(--red)";} }}
+                        onMouseLeave={e=>{ e.currentTarget.style.background=bgCol;e.currentTarget.style.color=textCol;e.currentTarget.style.borderColor=borderCol; }}>
+                        {/* Idle label */}
+                        <span style={{
+                          position:"absolute", left:0, right:0,
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          transition:"transform 0.28s cubic-bezier(0.19,1,0.22,1), opacity 0.22s",
+                          transform: (isLeaving||isDone) ? "translateY(-110%)" : "translateY(0)",
+                          opacity:   (isLeaving||isDone) ? 0 : 1, pointerEvents:"none",
+                        }}>📚 I completed Algebra 1 in middle school</span>
+                        {/* Done label */}
+                        <span style={{
+                          position:"absolute", left:0, right:0,
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          transition:"transform 0.32s cubic-bezier(0.19,1,0.22,1), opacity 0.28s",
+                          transform: isDone ? "translateY(0)" : "translateY(110%)",
+                          opacity:   isDone ? 1 : 0, pointerEvents:"none",
+                        }}>✓ Algebra 1 counted — warnings cleared</span>
+                      </button>
+                      {isDone && (
+                        <p style={{ fontSize:"11px", color:"#15803D", marginTop:"5px", fontWeight:500 }}>
+                          Prerequisite checks now treat Algebra 1 as completed before 9th grade.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div className="plan-grid" style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gridAutoRows:"1fr", gap:"16px", marginBottom:"8px", alignItems:"stretch" }}>
                 {[9,10,11,12].map(grade=>{
@@ -945,8 +994,8 @@ export default function App() {
                             if(!c) return null;
                             const col=deptColor(c.dept);
                             const isOffCampus = cid==="OFF_CAMPUS";
-                            const before = getCoursesBeforeGrade(plan, grade);
-                            const upTo = getAllCoursesUpTo(plan, grade);
+                            const before = [...getCoursesBeforeGrade(plan, grade), ...priorCredits];
+                            const upTo = [...getAllCoursesUpTo(plan, grade), ...priorCredits];
                             const unmet = isOffCampus ? [] : getUnmetPrereqs(cid, before, upTo);
                             return (
                               <motion.div key={ensureUids(grade)[idx] || cid+"-"+idx}
@@ -1086,8 +1135,8 @@ export default function App() {
                                   const courseSlots = c.id==="OFF_CAMPUS"?1:(c.credits||0);
                                   const wouldExceed = gradeSlots(plan, grade) + courseSlots > GRADE_MAX;
                                   const blocked = already || wouldExceed;
-                                  const completedBefore = getCoursesBeforeGrade(plan, grade);
-                                  const completedUpTo = getAllCoursesUpTo(plan, grade);
+                                  const completedBefore = [...getCoursesBeforeGrade(plan, grade), ...priorCredits];
+                                  const completedUpTo = [...getAllCoursesUpTo(plan, grade), ...priorCredits];
                                   const unmet = c.id==="OFF_CAMPUS" ? [] : getUnmetPrereqs(c.id, completedBefore, completedUpTo);
                                   const hasWarn = unmet.length > 0;
                                   return (
@@ -1502,8 +1551,8 @@ export default function App() {
                           selectedCourse={selectedCourse}
                           GRADE_MAX={GRADE_MAX}
                           gradeSlots={gradeSlots}
-                          getCoursesBeforeGrade={getCoursesBeforeGrade}
-                          getAllCoursesUpTo={getAllCoursesUpTo}
+                          getCoursesBeforeGrade={(p,g)=>[...getCoursesBeforeGrade(p,g),...priorCredits]}
+                          getAllCoursesUpTo={(p,g)=>[...getAllCoursesUpTo(p,g),...priorCredits]}
                           getUnmetPrereqs={getUnmetPrereqs}
                           getCoreConflict={getCoreConflict}
                           planUids={planUids}
@@ -1565,14 +1614,7 @@ export default function App() {
                       alignItems:"center", marginBottom:"12px" }}>
                       <p style={{ fontSize:"11px", color:"var(--muted)", fontWeight:700,
                         textTransform:"uppercase", letterSpacing:"0.06em" }}>Rate this course</p>
-                      {ratings[selectedCourse.id] ? (
-                        <span style={{ fontSize:"12px", color:"#92400E", fontWeight:700 }}>
-                          ⭐ {ratings[selectedCourse.id].avg.toFixed(1)}
-                          <span style={{ color:"var(--muted)", fontWeight:400 }}> · {ratings[selectedCourse.id].count} rating{ratings[selectedCourse.id].count!==1?"s":""}</span>
-                        </span>
-                      ) : (
-                        <span style={{ fontSize:"11px", color:"var(--muted)" }}>No ratings yet — be the first!</span>
-                      )}
+                      {/* Rating avg hidden — data still collected via Supabase */}
                     </div>
 
                     {myRatings[selectedCourse.id] ? (
