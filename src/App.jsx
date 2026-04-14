@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./supabase.js";
+import TransferCreditModule from "./components/TransferCreditModule.jsx";
 import {
   COURSES, GRAD_REQUIREMENTS, PREREQ_EQUIV, HONORS_DEFS, BEYOND_ALG2_IDS,
   DEPTS, CTE_PATHS, FINE_ARTS_TYPES, MISC_TYPES, DEPT_COLORS,
@@ -493,7 +494,12 @@ export default function App() {
               marginRight:"20px", cursor:"pointer", textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>
             🦅 Kalani Compass
           </div>
-          {[["home","Home"],["catalog","Courses"],["planner","4-Year Planner"]].map(([id,label])=>(
+          {[
+  ["home","Home"],
+  ["catalog","Courses"],
+  ["planner","4-Year Planner"],
+  ["transfer","Transfer Credits"]
+].map(([id,label])=>(
             <div key={id} onClick={()=>navigate(id)}
               style={{ position:"relative", cursor:"pointer", padding:"8px 15px", borderRadius:"8px" }}>
               {page===id ? (
@@ -1308,6 +1314,14 @@ export default function App() {
             </div>
           </div>
           )}
+                 {/* ── TRANSFER ── */}
+        {renderPage(
+          page === "transfer",
+          "transfer",
+          <div className="fade-in">
+            <TransferCreditModule />
+          </div>
+        )}
         </AnimatePresence>
 
       {/* ── COURSE DETAIL MODAL — lives outside renderPage so catalog page can open it too ── */}
