@@ -485,6 +485,7 @@ export function DataCitationFooter() {
                 { icon:"🎓", label:"Graduation Requirements", text:"Hawaii Department of Education Graduation Requirements, effective July 2023. Credit minimums and subject-area breakdowns follow this policy document." },
                 { icon:"⚠️", label:"Planning Reference Only", text:"Kalani Compass is an unofficial planning tool. It is not affiliated with Kalani High School or the Hawaii DOE. Always confirm your 4-year plan with your school counselor before submitting your registration card." },
                 { icon:"🔄", label:"Last Data Update", text:"Course catalog last reviewed: March 2026. Based on the 2026–2027 Kalani High School Course Catalog." },
+                { icon:"💾", label:"Your Plan & Privacy", text:"Your 4-year plan is saved in your browser's local storage and is never uploaded to any server or shared with anyone. No account is required and no personal information is collected. However, your plan is tied to this specific browser and device — switching to a different Chromebook or clearing your browser data will reset your plan. We recommend saving a screenshot of your completed plan for your records." },
               ].map(({icon,label,text})=>(
                 <div key={label} style={{ display:"flex", gap:"13px", alignItems:"flex-start" }}>
                   <span style={{ fontSize:"20px", flexShrink:0, marginTop:"2px" }}>{icon}</span>
