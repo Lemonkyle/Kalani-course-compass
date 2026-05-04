@@ -4,7 +4,7 @@ import { supabase } from "./supabase.js";
 import {
   COURSES, GRAD_REQUIREMENTS, PREREQ_EQUIV, HONORS_DEFS, BEYOND_ALG2_IDS,
   DEPTS, CTE_PATHS, FINE_ARTS_TYPES, MISC_TYPES, DEPT_COLORS,
-  DEFAULT_PLAN, DEPT_ORDER,
+  DEFAULT_PLAN, DEPT_ORDER, COURSE_MATCH_TEMPLATES,
 } from "./lib/data.js";
 import {
   buildCourseSearchIndex, filterIndexedCourses,
@@ -25,7 +25,9 @@ export default function App() {
 
   // Override getCourse to use live Supabase data inside this component
   // This shadows the global getCourse() for all component code below
-  function getCourse(id) { return liveCourses.find(c => c.id === id); }
+  function getCourse(id) {
+    return liveCourses.find(c => c.id === id) || customCourses.find(c => c.id === id);
+  }
   const { announcements } = useAnnouncements();
 
   const [page, setPage] = useState("home");
@@ -66,6 +68,16 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem("kalani-prior-credits") || "[]"); } catch { return []; }
   });
   const [alg1Anim, setAlg1Anim] = useState("idle"); // idle|toggling — for ALG1 toggle button
+  // Custom user-defined courses (HOC, dual credit, summer school, etc.)
+  const [customCourses, setCustomCourses] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("kalani-custom-courses") || "[]"); } catch { return []; }
+  });
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customGradeTarget, setCustomGradeTarget] = useState(9);
+  const [customForm, setCustomForm] = useState({ name:"", dept:"Mathematics", credits:0.5 });
+  // Course Match
+  const [matchSelected, setMatchSelected] = useState(null); // selected template for detail view
+  const [applyConfirm, setApplyConfirm] = useState(false); // show apply confirmation
   // Stable UIDs for plan entries — prevents sibling cards re-animating on delete
   const planUids = useRef({
     9:  [], 10: [], 11: [], 12: [],
@@ -88,6 +100,9 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem("kalani-prior-credits", JSON.stringify(priorCredits)); } catch {}
   }, [priorCredits]);
+  useEffect(() => {
+    try { localStorage.setItem("kalani-custom-courses", JSON.stringify(customCourses)); } catch {}
+  }, [customCourses]);
 
   // Pop stars in one-by-one when course modal opens
   useEffect(() => {
@@ -493,7 +508,7 @@ export default function App() {
               marginRight:"20px", cursor:"pointer", textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>
             🦅 Kalani Compass
           </div>
-          {[["home","Home"],["catalog","Courses"],["planner","4-Year Planner"]].map(([id,label])=>(
+          {[["home","Home"],["catalog","Courses"],["match","Course Match"],["planner","4-Year Planner"]].map(([id,label])=>(
             <div key={id} onClick={()=>navigate(id)}
               style={{ position:"relative", cursor:"pointer", padding:"8px 15px", borderRadius:"8px" }}>
               {page===id ? (
@@ -969,6 +984,22 @@ export default function App() {
                   );
                 })()}
 
+                {/* ── Custom Course button ── */}
+                <div style={{ marginBottom:"18px", display:"flex", alignItems:"center", gap:"10px" }}>
+                  <button onClick={()=>setShowCustomModal(true)}
+                    style={{ padding:"8px 16px", borderRadius:"8px", border:"1.5px dashed #B00804",
+                      background:"#FFF8F8", color:"var(--red)", fontSize:"12px", fontWeight:700,
+                      cursor:"pointer", fontFamily:"inherit", touchAction:"manipulation",
+                      display:"flex", alignItems:"center", gap:"6px" }}>
+                    ＋ Add HOC / Summer / Custom Course
+                  </button>
+                  {customCourses.length > 0 && (
+                    <span style={{ fontSize:"11px", color:"var(--muted)" }}>
+                      {customCourses.length} custom course{customCourses.length>1?"s":""} in plan
+                    </span>
+                  )}
+                </div>
+
                 <div className="plan-grid" style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gridAutoRows:"1fr", gap:"16px", marginBottom:"8px", alignItems:"stretch" }}>
                 {[9,10,11,12].map(grade=>{
                   const gradeCredits = plan[grade].reduce((s,cid)=>{ const c=getCourse(cid); return s+(c?.credits||0); },0);
@@ -1045,9 +1076,17 @@ export default function App() {
                                     <span style={{ fontSize:"13px", fontWeight:700,
                                       color:isOffCampus?"#475569":"#0F172A", letterSpacing:"-0.01em",
                                       cursor:"pointer", overflow:"hidden", textOverflow:"ellipsis",
-                                      display:"block", whiteSpace:"nowrap" }}
+                                      display:"flex", alignItems:"center", gap:"5px", whiteSpace:"nowrap" }}
                                       onClick={()=>setSelectedCourse(c)}>
-                                      {isOffCampus?"🚗 Off Campus":c.name}
+                                      <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                                        {isOffCampus?"🚗 Off Campus":c.name}
+                                      </span>
+                                      {c?.isCustom && (
+                                        <span style={{ fontSize:"9px", fontWeight:800, flexShrink:0,
+                                          background:"#EFF6FF", color:"#1D4ED8",
+                                          border:"1px solid #BFDBFE", borderRadius:"4px",
+                                          padding:"1px 5px" }}>Custom</span>
+                                      )}
                                     </span>
                                   </div>
                                   {/* Delete button — hover reveal */}
@@ -1309,6 +1348,364 @@ export default function App() {
           </div>
           )}
         </AnimatePresence>
+
+      {/* ── COURSE MATCH PAGE ── */}
+      {renderPage(page==="match","match",
+        <div style={{ maxWidth:"1100px", margin:"0 auto", padding:"32px 24px 60px" }}>
+          {/* Header */}
+          <div style={{ marginBottom:"28px" }}>
+            <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"30px", fontWeight:700,
+              color:"#0F172A", marginBottom:"6px" }}>Course Match</h1>
+            <p style={{ fontSize:"14px", color:"var(--muted)", maxWidth:"560px" }}>
+              Browse curated 4-year plans built for different goals and interests.
+              Find one that fits you and apply it to your planner with one click.
+            </p>
+          </div>
+
+          {/* Pinned templates */}
+          <p style={{ fontSize:"11px", fontWeight:700, letterSpacing:"0.07em",
+            textTransform:"uppercase", color:"var(--muted)", marginBottom:"12px" }}>
+            📌 Featured Plans
+          </p>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",
+            gap:"14px", marginBottom:"32px" }}>
+            {COURSE_MATCH_TEMPLATES.filter(t=>t.pinned).map(t=>(
+              <motion.div key={t.id}
+                whileHover={{ y:-3, boxShadow:"0 10px 28px rgba(0,0,0,0.10)" }}
+                transition={{ type:"spring", stiffness:350, damping:22 }}
+                onClick={()=>{ setMatchSelected(t); setApplyConfirm(false); }}
+                style={{ background:"white", borderRadius:"14px", padding:"18px",
+                  border:"1px solid var(--border)", cursor:"pointer",
+                  boxShadow:"0 2px 6px rgba(0,0,0,0.05)", display:"flex",
+                  flexDirection:"column", gap:"8px" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                  <span style={{ fontSize:"26px" }}>{t.emoji}</span>
+                  <span style={{ fontSize:"10px", fontWeight:800, padding:"3px 9px",
+                    borderRadius:"999px", background:t.tagBg, color:t.tagColor,
+                    border:`1px solid ${t.tagColor}30` }}>{t.tag}</span>
+                </div>
+                <div style={{ fontWeight:800, fontSize:"15px", color:"#0F172A" }}>{t.title}</div>
+                <p style={{ fontSize:"12px", color:"var(--muted)", lineHeight:1.5,
+                  display:"-webkit-box", WebkitLineClamp:3,
+                  WebkitBoxOrient:"vertical", overflow:"hidden" }}>{t.desc}</p>
+                <div style={{ marginTop:"auto", paddingTop:"8px", fontSize:"11px",
+                  color:"var(--red)", fontWeight:700 }}>View details →</div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Other templates */}
+          <p style={{ fontSize:"11px", fontWeight:700, letterSpacing:"0.07em",
+            textTransform:"uppercase", color:"var(--muted)", marginBottom:"12px" }}>
+            More Plans
+          </p>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",
+            gap:"14px" }}>
+            {COURSE_MATCH_TEMPLATES.filter(t=>!t.pinned).map(t=>(
+              <motion.div key={t.id}
+                whileHover={{ y:-3, boxShadow:"0 10px 28px rgba(0,0,0,0.10)" }}
+                transition={{ type:"spring", stiffness:350, damping:22 }}
+                onClick={()=>{ setMatchSelected(t); setApplyConfirm(false); }}
+                style={{ background:"white", borderRadius:"14px", padding:"18px",
+                  border:"1px solid var(--border)", cursor:"pointer",
+                  boxShadow:"0 2px 6px rgba(0,0,0,0.05)", display:"flex",
+                  flexDirection:"column", gap:"8px" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                  <span style={{ fontSize:"26px" }}>{t.emoji}</span>
+                  <span style={{ fontSize:"10px", fontWeight:800, padding:"3px 9px",
+                    borderRadius:"999px", background:t.tagBg, color:t.tagColor,
+                    border:`1px solid ${t.tagColor}30` }}>{t.tag}</span>
+                </div>
+                <div style={{ fontWeight:800, fontSize:"15px", color:"#0F172A" }}>{t.title}</div>
+                <p style={{ fontSize:"12px", color:"var(--muted)", lineHeight:1.5,
+                  display:"-webkit-box", WebkitLineClamp:3,
+                  WebkitBoxOrient:"vertical", overflow:"hidden" }}>{t.desc}</p>
+                <div style={{ marginTop:"auto", paddingTop:"8px", fontSize:"11px",
+                  color:"var(--red)", fontWeight:700 }}>View details →</div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── COURSE MATCH DETAIL MODAL ── */}
+      <AnimatePresence mode="wait">
+        {matchSelected ? (
+          <div className="overlay" onClick={()=>setMatchSelected(null)}>
+            <motion.div className="modal" onClick={e=>e.stopPropagation()}
+              key={matchSelected.id}
+              initial={{ opacity:0, scale:0.88, y:24 }}
+              animate={{ opacity:1, scale:1, y:0, transition:{ type:"spring", stiffness:350, damping:22 } }}
+              exit={{ opacity:0, scale:0.92, y:16, transition:{ duration:0.18, ease:"easeIn" } }}
+              style={{ maxWidth:"560px" }}>
+              {/* Header */}
+              <div style={{ padding:"22px 24px 16px", borderBottom:"1px solid var(--border)",
+                display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                <div>
+                  <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"4px" }}>
+                    <span style={{ fontSize:"28px" }}>{matchSelected.emoji}</span>
+                    <span style={{ fontSize:"10px", fontWeight:800, padding:"3px 9px",
+                      borderRadius:"999px", background:matchSelected.tagBg,
+                      color:matchSelected.tagColor }}>{matchSelected.tag}</span>
+                  </div>
+                  <h2 style={{ fontSize:"20px", fontWeight:800, color:"#0F172A",
+                    fontFamily:"'Playfair Display',serif" }}>{matchSelected.title}</h2>
+                </div>
+                <button onClick={()=>setMatchSelected(null)}
+                  style={{ background:"#FFF1F0", border:"none", borderRadius:"50%",
+                    width:"32px", height:"32px", cursor:"pointer",
+                    fontSize:"16px", color:"#B00804", flexShrink:0, touchAction:"manipulation" }}>✕</button>
+              </div>
+
+              <div style={{ padding:"20px 24px", display:"flex", flexDirection:"column", gap:"16px",
+                maxHeight:"60vh", overflowY:"auto" }}>
+                {/* Description */}
+                <p style={{ fontSize:"13px", color:"var(--muted)", lineHeight:1.6 }}>{matchSelected.desc}</p>
+
+                {/* Best for */}
+                <div>
+                  <div style={{ fontSize:"11px", fontWeight:700, textTransform:"uppercase",
+                    letterSpacing:"0.07em", color:"var(--muted)", marginBottom:"6px" }}>Best for</div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:"6px" }}>
+                    {matchSelected.suited.map(s=>(
+                      <span key={s} style={{ fontSize:"11px", background:"#F8FAFC",
+                        border:"1px solid var(--border)", borderRadius:"6px",
+                        padding:"3px 9px", color:"var(--text)" }}>{s}</span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Highlights */}
+                <div>
+                  <div style={{ fontSize:"11px", fontWeight:700, textTransform:"uppercase",
+                    letterSpacing:"0.07em", color:"var(--muted)", marginBottom:"6px" }}>Highlights</div>
+                  {matchSelected.highlights.map(h=>(
+                    <div key={h} style={{ display:"flex", alignItems:"center", gap:"8px",
+                      fontSize:"13px", color:"var(--text)", marginBottom:"4px" }}>
+                      <span style={{ color:"#059669", fontWeight:700 }}>✓</span> {h}
+                    </div>
+                  ))}
+                </div>
+
+                {/* 4-year preview */}
+                <div>
+                  <div style={{ fontSize:"11px", fontWeight:700, textTransform:"uppercase",
+                    letterSpacing:"0.07em", color:"var(--muted)", marginBottom:"8px" }}>4-Year Preview</div>
+                  {[9,10,11,12].map(g=>(
+                    <div key={g} style={{ marginBottom:"8px" }}>
+                      <div style={{ fontSize:"11px", fontWeight:700, color:"var(--red)",
+                        marginBottom:"4px" }}>Grade {g}</div>
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}>
+                        {(matchSelected.plan[g]||[]).map(cid=>{
+                          const c = getCourse(cid);
+                          return (
+                            <span key={cid} style={{ fontSize:"11px", background:"#F1F5F9",
+                              borderRadius:"5px", padding:"2px 8px", color:"#334155" }}>
+                              {c ? c.name : cid}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Apply section */}
+              <div style={{ padding:"16px 24px", borderTop:"1px solid var(--border)" }}>
+                {!applyConfirm ? (
+                  <button onClick={()=>setApplyConfirm(true)}
+                    style={{ width:"100%", background:"var(--red)", color:"white", border:"none",
+                      borderRadius:"10px", padding:"13px", fontSize:"14px", fontWeight:800,
+                      cursor:"pointer", fontFamily:"inherit", touchAction:"manipulation" }}>
+                    Apply This Plan to My Planner →
+                  </button>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
+                    <p style={{ fontSize:"13px", color:"#92400E", background:"#FFFBEB",
+                      border:"1px solid #FDE68A", borderRadius:"8px", padding:"10px 12px",
+                      margin:0 }}>
+                      ⚠️ This will replace your current 4-year plan. Make sure you've saved a screenshot if you want to keep it.
+                    </p>
+                    <div style={{ display:"flex", gap:"8px" }}>
+                      <button onClick={()=>{
+                        const newPlan = { 9:[], 10:[], 11:[], 12:[] };
+                        [9,10,11,12].forEach(g=>{
+                          newPlan[g] = [...(matchSelected.plan[g]||[])];
+                        });
+                        // Reset planUids
+                        Object.keys(planUids.current).forEach(g=>{
+                          planUids.current[g] = [];
+                        });
+                        setPlan(newPlan);
+                        setMatchSelected(null);
+                        setApplyConfirm(false);
+                        navigate("planner");
+                        showToast("Applied "" + matchSelected.title + "" to your planner");
+                      }}
+                        style={{ flex:1, background:"var(--red)", color:"white", border:"none",
+                          borderRadius:"8px", padding:"11px", fontSize:"13px", fontWeight:800,
+                          cursor:"pointer", fontFamily:"inherit", touchAction:"manipulation" }}>
+                        Yes, apply it
+                      </button>
+                      <button onClick={()=>setApplyConfirm(false)}
+                        style={{ background:"white", color:"var(--muted)",
+                          border:"1.5px solid var(--border)", borderRadius:"8px",
+                          padding:"11px 16px", fontSize:"13px", fontWeight:600,
+                          cursor:"pointer", fontFamily:"inherit", touchAction:"manipulation" }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        ) : null}
+      </AnimatePresence>
+
+      {/* ── CUSTOM COURSE MODAL ── */}
+      <AnimatePresence>
+        {showCustomModal && (
+          <div className="overlay" onClick={()=>setShowCustomModal(false)}>
+            <motion.div className="modal" onClick={e=>e.stopPropagation()}
+              initial={{ opacity:0, scale:0.88, y:24 }}
+              animate={{ opacity:1, scale:1, y:0, transition:{ type:"spring", stiffness:350, damping:22 } }}
+              exit={{ opacity:0, scale:0.92, y:16, transition:{ duration:0.18, ease:"easeIn" } }}
+              style={{ maxWidth:"420px" }}>
+              <div style={{ padding:"20px 22px 16px", borderBottom:"1px solid var(--border)",
+                display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <h2 style={{ fontSize:"17px", fontWeight:800, color:"#0F172A",
+                  fontFamily:"'Playfair Display',serif" }}>Add Custom Course</h2>
+                <button onClick={()=>setShowCustomModal(false)}
+                  style={{ background:"#FFF1F0", border:"none", borderRadius:"50%",
+                    width:"32px", height:"32px", cursor:"pointer",
+                    fontSize:"16px", color:"#B00804", touchAction:"manipulation" }}>✕</button>
+              </div>
+              <div style={{ padding:"20px 22px", display:"flex", flexDirection:"column", gap:"16px" }}>
+                <p style={{ fontSize:"12px", color:"var(--muted)", margin:0 }}>
+                  For HOC, dual credit, summer school, or any course not in the Kalani catalog.
+                </p>
+
+                {/* Course name */}
+                <div>
+                  <label style={{ fontSize:"12px", fontWeight:700, color:"var(--text)",
+                    display:"block", marginBottom:"6px" }}>Course name</label>
+                  <input className="si" placeholder="e.g. HOC — Marine Science, Running Start Math 141…"
+                    value={customForm.name}
+                    onChange={e=>setCustomForm(f=>({...f, name:e.target.value}))}
+                    style={{ width:"100%" }} maxLength={60} />
+                </div>
+
+                {/* Department */}
+                <div>
+                  <label style={{ fontSize:"12px", fontWeight:700, color:"var(--text)",
+                    display:"block", marginBottom:"8px" }}>Category</label>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:"6px" }}>
+                    {["English","Mathematics","Science","Social Studies","World Language",
+                      "Fine Arts","CTE","Health & PE","Elective"].map(d=>(
+                      <motion.button key={d}
+                        whileTap={{ scale:0.92 }}
+                        onClick={()=>setCustomForm(f=>({...f, dept:d}))}
+                        style={{ padding:"5px 11px", borderRadius:"7px", fontSize:"11px",
+                          fontWeight:700, cursor:"pointer", border:"1.5px solid",
+                          fontFamily:"inherit", touchAction:"manipulation",
+                          background:customForm.dept===d?"var(--red)":"white",
+                          color:customForm.dept===d?"white":"var(--muted)",
+                          borderColor:customForm.dept===d?"var(--red)":"var(--border)" }}>
+                        {d}
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Credits */}
+                <div>
+                  <label style={{ fontSize:"12px", fontWeight:700, color:"var(--text)",
+                    display:"block", marginBottom:"8px" }}>Credits</label>
+                  <div style={{ display:"flex", gap:"8px" }}>
+                    {[0.5, 1.0].map(cr=>(
+                      <motion.button key={cr}
+                        whileTap={{ scale:0.92 }}
+                        onClick={()=>setCustomForm(f=>({...f, credits:cr}))}
+                        style={{ flex:1, padding:"9px", borderRadius:"8px", fontSize:"13px",
+                          fontWeight:700, cursor:"pointer", border:"1.5px solid",
+                          fontFamily:"inherit", touchAction:"manipulation",
+                          background:customForm.credits===cr?"var(--red)":"white",
+                          color:customForm.credits===cr?"white":"var(--muted)",
+                          borderColor:customForm.credits===cr?"var(--red)":"var(--border)" }}>
+                        {cr} cr — {cr===0.5?"Semester":"Year"}
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Grade */}
+                <div>
+                  <label style={{ fontSize:"12px", fontWeight:700, color:"var(--text)",
+                    display:"block", marginBottom:"8px" }}>Add to grade</label>
+                  <div style={{ display:"flex", gap:"8px" }}>
+                    {[9,10,11,12].map(g=>(
+                      <motion.button key={g}
+                        whileTap={{ scale:0.92 }}
+                        onClick={()=>setCustomGradeTarget(g)}
+                        style={{ flex:1, padding:"9px", borderRadius:"8px", fontSize:"13px",
+                          fontWeight:700, cursor:"pointer", border:"1.5px solid",
+                          fontFamily:"inherit", touchAction:"manipulation",
+                          background:customGradeTarget===g?"var(--red)":"white",
+                          color:customGradeTarget===g?"white":"var(--muted)",
+                          borderColor:customGradeTarget===g?"var(--red)":"var(--border)" }}>
+                        Gr {g}
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Add button */}
+              <div style={{ padding:"0 22px 20px" }}>
+                <button
+                  disabled={!customForm.name.trim()}
+                  onClick={()=>{
+                    if (!customForm.name.trim()) return;
+                    const uid = "CUSTOM_" + Date.now();
+                    const newCourse = {
+                      id: uid,
+                      name: customForm.name.trim(),
+                      dept: customForm.dept,
+                      credits: customForm.credits,
+                      gradeLevel: [9,10,11,12],
+                      prereqs: [],
+                      repeatable: false,
+                      isCustom: true,
+                      gradCategory: "elective",
+                      gradCredits: customForm.credits,
+                      desc: "Custom course added by student.",
+                      code: "CUSTOM",
+                    };
+                    setCustomCourses(prev => [...prev, newCourse]);
+                    planUids.current[customGradeTarget].push(Math.random().toString(36).slice(2));
+                    setPlan(p=>{
+                      const n = JSON.parse(JSON.stringify(p));
+                      n[customGradeTarget].push(uid);
+                      return n;
+                    });
+                    setShowCustomModal(false);
+                    setCustomForm({ name:"", dept:"Mathematics", credits:0.5 });
+                    showToast("Added "" + customForm.name.trim() + "" to Grade " + customGradeTarget);
+                  }}
+                  style={{ width:"100%", background:"var(--red)", color:"white", border:"none",
+                    borderRadius:"10px", padding:"13px", fontSize:"14px", fontWeight:800,
+                    cursor:customForm.name.trim()?"pointer":"not-allowed",
+                    opacity:customForm.name.trim()?1:0.5,
+                    fontFamily:"inherit", touchAction:"manipulation" }}>
+                  Add to Grade {customGradeTarget} →
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* ── COURSE DETAIL MODAL — lives outside renderPage so catalog page can open it too ── */}
       <AnimatePresence mode="wait">
