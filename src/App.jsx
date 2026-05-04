@@ -10,7 +10,7 @@ import {
   buildCourseSearchIndex, filterIndexedCourses,
   normalizeCourse, sortCourses,
   useCourseData, useAnnouncements,
-  getCourse as getCourseFromData, getCourseName, getPrereqDisplay,
+  getCourseName, getPrereqDisplay,
   isPrereqSatisfied, getCoursesBeforeGrade, getAllCoursesUpTo, getUnmetPrereqs,
   computeHonorsProgress, deptColor, calcWlfa, calcPlannerCredits,
   AnimatedProgressBar, DataCitationFooter, GradeBtn, renderPage,
@@ -1541,7 +1541,7 @@ export default function App() {
                         setMatchSelected(null);
                         setApplyConfirm(false);
                         navigate("planner");
-                        showToast("Applied "" + matchSelected.title + "" to your planner");
+                        showToast("Applied \"" + matchSelected.title + "\" to your planner");
                       }}
                         style={{ flex:1, background:"var(--red)", color:"white", border:"none",
                           borderRadius:"8px", padding:"11px", fontSize:"13px", fontWeight:800,
@@ -1692,7 +1692,7 @@ export default function App() {
                     });
                     setShowCustomModal(false);
                     setCustomForm({ name:"", dept:"Mathematics", credits:0.5 });
-                    showToast("Added "" + customForm.name.trim() + "" to Grade " + customGradeTarget);
+                    showToast("Added \"" + customForm.name.trim() + "\" to Grade " + customGradeTarget);
                   }}
                   style={{ width:"100%", background:"var(--red)", color:"white", border:"none",
                     borderRadius:"10px", padding:"13px", fontSize:"14px", fontWeight:800,
