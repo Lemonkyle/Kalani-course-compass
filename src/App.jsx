@@ -74,7 +74,7 @@ export default function App() {
   });
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customGradeTarget, setCustomGradeTarget] = useState(9);
-  const [customForm, setCustomForm] = useState({ name:"", dept:"Mathematics", credits:0.5 });
+  const [customForm, setCustomForm] = useState({ name:"", dept:"Mathematics", credits:0.5, isAP:false });
   // Course Match
   const [matchSelected, setMatchSelected] = useState(null); // selected template for detail view
   const [applyConfirm, setApplyConfirm] = useState(false); // show apply confirmation
@@ -250,7 +250,7 @@ export default function App() {
     return filterIndexedCourses(indexedCourses, addSearch, 16);
   }, [addSearch, liveCourses, indexedCourses]);
 
-  const honorsProgress = useMemo(() => computeHonorsProgress(plan), [plan]);
+  const honorsProgress = useMemo(() => computeHonorsProgress(plan, customCourses), [plan, customCourses]);
 
   function removeCourse(grade, idx) {
     planUids.current[grade].splice(idx, 1);
@@ -1487,27 +1487,54 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* 4-year preview */}
+                {/* 4-year preview — mini planner style */}
                 <div>
                   <div style={{ fontSize:"11px", fontWeight:700, textTransform:"uppercase",
-                    letterSpacing:"0.07em", color:"var(--muted)", marginBottom:"8px" }}>4-Year Preview</div>
-                  {[9,10,11,12].map(g=>(
-                    <div key={g} style={{ marginBottom:"8px" }}>
-                      <div style={{ fontSize:"11px", fontWeight:700, color:"var(--red)",
-                        marginBottom:"4px" }}>Grade {g}</div>
-                      <div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}>
-                        {(matchSelected.plan[g]||[]).map(cid=>{
-                          const c = getCourse(cid);
-                          return (
-                            <span key={cid} style={{ fontSize:"11px", background:"#F1F5F9",
-                              borderRadius:"5px", padding:"2px 8px", color:"#334155" }}>
-                              {c ? c.name : cid}
-                            </span>
-                          );
-                        })}
+                    letterSpacing:"0.07em", color:"var(--muted)", marginBottom:"10px" }}>4-Year Preview</div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px" }}>
+                    {[9,10,11,12].map(g=>(
+                      <div key={g} style={{ borderRadius:"10px", border:"1.5px solid var(--border)",
+                        overflow:"hidden" }}>
+                        {/* Grade header */}
+                        <div style={{ background:"var(--red)", padding:"6px 10px",
+                          display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                          <span style={{ fontSize:"11px", fontWeight:800, color:"white",
+                            letterSpacing:"0.05em" }}>GRADE {g}</span>
+                          <span style={{ fontSize:"10px", color:"rgba(255,255,255,0.7)",
+                            fontWeight:600 }}>
+                            {(matchSelected.plan[g]||[]).length} courses
+                          </span>
+                        </div>
+                        {/* Course list */}
+                        <div style={{ padding:"6px", display:"flex", flexDirection:"column", gap:"3px" }}>
+                          {(matchSelected.plan[g]||[]).map(cid=>{
+                            const c = getCourse(cid);
+                            const col = c ? (deptColor(c.dept)+"18") : "#F1F5F9";
+                            const textCol = c ? deptColor(c.dept) : "#64748B";
+                            return (
+                              <div key={cid}
+                                onClick={()=>{ if(c){ setMatchSelected(null); setSelectedCourse(c); } }}
+                                style={{ fontSize:"10px", fontWeight:600,
+                                  background:col, color:textCol,
+                                  borderRadius:"5px", padding:"3px 7px",
+                                  cursor:c?"pointer":"default",
+                                  border:`1px solid ${textCol}22`,
+                                  whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
+                                  display:"flex", alignItems:"center", gap:"4px",
+                                  transition:"opacity 0.15s" }}
+                                onMouseEnter={e=>{ if(c) e.currentTarget.style.opacity="0.75"; }}
+                                onMouseLeave={e=>{ e.currentTarget.style.opacity="1"; }}>
+                                {c?.isAP && <span style={{ fontSize:"8px", fontWeight:900,
+                                  background:"#FEF3C7", color:"#92400E",
+                                  borderRadius:"3px", padding:"0 3px", flexShrink:0 }}>AP</span>}
+                                {c ? c.name : cid}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -1640,6 +1667,34 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* AP toggle */}
+                <div>
+                  <label style={{ fontSize:"12px", fontWeight:700, color:"var(--text)",
+                    display:"block", marginBottom:"8px" }}>
+                    Is this an AP course?
+                  </label>
+                  <div style={{ display:"flex", gap:"8px" }}>
+                    {[{label:"Yes — AP course", val:true}, {label:"No", val:false}].map(({label,val})=>(
+                      <motion.button key={String(val)}
+                        whileTap={{ scale:0.92 }}
+                        onClick={()=>setCustomForm(f=>({...f, isAP:val}))}
+                        style={{ flex:1, padding:"9px", borderRadius:"8px", fontSize:"12px",
+                          fontWeight:700, cursor:"pointer", border:"1.5px solid",
+                          fontFamily:"inherit", touchAction:"manipulation",
+                          background:(customForm.isAP===true)===val?"var(--red)":"white",
+                          color:(customForm.isAP===true)===val?"white":"var(--muted)",
+                          borderColor:(customForm.isAP===true)===val?"var(--red)":"var(--border)" }}>
+                        {label}
+                      </motion.button>
+                    ))}
+                  </div>
+                  {customForm.isAP && (
+                    <p style={{ fontSize:"11px", color:"#7C3AED", marginTop:"5px" }}>
+                      This course will count toward the AP credits requirement for Honors Recognition.
+                    </p>
+                  )}
+                </div>
+
                 {/* Grade */}
                 <div>
                   <label style={{ fontSize:"12px", fontWeight:700, color:"var(--text)",
@@ -1678,7 +1733,10 @@ export default function App() {
                       prereqs: [],
                       repeatable: false,
                       isCustom: true,
-                      gradCategory: "elective",
+                      isAP: customForm.isAP || false,
+                      gradCategory: customForm.dept === "World Language" ? "wlfa" :
+                                    customForm.dept === "Fine Arts" ? "wlfa" :
+                                    customForm.dept === "CTE" ? "wlfa" : "elective",
                       gradCredits: customForm.credits,
                       desc: "Custom course added by student.",
                       code: "CUSTOM",
@@ -1691,7 +1749,7 @@ export default function App() {
                       return n;
                     });
                     setShowCustomModal(false);
-                    setCustomForm({ name:"", dept:"Mathematics", credits:0.5 });
+                    setCustomForm({ name:"", dept:"Mathematics", credits:0.5, isAP:false });
                     showToast("Added \"" + customForm.name.trim() + "\" to Grade " + customGradeTarget);
                   }}
                   style={{ width:"100%", background:"var(--red)", color:"white", border:"none",
