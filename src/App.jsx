@@ -253,8 +253,10 @@ export default function App() {
   const honorsProgress = useMemo(() => computeHonorsProgress(plan, customCourses), [plan, customCourses]);
 
   function removeCourse(grade, idx) {
+    const cid = plan[grade][idx];
     planUids.current[grade].splice(idx, 1);
     setPlan(p => { const n = JSON.parse(JSON.stringify(p)); n[grade].splice(idx, 1); return n; });
+    setCustomCourses(prev => prev.filter(c => c.id !== cid));
   }
   const GRADE_MAX = 14.0; // 14 slots per grade year
 
