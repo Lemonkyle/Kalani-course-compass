@@ -256,7 +256,7 @@ export default function App() {
     planUids.current[grade].splice(idx, 1);
     setPlan(p => { const n = JSON.parse(JSON.stringify(p)); n[grade].splice(idx, 1); return n; });
   }
-  const GRADE_MAX = 9.0; // 9 slots = up to 9 credits (0.5cr courses use 0.5 slot)
+  const GRADE_MAX = 14.0; // 14 slots per grade year
 
 
   // Core subjects limited to 1 per grade year (English, Math, Social Studies)
