@@ -2,3 +2,6 @@ node_modules/
 dist/
 .vercel/
 npm-debug.log*
+.env
+.env.*
+!.env.example

@@ -9,10 +9,16 @@ import {
 // ───────────────────────────────────────────────────────────────────────────
 export const GRADE_MAX = 14.0;
 
-export function gradeSlots(plan, grade) {
+export function getCourseSlots(course) {
+  if (!course) return 0;
+  return course.isOffCampus || course.id === "OFF_CAMPUS" ? 1 : (course.credits || 0);
+}
+
+export function getCourse(id) { return COURSES.find(c => c.id === id); }
+
+export function gradeSlots(plan, grade, getCourseForId = getCourse) {
   return (plan[grade] || []).reduce((s, cid) => {
-    const c = COURSES.find(x => x.id === cid);
-    return s + (c?.credits || 0);
+    return s + getCourseSlots(getCourseForId(cid));
   }, 0);
 }
 
@@ -133,6 +139,12 @@ export function useCourseData() {
 
   useEffect(() => {
     async function fetchCourses() {
+      if (!supabase) {
+        console.warn("[Kalani Compass] Supabase not configured, using local fallback");
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("courses")
         .select("*")
@@ -164,6 +176,11 @@ export function useAnnouncements() {
 
   useEffect(() => {
     async function fetchAnnouncements() {
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
+
       const now = new Date().toISOString();
       const { data, error } = await supabase
         .from("announcements")
@@ -184,13 +201,18 @@ export function useAnnouncements() {
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');`;
 
 // ───────────────────────────────────────────────────────────────────────────
-export function getCourse(id) { return COURSES.find(c => c.id === id); }
-export function getCourseName(id) { const c = getCourse(id); return c ? c.name : id; }
+export function getCourseName(id, getCourseForId = getCourse) {
+  const c = getCourseForId(id);
+  return c ? c.name : id;
+}
 
 // Returns display string for a prereq, including equivalents: "Chemistry or Honors Chemistry"
-export function getPrereqDisplay(prereqId) {
+export function getPrereqDisplay(prereqId, getCourseForId = getCourse) {
   const equivs = PREREQ_EQUIV[prereqId] || [];
-  const names = [getCourseName(prereqId), ...equivs.map(getCourseName)];
+  const names = [
+    getCourseName(prereqId, getCourseForId),
+    ...equivs.map(id => getCourseName(id, getCourseForId)),
+  ];
   return names.join(" or ");
 }
 
@@ -216,8 +238,8 @@ export function getAllCoursesUpTo(plan, targetGrade) {
 
 // prereqs = must be completed in PREVIOUS grades
 // concurrentOk = can be in same grade OR previous grades
-export function getUnmetPrereqs(courseId, completedBefore, completedUpTo) {
-  const course = getCourse(courseId);
+export function getUnmetPrereqs(courseId, completedBefore, completedUpTo, getCourseForId = getCourse) {
+  const course = getCourseForId(courseId);
   if (!course) return [];
   const strictUnmet = (course.prereqs||[]).filter(pid => !isPrereqSatisfied(pid, completedBefore));
   const concurrentUnmet = (course.concurrentOk||[]).filter(pid => !isPrereqSatisfied(pid, completedUpTo||completedBefore));
@@ -226,9 +248,9 @@ export function getUnmetPrereqs(courseId, completedBefore, completedUpTo) {
 
 
 
-export function computeHonorsProgress(plan, extraCourses = []) {
+export function computeHonorsProgress(plan, getCourseForId = getCourse) {
   const allIds = Object.values(plan).flat();
-  const allCourses = allIds.map(id => getCourse(id) || extraCourses.find(c=>c.id===id)).filter(Boolean);
+  const allCourses = allIds.map(getCourseForId).filter(Boolean);
 
   const mathCredits = allCourses.filter(c=>c.dept==="Mathematics").reduce((s,c)=>s+c.credits,0);
   const sciCredits  = allCourses.filter(c=>c.dept==="Science").reduce((s,c)=>s+c.credits,0);
@@ -251,7 +273,7 @@ export function computeHonorsProgress(plan, extraCourses = []) {
   const ctePathwayCounts = {};
   Object.entries(CTE_PATHWAYS).forEach(([pathway, ids]) => {
     const credits = ids.filter(id => allIds.includes(id))
-      .reduce((s, id) => { const c = getCourse(id); return s + (c?.credits||0); }, 0);
+      .reduce((s, id) => { const c = getCourseForId(id); return s + (c?.credits||0); }, 0);
     if (credits > 0) ctePathwayCounts[pathway] = credits;
   });
   // CS Honors requires BOTH AP_CSA AND AP_CSP
@@ -285,11 +307,11 @@ export function computeHonorsProgress(plan, extraCourses = []) {
 export function deptColor(dept) { return DEPT_COLORS[dept] || "#6B7280"; }
 
 
-export function calcWlfa(plan) {
+export function calcWlfa(plan, getCourseForId = getCourse) {
   // WLFA requires 2 credits in ONE of: same World Language, any Fine Arts, same CTE pathway
   // Returns { earned, overflow } where overflow flows to electives
   const allIds = Object.values(plan).flat();
-  const allCourses = allIds.map(getCourse).filter(Boolean);
+  const allCourses = allIds.map(getCourseForId).filter(Boolean);
   const wlfaCourses = allCourses.filter(c => c.gradCategory === "wlfa");
 
   // World Language: any 2 credits of world language count (can mix languages)
@@ -320,7 +342,7 @@ export function calcWlfa(plan) {
   return { earned, overflow };
 }
 
-export function calcPlannerCredits(plan) {
+export function calcPlannerCredits(plan, getCourseForId = getCourse) {
   const raw = {};
   GRAD_REQUIREMENTS.forEach(r => { raw[r.id] = 0; });
   let total = 0;
@@ -328,7 +350,7 @@ export function calcPlannerCredits(plan) {
   // First pass: accumulate all non-wlfa categories
   Object.values(plan).forEach(courses => {
     courses.forEach(cid => {
-      const c = getCourse(cid);
+      const c = getCourseForId(cid);
       if (!c) return;
       total += c.credits;
       if (!c.gradCategory || c.gradCredits == null) return;
@@ -344,7 +366,7 @@ export function calcPlannerCredits(plan) {
   });
 
   // WLFA: use pathway-aware calculation
-  const { earned: wlfaEarned, overflow: wlfaOverflow } = calcWlfa(plan);
+  const { earned: wlfaEarned, overflow: wlfaOverflow } = calcWlfa(plan, getCourseForId);
   raw.wlfa = wlfaEarned;
   raw.electives += wlfaOverflow;
 

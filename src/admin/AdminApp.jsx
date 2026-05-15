@@ -1,29 +1,102 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AdminLogin from "./AdminLogin.jsx";
 import AnnPanel from "./AnnPanel.jsx";
 import CoursePanel from "./CoursePanel.jsx";
-import RatingsPanel from "./RatingsPanel.jsx";
+import { isSupabaseConfigured, supabase } from "../supabase.js";
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');`;
 
 const NAV_ITEMS = [
-  { id:"announcements", label:"Announcements", icon:"📢" },
-  { id:"courses",       label:"Courses",       icon:"📚" },
-  { id:"ratings",       label:"Ratings",       icon:"⭐" },
+  { id:"announcements", label:"Announcements", icon:"A" },
+  { id:"courses", label:"Courses", icon:"C" },
 ];
 
 export default function AdminApp() {
-  const [authed, setAuthed] = useState(
-    sessionStorage.getItem("kalani_admin") === "1"
-  );
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [authed, setAuthed] = useState(false);
+  const [adminEmail, setAdminEmail] = useState("");
   const [tab, setTab] = useState("announcements");
 
-  if (!authed) return <AdminLogin onLogin={()=>setAuthed(true)} />;
+  useEffect(() => {
+    let alive = true;
 
-  function signOut() {
-    sessionStorage.removeItem("kalani_admin");
-    setAuthed(false);
+    async function loadSession() {
+      if (!isSupabaseConfigured || !supabase) {
+        if (alive) setCheckingAuth(false);
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        await verifyAdminSession(data.session, alive);
+      }
+      if (alive) setCheckingAuth(false);
+    }
+
+    loadSession();
+
+    if (!supabase) return () => { alive = false; };
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        setAuthed(false);
+        setAdminEmail("");
+      }
+    });
+
+    return () => {
+      alive = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  async function verifyAdminSession(session, alive = true) {
+    if (!session?.user || !supabase) return { ok:false };
+
+    const { data, error } = await supabase
+      .from("admin_users")
+      .select("email")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+
+    if (error || !data) {
+      if (alive) {
+        setAuthed(false);
+        setAdminEmail("");
+      }
+      return {
+        ok:false,
+        error:"This Supabase account is signed in, but it is not listed as a Kalani Compass admin.",
+      };
+    }
+
+    if (alive) {
+      setAuthed(true);
+      setAdminEmail(data.email || session.user.email || "");
+    }
+    return { ok:true };
   }
+
+  async function handleLogin(session) {
+    return verifyAdminSession(session);
+  }
+
+  async function signOut() {
+    if (supabase) await supabase.auth.signOut();
+    setAuthed(false);
+    setAdminEmail("");
+  }
+
+  if (checkingAuth) {
+    return (
+      <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center",
+        background:"#F7F8FA", color:"#1C2B3A", fontFamily:"'Plus Jakarta Sans',sans-serif",
+        fontWeight:700 }}>
+        Checking admin access...
+      </div>
+    );
+  }
+
+  if (!authed) return <AdminLogin onLogin={handleLogin} />;
 
   return (
     <>
@@ -37,19 +110,24 @@ export default function AdminApp() {
       `}</style>
 
       <div style={{ display:"flex", flexDirection:"column", minHeight:"100vh" }}>
-
-        {/* Nav */}
         <nav style={{ background:"linear-gradient(90deg,#6B0503,#950A07,#B00804)",
           height:"58px", display:"flex", alignItems:"center", padding:"0 24px",
           boxShadow:"0 2px 16px rgba(107,5,3,0.35)", position:"sticky",
           top:0, zIndex:100, gap:"10px" }}>
           <span style={{ fontFamily:"'Playfair Display',serif", color:"white",
-            fontSize:"20px", fontWeight:700, marginRight:"4px" }}>🦅 Kalani Compass</span>
+            fontSize:"20px", fontWeight:700, marginRight:"4px" }}>Kalani Compass</span>
           <span style={{ color:"rgba(255,255,255,0.4)", fontSize:"14px" }}>/</span>
           <span style={{ color:"rgba(255,255,255,0.75)", fontSize:"13px",
             fontWeight:600, flex:1 }}>Admin Panel</span>
+          {adminEmail && (
+            <span style={{ color:"rgba(255,255,255,0.62)", fontSize:"12px",
+              marginRight:"8px", maxWidth:"220px", overflow:"hidden", textOverflow:"ellipsis",
+              whiteSpace:"nowrap" }}>
+              {adminEmail}
+            </span>
+          )}
           <a href="/" style={{ color:"rgba(255,255,255,0.6)", fontSize:"12px",
-            textDecoration:"none", marginRight:"8px" }}>← Back to site</a>
+            textDecoration:"none", marginRight:"8px" }}>Back to site</a>
           <button onClick={signOut}
             style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.25)",
               color:"white", borderRadius:"7px", padding:"5px 12px", fontSize:"12px",
@@ -59,8 +137,6 @@ export default function AdminApp() {
         </nav>
 
         <div style={{ display:"flex", flex:1 }}>
-
-          {/* Sidebar */}
           <aside style={{ width:"210px", flexShrink:0, background:"white",
             borderRight:"1px solid #E5E7EB", padding:"16px 10px",
             display:"flex", flexDirection:"column", gap:"3px" }}>
@@ -70,24 +146,18 @@ export default function AdminApp() {
 
             {NAV_ITEMS.map(item=>(
               <div key={item.id}
-                onClick={()=>!item.soon && setTab(item.id)}
+                onClick={()=>setTab(item.id)}
                 style={{ display:"flex", alignItems:"center", gap:"9px",
-                  padding:"9px 12px", borderRadius:"8px", cursor: item.soon?"default":"pointer",
+                  padding:"9px 12px", borderRadius:"8px", cursor:"pointer",
                   background: tab===item.id ? "#FFF1F0" : "transparent",
-                  color: item.soon ? "#D1D5DB" : tab===item.id ? "#B00804" : "#6B7280",
+                  color: tab===item.id ? "#B00804" : "#6B7280",
                   fontWeight: tab===item.id ? 700 : 400,
                   fontSize:"13px", transition:"all 0.15s",
                   userSelect:"none" }}>
-                <span style={{ fontSize:"14px", width:"16px", textAlign:"center" }}>
+                <span style={{ fontSize:"11px", width:"16px", textAlign:"center", fontWeight:800 }}>
                   {item.icon}
                 </span>
                 {item.label}
-                {item.soon && (
-                  <span style={{ marginLeft:"auto", fontSize:"10px", background:"#F3F4F6",
-                    color:"#9CA3AF", borderRadius:"4px", padding:"1px 6px", fontWeight:600 }}>
-                    Soon
-                  </span>
-                )}
               </div>
             ))}
 
@@ -95,17 +165,15 @@ export default function AdminApp() {
             <div style={{ padding:"10px 12px", fontSize:"11px", color:"#9CA3AF",
               borderTop:"1px solid #F3F4F6", marginTop:"8px", lineHeight:1.5 }}>
               <div style={{ fontWeight:600, color:"#6B7280", marginBottom:"2px" }}>
-                Connected to Supabase
+                Protected by Supabase Auth
               </div>
-              kalani-course-compass
+              RLS controls write access
             </div>
           </aside>
 
-          {/* Main content */}
           <main style={{ flex:1, padding:"28px 32px", maxWidth:"900px" }}>
             {tab === "announcements" && <AnnPanel />}
             {tab === "courses" && <CoursePanel />}
-            {tab === "ratings" && <RatingsPanel />}
           </main>
         </div>
       </div>

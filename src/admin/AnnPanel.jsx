@@ -31,6 +31,12 @@ export default function AnnPanel() {
 
   async function fetchAll() {
     setLoading(true);
+    if (!supabase) {
+      setAnnouncements([]);
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("announcements")
       .select("*")
@@ -61,6 +67,11 @@ export default function AnnPanel() {
 
   async function saveForm() {
     if (!form.title.trim()) return;
+    if (!supabase) {
+      setToast("Supabase is not configured in local fallback mode.");
+      return;
+    }
+
     setSaving(true);
     const payload = {
       title:     form.title.trim(),
@@ -87,12 +98,18 @@ export default function AnnPanel() {
   }
 
   async function toggleVisible(item) {
+    if (!supabase) return;
     await supabase.from("announcements").update({ visible: !item.visible }).eq("id", item.id);
     fetchAll();
   }
 
   async function archiveItem(item) {
     if (!window.confirm(`Archive "${item.title}"? It will be hidden but not deleted.`)) return;
+    if (!supabase) {
+      setToast("Supabase is not configured in local fallback mode.");
+      return;
+    }
+
     await supabase.from("announcements").update({ visible: false, ends_at: new Date().toISOString() }).eq("id", item.id);
     setToast("🗄 Archived");
     fetchAll();

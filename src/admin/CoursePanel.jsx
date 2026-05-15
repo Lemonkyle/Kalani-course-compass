@@ -214,6 +214,12 @@ export default function CoursePanel() {
 
   async function fetchCourses() {
     setLoading(true);
+    if (!supabase) {
+      setCourses([]);
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("courses").select("*").order("name", { ascending: true });
     if (!error && data) setCourses(sortCourses(data));
@@ -269,6 +275,11 @@ export default function CoursePanel() {
 
   async function saveCourse() {
     if (!form.id.trim() || !form.name.trim()) return;
+    if (!supabase) {
+      setToast("Supabase is not configured in local fallback mode.");
+      return;
+    }
+
     setSaving(true);
     const payload = { ...form };
 
@@ -287,6 +298,11 @@ export default function CoursePanel() {
 
   async function archiveCourse(course) {
     if (!window.confirm(`Archive "${course.name}"? It won't appear on the site.`)) return;
+    if (!supabase) {
+      setToast("Supabase is not configured in local fallback mode.");
+      return;
+    }
+
     await supabase.from("courses").update({ archived: true }).eq("id", course.id);
     setToast("🗄 Archived");
     fetchCourses();
@@ -318,6 +334,11 @@ export default function CoursePanel() {
   async function confirmImport() {
     const file = fileRef.current.files[0];
     if (!file) return;
+    if (!supabase) {
+      setToast("Supabase is not configured in local fallback mode.");
+      return;
+    }
+
     setImporting(true);
     const text = await file.text();
     const lines = text.trim().split("\n");

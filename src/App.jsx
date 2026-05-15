@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "./supabase.js";
 import {
   COURSES, GRAD_REQUIREMENTS, PREREQ_EQUIV, HONORS_DEFS, BEYOND_ALG2_IDS,
   DEPTS, CTE_PATHS, FINE_ARTS_TYPES, MISC_TYPES, DEPT_COLORS,
@@ -10,9 +9,10 @@ import {
   buildCourseSearchIndex, filterIndexedCourses,
   normalizeCourse, sortCourses,
   useCourseData, useAnnouncements,
-  getCourseName, getPrereqDisplay,
+  getCourseName as getCourseNameFromData,
+  getPrereqDisplay as getPrereqDisplayFromData,
   isPrereqSatisfied, getCoursesBeforeGrade, getAllCoursesUpTo, getUnmetPrereqs,
-  computeHonorsProgress, deptColor, calcWlfa, calcPlannerCredits,
+  computeHonorsProgress, deptColor, calcWlfa, calcPlannerCredits, getCourseSlots,
   AnimatedProgressBar, DataCitationFooter, GradeBtn, renderPage,
   cardVariants, contentVariants, shakeAnim,
 } from "./lib/utils.jsx";
@@ -23,11 +23,6 @@ export default function App() {
   // V4: courses fetched from Supabase, falls back to local COURSES if unavailable
   const { courses: liveCourses, gradReqs: liveGradReqs, loading: dataLoading } = useCourseData();
 
-  // Override getCourse to use live Supabase data inside this component
-  // This shadows the global getCourse() for all component code below
-  function getCourse(id) {
-    return liveCourses.find(c => c.id === id) || customCourses.find(c => c.id === id);
-  }
   const { announcements } = useAnnouncements();
 
   const [page, setPage] = useState("home");
@@ -35,13 +30,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [homeSearch, setHomeSearch] = useState("");
   const [homeSearchFocus, setHomeSearchFocus] = useState(false);
-  const [ratings, setRatings] = useState({}); // { courseId: { avg, count } }
-  const [myRatings, setMyRatings] = useState({}); // { courseId: starCount }
-  const [pendingRating, setPendingRating] = useState(null); // { courseId, stars }
-  const [hoverStar, setHoverStar] = useState(0);
   const [dismissedAnns, setDismissedAnns] = useState([]);
-  const [ratingAnimating, setRatingAnimating] = useState(false);
-  const [starVisible, setStarVisible] = useState([]);
   const [filterDept, setFilterDept] = useState("All");
   const [plan, setPlan] = useState(() => {
     try {
@@ -89,10 +78,6 @@ export default function App() {
     while (arr.length < needed) arr.push(Math.random().toString(36).slice(2));
     return arr;
   }
-  const [burstKey, setBurstKey] = useState(0);
-  const [clickKey, setClickKey] = useState(0);
-  const [ratingParticles, setRatingParticles] = useState([]);
-  const starContainerRef = useRef(null);
 
   useEffect(() => {
     try { localStorage.setItem('kalani-compass-plan', JSON.stringify(plan)); } catch {}
@@ -108,14 +93,30 @@ export default function App() {
     setCustomCourses(prev => prev.filter(c => allPlanIds.has(c.id)));
   }, [plan]);
 
-  // Pop stars in one-by-one when course modal opens
   useEffect(() => {
-    if (!selectedCourse) { setStarVisible([]); setModalWarn(null); return; }
-    setStarVisible([]);
-    setPendingRating(null);
-    setHoverStar(0);
-    [1,2,3,4,5].forEach((s,i) => setTimeout(() => setStarVisible(v => [...v,s]), i*70));
+    if (!selectedCourse) setModalWarn(null);
   }, [selectedCourse?.id]);
+
+  const allCourses = useMemo(
+    () => [...liveCourses, ...customCourses],
+    [liveCourses, customCourses]
+  );
+  const courseById = useMemo(
+    () => new Map(allCourses.map(c => [c.id, c])),
+    [allCourses]
+  );
+  function getCourse(id) {
+    return courseById.get(id);
+  }
+  function getCourseName(id) {
+    return getCourseNameFromData(id, getCourse);
+  }
+  function getPrereqDisplay(id) {
+    return getPrereqDisplayFromData(id, getCourse);
+  }
+  function getUnmetPrereqsForCurrentCourses(courseId, completedBefore, completedUpTo) {
+    return getUnmetPrereqs(courseId, completedBefore, completedUpTo, getCourse);
+  }
 
   // Auto-dismiss toast after 2.5s
   useEffect(() => {
@@ -132,101 +133,9 @@ export default function App() {
 
   function showToast(msg) { setToast(msg); }
 
-  // Stable browser fingerprint for anonymous rating dedup
-  function getFingerprint() {
-    const raw = [navigator.userAgent, screen.width, screen.height, Intl.DateTimeFormat().resolvedOptions().timeZone].join("|");
-    let hash = 0;
-    for (let i = 0; i < raw.length; i++) {
-      hash = ((hash << 5) - hash) + raw.charCodeAt(i);
-      hash |= 0;
-    }
-    return "fp_" + Math.abs(hash).toString(36);
-  }
-
-  // Fetch latest ratings from Supabase and update state
-  async function fetchRatings() {
-    const { data, error } = await supabase
-      .from("ratings")
-      .select("course_id, rating, fingerprint")
-      .limit(10000);
-
-    if (error) {
-      console.error("[Kalani Compass] fetchRatings error:", error.message, error);
-      return;
-    }
-    if (!data || data.length === 0) {
-      console.log("[Kalani Compass] fetchRatings: no data returned");
-      setRatings({});
-      return;
-    }
-
-    console.log("[Kalani Compass] fetchRatings: got", data.length, "rows");
-
-    const fp = getFingerprint();
-    const grouped = {};
-    const mine = {};
-
-    data.forEach(r => {
-      if (!grouped[r.course_id]) grouped[r.course_id] = { total: 0, count: 0 };
-      grouped[r.course_id].total += r.rating;
-      grouped[r.course_id].count += 1;
-      if (r.fingerprint === fp) mine[r.course_id] = r.rating;
-    });
-
-    const averaged = {};
-    Object.entries(grouped).forEach(([cid, v]) => {
-      averaged[cid] = { avg: v.total / v.count, count: v.count };
-    });
-
-    setRatings(averaged);
-    setMyRatings(mine);
-  }
-
-  // Load ratings on mount
-  useEffect(() => { fetchRatings(); }, []);
-
-  function spawnRatingParticles() {
-    setBurstKey(k=>k+1);
-    const newP = Array.from({length:12}, (_,i) => ({
-      id: Date.now()+i,
-      angle: (Math.PI*2*i)/12 + (Math.random()*0.4-0.2),
-      dist:  Math.random()*38+20,
-      size:  Math.random()*5+4,
-      color: ["#F59E0B","#FCD34D","#F97316","#FBBF24"][Math.floor(Math.random()*4)],
-    }));
-    setRatingParticles(newP);
-    setTimeout(()=>setRatingParticles([]), 800);
-  }
-    async function submitRating(courseId, stars) {
-    const fp = getFingerprint();
-    const semester = (() => {
-      const m = new Date().getMonth();
-      const y = new Date().getFullYear();
-      // Academic year: Aug-Dec = current/next, Jan-Jul = prev/current
-      return m >= 7 ? `${y}-${y+1}` : `${y-1}-${y}`;
-    })();
-
-    const { error } = await supabase.from("ratings").insert({
-      course_id: courseId,
-      rating: stars,
-      semester,
-      fingerprint: fp,
-    });
-
-    if (error) {
-      showToast("Could not submit rating. You may have already rated this course.");
-      return;
-    }
-
-    // Re-fetch everything from Supabase — gets accurate count + includes other people's ratings
-    await fetchRatings();
-    showToast(`⭐ Rated ${stars} star${stars > 1 ? "s" : ""} — thanks!`);
-    setPendingRating(null);
-    setHoverStar(0);
-  }
   function navigate(p) { setPage(p); window.scrollTo({ top:0, behavior:"instant" }); }
 
-  const { cats, total } = useMemo(() => calcPlannerCredits(plan), [plan]);
+  const { cats, total } = useMemo(() => calcPlannerCredits(plan, getCourse), [plan, courseById]);
   const indexedCourses = useMemo(() => buildCourseSearchIndex(liveCourses), [liveCourses]);
 
   const filteredCourses = useMemo(() => {
@@ -254,7 +163,7 @@ export default function App() {
     return filterIndexedCourses(indexedCourses, addSearch, 16);
   }, [addSearch, liveCourses, indexedCourses]);
 
-  const honorsProgress = useMemo(() => computeHonorsProgress(plan, customCourses), [plan, customCourses]);
+  const honorsProgress = useMemo(() => computeHonorsProgress(plan, getCourse), [plan, courseById]);
 
   function removeCourse(grade, idx) {
     planUids.current[grade].splice(idx, 1);
@@ -288,7 +197,7 @@ export default function App() {
     }
     const completedBefore = [...getCoursesBeforeGrade(plan, addTarget), ...priorCredits];
     const completedUpTo = [...getAllCoursesUpTo(plan, addTarget), ...priorCredits];
-    const unmet = getUnmetPrereqs(courseId, completedBefore, completedUpTo);
+    const unmet = getUnmetPrereqsForCurrentCourses(courseId, completedBefore, completedUpTo);
     if (unmet.length > 0) {
       setPrereqWarn({ courseId, grade: addTarget, unmet });
       return;
@@ -324,9 +233,7 @@ export default function App() {
   // Slot = credits for normal courses, 1 for Off Campus (0-credit)
   function gradeSlots(p, grade) {
     return (p[grade]||[]).reduce((sum, cid) => {
-      const c = getCourse(cid);
-      if (!c) return sum;
-      return sum + (c.id === "OFF_CAMPUS" ? 1 : (c.credits || 0));
+      return sum + getCourseSlots(getCourse(cid));
     }, 0);
   }
 
@@ -336,7 +243,6 @@ export default function App() {
         ${FONTS}
         @keyframes cardIn{from{opacity:0;transform:translateY(24px) scale(0.97);}to{opacity:1;transform:translateY(0) scale(1);}}
         @keyframes annSlideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes starPop{0%{opacity:0;transform:scale(0) rotate(-20deg)}60%{transform:scale(1.35) rotate(4deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
         /* Planner card animations */
         @keyframes planCardIn{
           0%{opacity:0;transform:translateX(50px) scale(0.95);max-height:0;margin-bottom:0;}
@@ -388,18 +294,6 @@ export default function App() {
         }
         .grade-shake{
           animation:gradeShake 0.4s ease-in-out !important;
-        }
-        @keyframes ratingPopIn{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
-        @keyframes confirmSlideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
-        @keyframes starBurst{
-          0%{transform:scale(1);}25%{transform:scale(1.9) rotate(18deg);}
-          55%{transform:scale(0.75) rotate(-8deg);}80%{transform:scale(1.2) rotate(4deg);}
-          100%{transform:scale(1) rotate(0);}
-        }
-        @keyframes starElastic{
-          0%{transform:scale(1);}20%{transform:scale(1.65) rotate(12deg);}
-          50%{transform:scale(0.82) rotate(-6deg);}75%{transform:scale(1.15) rotate(3deg);}
-          100%{transform:scale(1) rotate(0);}
         }
         /* GradeBtn: hover state controlled via React state, not CSS */
         @keyframes particle{
@@ -1034,7 +928,7 @@ export default function App() {
                             const isOffCampus = cid==="OFF_CAMPUS";
                             const before = [...getCoursesBeforeGrade(plan, grade), ...priorCredits];
                             const upTo = [...getAllCoursesUpTo(plan, grade), ...priorCredits];
-                            const unmet = isOffCampus ? [] : getUnmetPrereqs(cid, before, upTo);
+                            const unmet = isOffCampus ? [] : getUnmetPrereqsForCurrentCourses(cid, before, upTo);
                             return (
                               <motion.div key={ensureUids(grade)[idx] || cid+"-"+idx}
                                 layout
@@ -1178,12 +1072,12 @@ export default function App() {
                                 boxShadow:"0 4px 16px rgba(0,0,0,0.08)" }}>
                                 {addSearchResults.map(c=>{
                                   const already = !c.repeatable && Object.values(plan).flat().includes(c.id);
-                                  const courseSlots = c.id==="OFF_CAMPUS"?1:(c.credits||0);
+                                  const courseSlots = getCourseSlots(c);
                                   const wouldExceed = gradeSlots(plan, grade) + courseSlots > GRADE_MAX;
                                   const blocked = already || wouldExceed;
                                   const completedBefore = [...getCoursesBeforeGrade(plan, grade), ...priorCredits];
                                   const completedUpTo = [...getAllCoursesUpTo(plan, grade), ...priorCredits];
-                                  const unmet = c.id==="OFF_CAMPUS" ? [] : getUnmetPrereqs(c.id, completedBefore, completedUpTo);
+                                  const unmet = c.id==="OFF_CAMPUS" ? [] : getUnmetPrereqsForCurrentCourses(c.id, completedBefore, completedUpTo);
                                   const hasWarn = unmet.length > 0;
                                   return (
                                     <div key={c.id}
@@ -2015,7 +1909,7 @@ export default function App() {
                           gradeSlots={gradeSlots}
                           getCoursesBeforeGrade={(p,g)=>[...getCoursesBeforeGrade(p,g),...priorCredits]}
                           getAllCoursesUpTo={(p,g)=>[...getAllCoursesUpTo(p,g),...priorCredits]}
-                          getUnmetPrereqs={getUnmetPrereqs}
+                          getUnmetPrereqs={getUnmetPrereqsForCurrentCourses}
                           getCoreConflict={getCoreConflict}
                           planUids={planUids}
                           setPlan={setPlan}
@@ -2069,137 +1963,6 @@ export default function App() {
                   </div>
                 )}
 
-                {/* RATING SECTION */}
-                {!selectedCourse.isOffCampus && (
-                  <div style={{ borderTop:"1px solid var(--border)", paddingTop:"16px", marginTop:"8px" }}>
-                    <div style={{ display:"flex", justifyContent:"space-between",
-                      alignItems:"center", marginBottom:"12px" }}>
-                      <p style={{ fontSize:"11px", color:"var(--muted)", fontWeight:700,
-                        textTransform:"uppercase", letterSpacing:"0.06em" }}>Rate this course</p>
-                      {/* Rating avg hidden — data still collected via Supabase */}
-                    </div>
-
-                    {myRatings[selectedCourse.id] ? (
-                      // Already rated
-                      <div style={{ display:"flex", alignItems:"center", gap:"10px",
-                        padding:"10px 14px", background:"#FFFBEB", borderRadius:"10px",
-                        border:"1.5px solid #FDE68A", animation:"ratingPopIn 0.4s cubic-bezier(.34,1.56,.64,1)" }}>
-                        <div style={{ display:"flex", gap:"2px" }}>
-                          {[1,2,3,4,5].map(s=>(
-                            <span key={s} style={{ fontSize:"20px", color:s<=myRatings[selectedCourse.id]?"#F59E0B":"#D1D5DB" }}>★</span>
-                          ))}
-                        </div>
-                        <span style={{ fontSize:"13px", color:"#92400E", fontWeight:600 }}>
-                          You rated this {myRatings[selectedCourse.id]} star{myRatings[selectedCourse.id]!==1?"s":""}
-                        </span>
-                      </div>
-                    ) : (
-                      // Stars + inline confirm
-                      <div style={{ display:"flex", alignItems:"center", gap:"14px", minHeight:"44px" }}>
-                        {/* Star picker */}
-                        <div ref={starContainerRef} style={{ display:"flex", gap:"5px", flexShrink:0, position:"relative" }}
-                          id={`stars-${selectedCourse.id}`}>
-                          {[1,2,3,4,5].map(star => (
-                            <span
-                              key={star}
-                              id={`star-${selectedCourse.id}-${star}`}
-                              onClick={()=>{
-                                if(ratingAnimating) return;
-                                setPendingRating({ courseId:selectedCourse.id, stars:star });
-                                setClickKey(k=>k+1);
-                                // Elastic pop animation via animejs
-                                if(typeof anime !== "undefined") {
-                                  const targets = [];
-                                  for(let i=1;i<=star;i++){
-                                    const el = document.getElementById(`star-${selectedCourse.id}-${i}`);
-                                    if(el) targets.push(el);
-                                  }
-                                  anime.waapi.animate(targets, {
-                                    scale:[1, 1.65, 0.82, 1.12, 1],
-                                    ease: anime.eases.outElastic(1, 0.42),
-                                    duration:1100,
-                                    delay: anime.stagger(80),
-                                  });
-                                }
-                              }}
-                              style={{ fontSize:"32px", cursor:"pointer", lineHeight:1,
-                                display: starVisible.includes(star) ? "inline-block" : "none",
-                                animation: starVisible.includes(star)
-                                  ? (burstKey>0 && star<=(pendingRating?.courseId===selectedCourse.id ? pendingRating.stars : 0)
-                                      ? `starBurst 0.9s cubic-bezier(0.34,1.56,0.64,1) ${(star-1)*0.09}s both`
-                                      : clickKey>0 && star<=(pendingRating?.courseId===selectedCourse.id ? pendingRating.stars : 0)
-                                        ? `starElastic 1.2s cubic-bezier(0.34,1.56,0.64,1) ${(star-1)*0.09}s both`
-                                        : `starPop 0.4s cubic-bezier(.34,1.56,.64,1) ${(star-1)*0.09}s both`)
-                                  : "none",
-                                color: star <= (pendingRating?.courseId===selectedCourse.id ? pendingRating.stars : 0)
-                                  ? "#F59E0B" : "#D1D5DB",
-                                willChange:"transform",
-                              }}>★</span>
-                          ))}
-
-                          {/* Floating particles */}
-                          {ratingParticles.map(p=>(
-                            <span key={p.id} style={{
-                              position:"absolute",
-                              left:`${((pendingRating?.stars||1)-0.5)*39}px`,
-                              top:"50%",
-                              width:`${p.size}px`,height:`${p.size}px`,
-                              borderRadius:"50%",background:p.color,
-                              pointerEvents:"none",
-                              animation:`particle 0.75s cubic-bezier(0.19,1,0.22,1) forwards`,
-                              "--tx":`${Math.cos(p.angle)*p.dist}px`,
-                              "--ty":`${Math.sin(p.angle)*p.dist}px`,
-                            }}/>
-                          ))}
-                        </div>
-
-                        {/* Confirm panel — slides in from right */}
-                        {pendingRating?.courseId === selectedCourse.id && (
-                          <div style={{ display:"flex", gap:"8px", alignItems:"center",
-                            animation:"confirmSlideIn 0.28s cubic-bezier(.25,.46,.45,.94)" }}>
-                            <button
-                              onClick={()=>{
-                                if(ratingAnimating) return;
-                                setRatingAnimating(true);
-                                // Burst animation
-                                spawnRatingParticles();
-                                if(typeof anime !== "undefined") {
-                                  const targets = [];
-                                  for(let i=1;i<=pendingRating.stars;i++){
-                                    const el = document.getElementById(`star-${selectedCourse.id}-${i}`);
-                                    if(el) targets.push(el);
-                                  }
-                                  anime.waapi.animate(targets, {
-                                    scale:[1, 1.9, 0.75, 1.2, 1],
-                                    ease: anime.eases.outElastic(1, 0.35),
-                                    duration:1300,
-                                    delay: anime.stagger(65),
-                                  });
-                                }
-                                setTimeout(()=>{
-                                  setRatingAnimating(false);
-                                  submitRating(pendingRating.courseId, pendingRating.stars);
-                                }, 900);
-                              }}
-                              style={{ background:"#B00804", color:"white", border:"none",
-                                borderRadius:"8px", padding:"8px 16px", fontSize:"13px",
-                                fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
-                              Confirm {pendingRating.stars}★
-                            </button>
-                            <button
-                              onClick={()=>{ setPendingRating(null); }}
-                              style={{ background:"#F3F4F6", color:"#1F2937",
-                                border:"1.5px solid #9CA3AF", borderRadius:"8px",
-                                padding:"8px 14px", fontSize:"13px", fontWeight:600,
-                                cursor:"pointer", fontFamily:"inherit" }}>
-                              Cancel
-                            </button>
-                          </div>
-                          )}
-                      </div>
-                      )}
-                  </div>
-                  )}
             </motion.div>
             </motion.div>
           </div>
