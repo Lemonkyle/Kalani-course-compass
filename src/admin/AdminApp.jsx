@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import AdminLogin from "./AdminLogin.jsx";
 import AnnPanel from "./AnnPanel.jsx";
 import CoursePanel from "./CoursePanel.jsx";
+import DisclaimerPanel from "./DisclaimerPanel.jsx";
+import MaintenancePanel from "./MaintenancePanel.jsx";
 import { isSupabaseConfigured, supabase } from "../supabase.js";
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');`;
@@ -9,6 +11,8 @@ const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Di
 const NAV_ITEMS = [
   { id:"announcements", label:"Announcements", icon:"A" },
   { id:"courses", label:"Courses", icon:"C" },
+  { id:"maintenance", label:"Maintenance", icon:"M" },
+  { id:"disclaimer", label:"Disclaimer", icon:"D" },
 ];
 
 export default function AdminApp() {
@@ -174,6 +178,8 @@ export default function AdminApp() {
           <main style={{ flex:1, padding:"28px 32px", maxWidth:"900px" }}>
             {tab === "announcements" && <AnnPanel />}
             {tab === "courses" && <CoursePanel />}
+            {tab === "maintenance" && <MaintenancePanel />}
+            {tab === "disclaimer" && <DisclaimerPanel />}
           </main>
         </div>
       </div>

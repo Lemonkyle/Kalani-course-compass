@@ -116,7 +116,35 @@ export function normalizeCourse(row) {
   };
 }
 
-// Custom dept + grade sort order matching original catalog
+function normalizeCourseSortName(course) {
+  const rawName = (course?.name || "").toLowerCase();
+  return rawName
+    .replace(/&/g, " and ")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getCourseSortParts(course) {
+  const normalized = normalizeCourseSortName(course);
+  const isAP = Boolean(course?.isAP || course?.is_ap || /\bap\b/.test(normalized));
+  const isHonors = /\bhonors?\b/.test(normalized);
+  const rigorRank = isAP ? 2 : isHonors ? 1 : 0;
+  const levelMatch = normalized.match(/\b([1-4])\b/);
+  const level = levelMatch ? Number(levelMatch[1]) : (rigorRank === 0 ? 0 : 99);
+  const baseName = normalized
+    .replace(/\bap\b/g, " ")
+    .replace(/\bhonors?\b/g, " ")
+    .replace(/\bgrade\s+\d+\s+track\b/g, " ")
+    .replace(/\byears?\s+\d+\s+(?:and|or)\s+\d+\b/g, " ")
+    .replace(/\b[1-4]\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || normalized;
+  const lowestGrade = Math.min(...(course?.gradeLevel || course?.grade_level || [99]));
+
+  return { baseName, level, rigorRank, lowestGrade, displayName: normalized };
+}
 
 export function sortCourses(arr) {
   return [...arr].sort((a, b) => {
@@ -124,12 +152,15 @@ export function sortCourses(arr) {
     const di = DEPT_ORDER.indexOf(a.dept);
     const dj = DEPT_ORDER.indexOf(b.dept);
     if (di !== dj) return (di === -1 ? 99 : di) - (dj === -1 ? 99 : dj);
-    // 2. Within dept: lowest grade level first
-    const gi = Math.min(...(a.gradeLevel || a.grade_level || [99]));
-    const gj = Math.min(...(b.gradeLevel || b.grade_level || [99]));
-    if (gi !== gj) return gi - gj;
-    // 3. Alphabetical within same grade
-    return (a.name || "").localeCompare(b.name || "");
+
+    const ai = getCourseSortParts(a);
+    const bi = getCourseSortParts(b);
+    const groupCompare = ai.baseName.localeCompare(bi.baseName);
+    if (groupCompare !== 0) return groupCompare;
+    if (ai.level !== bi.level) return ai.level - bi.level;
+    if (ai.rigorRank !== bi.rigorRank) return ai.rigorRank - bi.rigorRank;
+    if (ai.lowestGrade !== bi.lowestGrade) return ai.lowestGrade - bi.lowestGrade;
+    return ai.displayName.localeCompare(bi.displayName);
   });
 }
 
@@ -197,6 +228,50 @@ export function useAnnouncements() {
   return { announcements, loading };
 }
 // ─────────────────────────────────────────────────────────────────────────────────
+
+const DEFAULT_PAGE_MAINTENANCE = {
+  home: false,
+  catalog: false,
+  match: false,
+  planner: false,
+};
+
+export function usePageMaintenance() {
+  const [maintenance, setMaintenance] = useState(DEFAULT_PAGE_MAINTENANCE);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchPageMaintenance() {
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("page_maintenance")
+        .select("page_id, enabled");
+
+      if (error) {
+        console.error("[Kalani Compass] fetchPageMaintenance error:", error.message);
+        setLoading(false);
+        return;
+      }
+
+      const next = { ...DEFAULT_PAGE_MAINTENANCE };
+      (data || []).forEach(row => {
+        if (Object.prototype.hasOwnProperty.call(next, row.page_id)) {
+          next[row.page_id] = Boolean(row.enabled);
+        }
+      });
+      setMaintenance(next);
+      setLoading(false);
+    }
+
+    fetchPageMaintenance();
+  }, []);
+
+  return { maintenance, loading };
+}
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');`;
 
@@ -465,7 +540,120 @@ export function AnimatedProgressBar({ req, earned, color, label, done }) {
 }
 
 // ── DataCitationFooter (inlined) ────────────────────────────────────────────
-export function DataCitationFooter() {
+export const DEFAULT_DISCLAIMER_ITEMS = [
+  { id:"primary-source", icon:"📚", label:"Primary Source", text:"Kalani High School 2026-2027 Registration Guide & Course Catalog. All course names, codes, credit values, grade levels, and prerequisite chains are derived from this document.", sortOrder:10, visible:true },
+  { id:"graduation-requirements", icon:"🎓", label:"Graduation Requirements", text:"Hawaii Department of Education Graduation Requirements, effective July 2023. Credit minimums and subject-area breakdowns follow this policy document.", sortOrder:20, visible:true },
+  { id:"planning-reference", icon:"⚠️", label:"Planning Reference Only", text:"Kalani Compass is an unofficial planning tool. It is not affiliated with Kalani High School or the Hawaii DOE. Always confirm your 4-year plan with your school counselor before submitting your registration card.", sortOrder:30, visible:true },
+  { id:"plan-privacy", icon:"💾", label:"Your Plan & Privacy", text:"Your 4-year plan is saved in your browser's local storage and is never uploaded to any server or shared with anyone. However, your plan is tied to this specific browser and device — switching to a different device will reset your plan. We recommand to use your private device.", sortOrder:40, visible:true },
+  { id:"last-data-update", icon:"🔄", label:"Last Data Update", text:"Course catalog last reviewed: March 2026. Based on the 2026-2027 Kalani High School Course Catalog.", sortOrder:50, visible:true },
+];
+
+function normalizeDisclaimerItem(row) {
+  return {
+    id: row.id,
+    icon: row.icon || "",
+    label: row.label || "",
+    text: row.body || row.text || "",
+    sortOrder: row.sort_order ?? row.sortOrder ?? 0,
+    visible: row.visible ?? true,
+  };
+}
+
+export function useDisclaimerItems() {
+  const [items, setItems] = useState(DEFAULT_DISCLAIMER_ITEMS.filter(item => item.visible));
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchDisclaimerItems() {
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("disclaimer_items")
+        .select("id, icon, label, body, sort_order, visible")
+        .eq("visible", true)
+        .order("sort_order", { ascending:true });
+
+      if (!error && data && data.length > 0) {
+        setItems(data.map(normalizeDisclaimerItem));
+      } else if (error) {
+        console.error("[Kalani Compass] fetchDisclaimerItems error:", error.message);
+      }
+      setLoading(false);
+    }
+    fetchDisclaimerItems();
+  }, []);
+
+  return { items, loading };
+}
+
+export function DataDisclaimerModal({ onClose, items = DEFAULT_DISCLAIMER_ITEMS.filter(item => item.visible), showNeverAgain = false, neverAgain = false, onNeverAgainChange }) {
+  return (
+    <div className="overlay" onClick={onClose}>
+      <motion.div className="modal" onClick={e=>e.stopPropagation()}
+        initial={{ opacity:0, scale:0.88, y:24 }}
+        animate={{ opacity:1, scale:1, y:0, transition:{ type:"spring", stiffness:350, damping:22 } }}
+        exit={{ opacity:0, scale:0.92, y:16, transition:{ duration:0.18, ease:"easeIn" } }}
+        style={{ maxWidth:"540px", width:"92vw" }}>
+        <div style={{ padding:"24px 26px", borderBottom:"1px solid #E5E7EB",
+          display:"flex", justifyContent:"space-between", alignItems:"center", gap:"16px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:"10px", minWidth:0 }}>
+            <motion.span initial={{ scale:0.75, rotate:-8 }} animate={{ scale:1, rotate:0 }}
+              transition={{ type:"spring", stiffness:380, damping:16, delay:0.08 }}
+              style={{ fontSize:"24px", flexShrink:0 }}>📋</motion.span>
+            <h2 style={{ fontSize:"17px", fontWeight:700, color:"#1C2B3A",
+              fontFamily:"'Playfair Display',serif", margin:0 }}>Data Sources & Disclaimer</h2>
+          </div>
+          <button onClick={onClose}
+            aria-label="Close disclaimer"
+            style={{ background:"#FFF1F0", border:"none", borderRadius:"50%", width:"32px",
+              height:"32px", cursor:"pointer", fontSize:"16px", color:"#B00804",
+              flexShrink:0, touchAction:"manipulation" }}>×</button>
+        </div>
+        <div style={{ padding:"22px 26px", display:"flex", flexDirection:"column", gap:"16px" }}>
+          {items.map(({icon,label,text}, i)=>(
+            <motion.div key={label}
+              initial={{ opacity:0, y:12 }}
+              animate={{ opacity:1, y:0 }}
+              transition={{ type:"spring", stiffness:320, damping:24, delay:0.08 + i*0.04 }}
+              style={{ display:"flex", gap:"13px", alignItems:"flex-start" }}>
+              <span style={{ fontSize:"20px", flexShrink:0, marginTop:"2px" }}>{icon}</span>
+              <div>
+                <div style={{ fontSize:"12px", fontWeight:700, color:"#475569",
+                  textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px" }}>{label}</div>
+                <div style={{ fontSize:"13px", color:"#374151", lineHeight:1.6 }}>{text}</div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+        {showNeverAgain ? (
+          <div style={{ padding:"16px 26px 22px", borderTop:"1px solid #E5E7EB",
+            display:"flex", flexDirection:"column", gap:"14px" }}>
+            <label style={{ display:"flex", alignItems:"center", gap:"9px",
+              fontSize:"12px", color:"#475569", fontWeight:700, cursor:"pointer",
+              userSelect:"none" }}>
+              <input type="checkbox" checked={neverAgain}
+                onChange={e=>onNeverAgainChange?.(e.target.checked)}
+                style={{ width:"15px", height:"15px", accentColor:"#B00804", cursor:"pointer" }} />
+              Don&apos;t show this again
+            </label>
+            <button onClick={onClose}
+              style={{ width:"100%", background:"var(--red)", color:"white", border:"none",
+                borderRadius:"10px", padding:"12px 16px", fontSize:"14px", fontWeight:800,
+                cursor:"pointer", fontFamily:"inherit", touchAction:"manipulation",
+                boxShadow:"0 4px 14px rgba(176,8,4,0.25)" }}>
+              I understand
+            </button>
+          </div>
+        ) : null}
+      </motion.div>
+    </div>
+  );
+}
+
+export function DataCitationFooter({ items = DEFAULT_DISCLAIMER_ITEMS.filter(item => item.visible) } = {}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -491,37 +679,9 @@ export function DataCitationFooter() {
           Data Sources & Disclaimer ›
         </button>
       </footer>
-      {open && (
-        <div className="overlay" onClick={()=>setOpen(false)}>
-          <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:"520px", width:"92vw" }}>
-            <div style={{ padding:"24px 26px", borderBottom:"1px solid #E5E7EB",
-              display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <h2 style={{ fontSize:"17px", fontWeight:700, color:"#1C2B3A",
-                fontFamily:"'Playfair Display',serif" }}>Data Sources & Disclaimer</h2>
-              <button onClick={()=>setOpen(false)}
-                style={{ background:"#FFF1F0", border:"none", borderRadius:"50%", width:"32px",
-                  height:"32px", cursor:"pointer", fontSize:"16px", color:"#B00804" }}>✕</button>
-            </div>
-            <div style={{ padding:"22px 26px", display:"flex", flexDirection:"column", gap:"16px" }}>
-              {[
-                { icon:"📖", label:"Primary Source", text:"Kalani High School 2026–2027 Registration Guide & Course Catalog. All course names, codes, credit values, grade levels, and prerequisite chains are derived from this document." },
-                { icon:"🎓", label:"Graduation Requirements", text:"Hawaii Department of Education Graduation Requirements, effective July 2023. Credit minimums and subject-area breakdowns follow this policy document." },
-                { icon:"⚠️", label:"Planning Reference Only", text:"Kalani Compass is an unofficial planning tool. It is not affiliated with Kalani High School or the Hawaii DOE. Always confirm your 4-year plan with your school counselor before submitting your registration card." },
-                { icon:"🔄", label:"Last Data Update", text:"Course catalog last reviewed: March 2026. Based on the 2026–2027 Kalani High School Course Catalog." },
-              ].map(({icon,label,text})=>(
-                <div key={label} style={{ display:"flex", gap:"13px", alignItems:"flex-start" }}>
-                  <span style={{ fontSize:"20px", flexShrink:0, marginTop:"2px" }}>{icon}</span>
-                  <div>
-                    <div style={{ fontSize:"12px", fontWeight:700, color:"#475569",
-                      textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"4px" }}>{label}</div>
-                    <div style={{ fontSize:"13px", color:"#374151", lineHeight:1.6 }}>{text}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {open ? <DataDisclaimerModal onClose={()=>setOpen(false)} items={items} /> : null}
+      </AnimatePresence>
     </>
   );
 }

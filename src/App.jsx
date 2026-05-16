@@ -8,22 +8,58 @@ import {
 import {
   buildCourseSearchIndex, filterIndexedCourses,
   normalizeCourse, sortCourses,
-  useCourseData, useAnnouncements,
+  useCourseData, useAnnouncements, useDisclaimerItems, usePageMaintenance,
   getCourseName as getCourseNameFromData,
   getPrereqDisplay as getPrereqDisplayFromData,
   isPrereqSatisfied, getCoursesBeforeGrade, getAllCoursesUpTo, getUnmetPrereqs,
   computeHonorsProgress, deptColor, calcWlfa, calcPlannerCredits, getCourseSlots,
-  AnimatedProgressBar, DataCitationFooter, GradeBtn, renderPage,
+  AnimatedProgressBar, DataCitationFooter, DataDisclaimerModal, GradeBtn, renderPage,
   cardVariants, contentVariants, shakeAnim,
 } from "./lib/utils.jsx";
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');`;
+
+function MaintenanceNotice({ onBackHome, showBackHome = true }) {
+  return (
+    <div style={{ minHeight:"calc(100vh - 58px)", display:"flex", alignItems:"center",
+      justifyContent:"center", padding:"48px 24px" }}>
+      <div style={{ width:"min(560px,100%)", background:"white",
+        border:"1px solid var(--border)", borderRadius:"16px", padding:"34px 30px",
+        textAlign:"center", boxShadow:"0 10px 32px rgba(15,23,42,0.08)" }}>
+        <div style={{ width:"52px", height:"52px", borderRadius:"50%", margin:"0 auto 18px",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          background:"#FFF1F0", color:"var(--red)", fontSize:"24px", fontWeight:800 }}>
+          !
+        </div>
+        <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"28px",
+          color:"#0F172A", marginBottom:"10px" }}>
+          This page is under maintenance
+        </h1>
+        <p style={{ fontSize:"14px", color:"var(--muted)", lineHeight:1.7,
+          maxWidth:"420px", margin:"0 auto" }}>
+          We're updating this section of Kalani Compass. Please check back later.
+        </p>
+        {showBackHome && (
+          <button onClick={onBackHome}
+            style={{ marginTop:"22px", background:"var(--red)", color:"white",
+              border:"none", borderRadius:"10px", padding:"11px 18px",
+              fontSize:"13px", fontWeight:800, cursor:"pointer",
+              fontFamily:"inherit" }}>
+            Back to Home
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   // V4: courses fetched from Supabase, falls back to local COURSES if unavailable
   const { courses: liveCourses, gradReqs: liveGradReqs, loading: dataLoading } = useCourseData();
 
   const { announcements } = useAnnouncements();
+  const { items: disclaimerItems } = useDisclaimerItems();
+  const { maintenance: pageMaintenance } = usePageMaintenance();
 
   const [page, setPage] = useState("home");
   const [selectedCourse, setSelectedCourse] = useState(null);
@@ -32,6 +68,10 @@ export default function App() {
   const [homeSearchFocus, setHomeSearchFocus] = useState(false);
   const [dismissedAnns, setDismissedAnns] = useState([]);
   const [filterDept, setFilterDept] = useState("All");
+  const [showStartupDisclaimer, setShowStartupDisclaimer] = useState(() => {
+    try { return localStorage.getItem("kalani-disclaimer-dismissed") !== "true"; } catch { return true; }
+  });
+  const [neverShowDisclaimer, setNeverShowDisclaimer] = useState(false);
   const [plan, setPlan] = useState(() => {
     try {
       const saved = localStorage.getItem('kalani-compass-plan');
@@ -56,7 +96,7 @@ export default function App() {
   const [priorCredits, setPriorCredits] = useState(() => {
     try { return JSON.parse(localStorage.getItem("kalani-prior-credits") || "[]"); } catch { return []; }
   });
-  const [alg1Anim, setAlg1Anim] = useState("idle"); // idle|toggling — for ALG1 toggle button
+  const [alg1Anim, setAlg1Anim] = useState("idle"); // idle|toggling - for ALG1 toggle button
   // Custom user-defined courses (HOC, dual credit, summer school, etc.)
   const [customCourses, setCustomCourses] = useState(() => {
     try { return JSON.parse(localStorage.getItem("kalani-custom-courses") || "[]"); } catch { return []; }
@@ -67,7 +107,7 @@ export default function App() {
   // Course Match
   const [matchSelected, setMatchSelected] = useState(null); // selected template for detail view
   const [applyConfirm, setApplyConfirm] = useState(false); // show apply confirmation
-  // Stable UIDs for plan entries — prevents sibling cards re-animating on delete
+  // Stable UIDs for plan entries - prevents sibling cards re-animating on delete
   const planUids = useRef({
     9:  [], 10: [], 11: [], 12: [],
   });
@@ -88,6 +128,11 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem("kalani-custom-courses", JSON.stringify(customCourses)); } catch {}
   }, [customCourses]);
+  useEffect(() => {
+    if (!pageMaintenance.match) return;
+    setMatchSelected(null);
+    setApplyConfirm(false);
+  }, [pageMaintenance.match]);
   useEffect(() => {
     const allPlanIds = new Set(Object.values(plan).flat());
     setCustomCourses(prev => prev.filter(c => allPlanIds.has(c.id)));
@@ -134,6 +179,11 @@ export default function App() {
   function showToast(msg) { setToast(msg); }
 
   function navigate(p) { setPage(p); window.scrollTo({ top:0, behavior:"instant" }); }
+  function isPageUnderMaintenance(id) { return Boolean(pageMaintenance[id]); }
+  function maintenanceContent(id, content) {
+    if (!isPageUnderMaintenance(id)) return content;
+    return <MaintenanceNotice onBackHome={()=>navigate("home")} showBackHome={id !== "home"} />;
+  }
 
   const { cats, total } = useMemo(() => calcPlannerCredits(plan, getCourse), [plan, courseById]);
   const indexedCourses = useMemo(() => buildCourseSearchIndex(liveCourses), [liveCourses]);
@@ -235,6 +285,13 @@ export default function App() {
     return (p[grade]||[]).reduce((sum, cid) => {
       return sum + getCourseSlots(getCourse(cid));
     }, 0);
+  }
+
+  function closeStartupDisclaimer() {
+    if (neverShowDisclaimer) {
+      try { localStorage.setItem("kalani-disclaimer-dismissed", "true"); } catch {}
+    }
+    setShowStartupDisclaimer(false);
   }
 
   return (
@@ -461,7 +518,7 @@ export default function App() {
                   width:"22px", height:"22px", cursor:"pointer", color:"white",
                   fontSize:"12px", display:"flex", alignItems:"center", justifyContent:"center",
                   flexShrink:0, lineHeight:1 }}>
-                ✕
+                X
               </button>
             </div>
           );
@@ -470,7 +527,7 @@ export default function App() {
         <AnimatePresence mode="wait">
 
         {/* ── HOME ── */}
-        {renderPage(page==="home","home",
+        {renderPage(page==="home","home", maintenanceContent("home",
           <div className="fade-in">
             <div style={{ background:`linear-gradient(135deg,var(--red-deep) 0%,var(--red-dark) 55%,var(--red) 100%)`,
               padding:"64px 24px 72px", textAlign:"center", position:"relative", overflow:"hidden" }}>
@@ -557,7 +614,7 @@ export default function App() {
                             {subLabel} · {c.credits}cr · Grade {c.gradeLevel.join("/")}
                           </div>
                         </div>
-                        <span style={{ fontSize:"11px", color:"var(--muted)", flexShrink:0 }}>View →</span>
+                        <span style={{ fontSize:"11px", color:"var(--muted)", flexShrink:0 }}>View</span>
                       </div>
                     );
                   })}
@@ -634,10 +691,10 @@ export default function App() {
               </div>
             </div>
           </div>
-        )}
+        ))}
 
         {/* ── CATALOG ── */}
-        {renderPage(page==="catalog","catalog",
+        {renderPage(page==="catalog","catalog", maintenanceContent("catalog",
           <div className="fade-in" style={{ maxWidth:"1200px", margin:"0 auto", padding:"32px 24px" }}>
             <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"30px", color:"var(--red-dark)",
               marginBottom:"22px" }}>Course Catalog</h1>
@@ -784,10 +841,10 @@ export default function App() {
                 )}
             </div>
           </div>
-        )}
+        ))}
 
         {/* ── PLANNER ── */}
-        {renderPage(page==="planner","planner",
+        {renderPage(page==="planner","planner", maintenanceContent("planner",
           <div className="fade-in" style={{ maxWidth:"1180px", margin:"0 auto", padding:"32px 24px" }}>
             <div className="planner-layout" style={{ display:"flex", gap:"28px", alignItems:"flex-start", flexWrap:"wrap" }}>
               <div style={{ flex:"1", minWidth:0 }}>
@@ -945,7 +1002,7 @@ export default function App() {
                                   {/* Left color bar */}
                                   <div style={{ width:"4px", alignSelf:"stretch",
                                     background:isOffCampus?"#475569":col, flexShrink:0 }}/>
-                                  {/* Shimmer — exact from planner-demo.jsx */}
+                                  {/* Shimmer - exact from planner-demo.jsx */}
                                   <motion.div
                                     initial={{ x:"-150%", skewX:-12 }}
                                     animate={{ x:"250%",  skewX:-12 }}
@@ -987,7 +1044,7 @@ export default function App() {
                                       )}
                                     </span>
                                   </div>
-                                  {/* Delete button — hover reveal */}
+                                  {/* Delete button - hover reveal */}
                                   <div className="delete-reveal" style={{ padding:"0 10px", flexShrink:0, zIndex:1 }}>
                                     <motion.div
                                       whileHover={{ backgroundColor:"#EF4444", scale:1.1, boxShadow:"0 4px 12px rgba(239,68,68,0.4)" }}
@@ -1010,7 +1067,7 @@ export default function App() {
                             );
                           })}
                         </AnimatePresence>
-                        {/* ── INLINE SEARCH — with open/close animation ── */}
+                        {/* ── INLINE SEARCH - with open/close animation ── */}
                         <AnimatePresence initial={false}>
                           {addTarget===grade && (
                             <motion.div
@@ -1244,11 +1301,10 @@ export default function App() {
               </div>
             </div>
           </div>
-          )}
-        </AnimatePresence>
+          ))}
 
       {/* ── COURSE MATCH PAGE ── */}
-      {renderPage(page==="match","match",
+      {renderPage(page==="match","match", maintenanceContent("match",
         <div style={{ maxWidth:"1100px", margin:"0 auto", padding:"32px 24px 60px" }}>
           {/* Header */}
           <div style={{ marginBottom:"28px" }}>
@@ -1267,8 +1323,11 @@ export default function App() {
           </p>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",
             gap:"14px", marginBottom:"32px" }}>
-            {COURSE_MATCH_TEMPLATES.filter(t=>t.pinned).map(t=>(
+            {COURSE_MATCH_TEMPLATES.filter(t=>t.pinned).map((t,index)=>(
               <motion.div key={t.id}
+                initial={{ opacity:0, y:22, scale:0.96 }}
+                animate={{ opacity:1, y:0, scale:1,
+                  transition:{ type:"spring", stiffness:350, damping:22, delay:index*0.06 } }}
                 whileHover={{ y:-3, boxShadow:"0 10px 28px rgba(0,0,0,0.10)" }}
                 transition={{ type:"spring", stiffness:350, damping:22 }}
                 onClick={()=>{ setMatchSelected(t); setApplyConfirm(false); }}
@@ -1299,8 +1358,11 @@ export default function App() {
           </p>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",
             gap:"14px" }}>
-            {COURSE_MATCH_TEMPLATES.filter(t=>!t.pinned).map(t=>(
+            {COURSE_MATCH_TEMPLATES.filter(t=>!t.pinned).map((t,index)=>(
               <motion.div key={t.id}
+                initial={{ opacity:0, y:22, scale:0.96 }}
+                animate={{ opacity:1, y:0, scale:1,
+                  transition:{ type:"spring", stiffness:350, damping:22, delay:0.12 + index*0.05 } }}
                 whileHover={{ y:-3, boxShadow:"0 10px 28px rgba(0,0,0,0.10)" }}
                 transition={{ type:"spring", stiffness:350, damping:22 }}
                 onClick={()=>{ setMatchSelected(t); setApplyConfirm(false); }}
@@ -1324,7 +1386,8 @@ export default function App() {
             ))}
           </div>
         </div>
-      )}
+      ))}
+        </AnimatePresence>
 
       {/* ── COURSE MATCH DETAIL MODAL ── */}
       <AnimatePresence mode="wait">
@@ -1337,14 +1400,20 @@ export default function App() {
               exit={{ opacity:0, scale:0.92, y:16, transition:{ duration:0.18, ease:"easeIn" } }}
               style={{ maxWidth:"560px" }}>
               {/* Header */}
-              <div style={{ padding:"22px 24px 16px", borderBottom:"1px solid var(--border)",
+              <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }}
+                transition={{ type:"spring", stiffness:300, damping:24, delay:0.06 }}
+                style={{ padding:"22px 24px 16px", borderBottom:"1px solid var(--border)",
                 display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                 <div>
                   <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"4px" }}>
-                    <span style={{ fontSize:"28px" }}>{matchSelected.emoji}</span>
-                    <span style={{ fontSize:"10px", fontWeight:800, padding:"3px 9px",
+                    <motion.span initial={{ scale:0.75, rotate:-8 }} animate={{ scale:1, rotate:0 }}
+                      transition={{ type:"spring", stiffness:380, damping:16, delay:0.12 }}
+                      style={{ fontSize:"28px", display:"inline-block" }}>{matchSelected.emoji}</motion.span>
+                    <motion.span initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }}
+                      transition={{ type:"spring", stiffness:320, damping:22, delay:0.16 }}
+                      style={{ fontSize:"10px", fontWeight:800, padding:"3px 9px",
                       borderRadius:"999px", background:matchSelected.tagBg,
-                      color:matchSelected.tagColor }}>{matchSelected.tag}</span>
+                      color:matchSelected.tagColor }}>{matchSelected.tag}</motion.span>
                   </div>
                   <h2 style={{ fontSize:"20px", fontWeight:800, color:"#0F172A",
                     fontFamily:"'Playfair Display',serif" }}>{matchSelected.title}</h2>
@@ -1352,46 +1421,65 @@ export default function App() {
                 <button onClick={()=>setMatchSelected(null)}
                   style={{ background:"#FFF1F0", border:"none", borderRadius:"50%",
                     width:"32px", height:"32px", cursor:"pointer",
-                    fontSize:"16px", color:"#B00804", flexShrink:0, touchAction:"manipulation" }}>✕</button>
-              </div>
+                    fontSize:"16px", color:"#B00804", flexShrink:0, touchAction:"manipulation" }}>X</button>
+              </motion.div>
 
-              <div style={{ padding:"20px 24px", display:"flex", flexDirection:"column", gap:"16px",
+              <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }}
+                transition={{ type:"spring", stiffness:300, damping:24, delay:0.14 }}
+                style={{ padding:"20px 24px", display:"flex", flexDirection:"column", gap:"16px",
                 maxHeight:"60vh", overflowY:"auto" }}>
                 {/* Description */}
-                <p style={{ fontSize:"13px", color:"var(--muted)", lineHeight:1.6 }}>{matchSelected.desc}</p>
+                <motion.p initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }}
+                  transition={{ duration:0.22, ease:"easeOut", delay:0.18 }}
+                  style={{ fontSize:"13px", color:"var(--muted)", lineHeight:1.6 }}>{matchSelected.desc}</motion.p>
 
                 {/* Best for */}
-                <div>
+                <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }}
+                  transition={{ type:"spring", stiffness:300, damping:24, delay:0.22 }}>
                   <div style={{ fontSize:"11px", fontWeight:700, textTransform:"uppercase",
                     letterSpacing:"0.07em", color:"var(--muted)", marginBottom:"6px" }}>Best for</div>
                   <div style={{ display:"flex", flexWrap:"wrap", gap:"6px" }}>
-                    {matchSelected.suited.map(s=>(
-                      <span key={s} style={{ fontSize:"11px", background:"#F8FAFC",
+                    {matchSelected.suited.map((s,i)=>(
+                      <motion.span key={s}
+                        initial={{ opacity:0, y:8, scale:0.96 }}
+                        animate={{ opacity:1, y:0, scale:1 }}
+                        transition={{ type:"spring", stiffness:340, damping:22, delay:0.25 + i*0.035 }}
+                        style={{ fontSize:"11px", background:"#F8FAFC",
                         border:"1px solid var(--border)", borderRadius:"6px",
-                        padding:"3px 9px", color:"var(--text)" }}>{s}</span>
+                        padding:"3px 9px", color:"var(--text)", display:"inline-block" }}>{s}</motion.span>
                     ))}
                   </div>
-                </div>
+                </motion.div>
 
                 {/* Highlights */}
-                <div>
+                <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }}
+                  transition={{ type:"spring", stiffness:300, damping:24, delay:0.30 }}>
                   <div style={{ fontSize:"11px", fontWeight:700, textTransform:"uppercase",
                     letterSpacing:"0.07em", color:"var(--muted)", marginBottom:"6px" }}>Highlights</div>
-                  {matchSelected.highlights.map(h=>(
-                    <div key={h} style={{ display:"flex", alignItems:"center", gap:"8px",
+                  {matchSelected.highlights.map((h,i)=>(
+                    <motion.div key={h}
+                      initial={{ opacity:0, x:-12 }}
+                      animate={{ opacity:1, x:0 }}
+                      transition={{ type:"spring", stiffness:330, damping:24, delay:0.34 + i*0.045 }}
+                      style={{ display:"flex", alignItems:"center", gap:"8px",
                       fontSize:"13px", color:"var(--text)", marginBottom:"4px" }}>
-                      <span style={{ color:"#059669", fontWeight:700 }}>✓</span> {h}
-                    </div>
+                      <span style={{ color:"#059669", fontWeight:700 }}>OK</span> {h}
+                    </motion.div>
                   ))}
-                </div>
+                </motion.div>
 
-                {/* 4-year preview — mini planner style */}
-                <div>
+                {/* 4-year preview - mini planner style */}
+                <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }}
+                  transition={{ type:"spring", stiffness:300, damping:24, delay:0.40 }}>
                   <div style={{ fontSize:"11px", fontWeight:700, textTransform:"uppercase",
                     letterSpacing:"0.07em", color:"var(--muted)", marginBottom:"10px" }}>4-Year Preview</div>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px" }}>
-                    {[9,10,11,12].map(g=>(
-                      <div key={g} style={{ borderRadius:"10px", border:"1.5px solid var(--border)",
+                    {[9,10,11,12].map((g,gradeIndex)=>(
+                      <motion.div key={g}
+                        initial={{ opacity:0, y:18, scale:0.96 }}
+                        animate={{ opacity:1, y:0, scale:1 }}
+                        transition={{ type:"spring", stiffness:340, damping:24, delay:0.45 + gradeIndex*0.055 }}
+                        style={{ borderRadius:"10px", border:"1.5px solid var(--border)",
                         overflow:"hidden" }}>
                         {/* Grade header */}
                         <div style={{ background:"var(--red)", padding:"6px 10px",
@@ -1405,12 +1493,15 @@ export default function App() {
                         </div>
                         {/* Course list */}
                         <div style={{ padding:"6px", display:"flex", flexDirection:"column", gap:"3px" }}>
-                          {(matchSelected.plan[g]||[]).map(cid=>{
+                          {(matchSelected.plan[g]||[]).map((cid,courseIndex)=>{
                             const c = getCourse(cid);
                             const col = c ? (deptColor(c.dept)+"18") : "#F1F5F9";
                             const textCol = c ? deptColor(c.dept) : "#64748B";
                             return (
-                              <div key={cid}
+                              <motion.div key={cid}
+                                initial={{ opacity:0, x:18, scale:0.96 }}
+                                animate={{ opacity:1, x:0, scale:1 }}
+                                transition={{ type:"spring", stiffness:360, damping:24, delay:0.52 + gradeIndex*0.055 + courseIndex*0.025 }}
                                 onClick={()=>{ if(c){ setMatchSelected(null); setSelectedCourse(c); } }}
                                 style={{ fontSize:"10px", fontWeight:600,
                                   background:col, color:textCol,
@@ -1426,18 +1517,20 @@ export default function App() {
                                   background:"#FEF3C7", color:"#92400E",
                                   borderRadius:"3px", padding:"0 3px", flexShrink:0 }}>AP</span>}
                                 {c ? c.name : cid}
-                              </div>
+                              </motion.div>
                             );
                           })}
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
-                </div>
-              </div>
+                </motion.div>
+              </motion.div>
 
               {/* Apply section */}
-              <div style={{ padding:"16px 24px", borderTop:"1px solid var(--border)" }}>
+              <motion.div initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }}
+                transition={{ type:"spring", stiffness:300, damping:24, delay:0.52 }}
+                style={{ padding:"16px 24px", borderTop:"1px solid var(--border)" }}>
                 {!applyConfirm ? (
                   <button onClick={()=>setApplyConfirm(true)}
                     style={{ width:"100%", background:"var(--red)", color:"white", border:"none",
@@ -1483,7 +1576,7 @@ export default function App() {
                     </div>
                   </div>
                 )}
-              </div>
+              </motion.div>
             </motion.div>
           </div>
         ) : null}
@@ -1505,7 +1598,7 @@ export default function App() {
                 <button onClick={()=>setShowCustomModal(false)}
                   style={{ background:"#FFF1F0", border:"none", borderRadius:"50%",
                     width:"32px", height:"32px", cursor:"pointer",
-                    fontSize:"16px", color:"#B00804", touchAction:"manipulation" }}>✕</button>
+                    fontSize:"16px", color:"#B00804", touchAction:"manipulation" }}>X</button>
               </div>
               <div style={{ padding:"20px 22px", display:"flex", flexDirection:"column", gap:"16px" }}>
                 <p style={{ fontSize:"12px", color:"var(--muted)", margin:0 }}>
@@ -1663,7 +1756,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* ── COURSE DETAIL MODAL — lives outside renderPage so catalog page can open it too ── */}
+      {/* ── COURSE DETAIL MODAL - lives outside renderPage so catalog page can open it too ── */}
       <AnimatePresence mode="wait">
         {selectedCourse ? (
           <div className="overlay" onClick={()=>setSelectedCourse(null)}>
@@ -1700,7 +1793,7 @@ export default function App() {
                     <div style={{ background:"#F8FAFC", border:"1.5px solid #CBD5E1", borderRadius:"12px",
                       padding:"16px", marginBottom:"14px" }}>
                       <div style={{ fontSize:"11px", fontWeight:800, textTransform:"uppercase",
-                        letterSpacing:"0.09em", color:"#64748B", marginBottom:"10px" }}>✅ Eligibility (all 3 required)</div>
+                        letterSpacing:"0.09em", color:"#64748B", marginBottom:"10px" }}>Eligibility (all 3 required)</div>
                       {selectedCourse.eligibility.map((e,i)=>(
                         <div key={i} style={{ display:"flex", gap:"9px", alignItems:"flex-start",
                           padding:"6px 0", borderBottom: i<selectedCourse.eligibility.length-1?"1px solid #E2E8F0":"none" }}>
@@ -1918,7 +2011,7 @@ export default function App() {
                           setModalWarn={setModalWarn}
                         />
                       ))}
-                      {/* Inline warning — appears below grade buttons, stays in modal */}
+                      {/* Inline warning - appears below grade buttons, stays in modal */}
                       {modalWarn && (
                         <div style={{ width:"100%", marginTop:"10px",
                           background:"#FEF9C3", border:"1.5px solid #EAB308",
@@ -1971,7 +2064,19 @@ export default function App() {
       </div>
 
       {/* ── DATA CITATION FOOTER ── */}
-      <DataCitationFooter />
+      <DataCitationFooter items={disclaimerItems} />
+
+      <AnimatePresence>
+        {showStartupDisclaimer ? (
+          <DataDisclaimerModal
+            onClose={closeStartupDisclaimer}
+            items={disclaimerItems}
+            showNeverAgain
+            neverAgain={neverShowDisclaimer}
+            onNeverAgainChange={setNeverShowDisclaimer}
+          />
+        ) : null}
+      </AnimatePresence>
 
       {/* ── TOAST ── */}
       <AnimatePresence>
@@ -1985,10 +2090,11 @@ export default function App() {
               fontSize:"13px", fontWeight:600, boxShadow:"0 4px 20px rgba(0,0,0,0.3)",
               zIndex:2000, pointerEvents:"none",
               display:"flex", alignItems:"center", gap:"8px" }}>
-            ✅ {toast}
+            {toast}
           </motion.div>
         ) : null}
       </AnimatePresence>
     </>
   );
 }
+
