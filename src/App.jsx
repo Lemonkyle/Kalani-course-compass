@@ -107,6 +107,10 @@ export default function App() {
   // Course Match
   const [matchSelected, setMatchSelected] = useState(null); // selected template for detail view
   const [applyConfirm, setApplyConfirm] = useState(false); // show apply confirmation
+  const canUseHover = useMemo(() => (
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(hover: hover) and (pointer: fine)")?.matches
+  ), []);
   // Stable UIDs for plan entries - prevents sibling cards re-animating on delete
   const planUids = useRef({
     9:  [], 10: [], 11: [], 12: [],
@@ -198,8 +202,9 @@ export default function App() {
     if (filterDept === "Miscellaneous" && filterMisc !== "All Miscellaneous")
       list = list.filter(c => c.miscType === filterMisc);
     if (searchQuery.trim()) {
-      const allowedIds = new Set(filterIndexedCourses(indexedCourses, searchQuery).map(course => course.id));
-      list = list.filter(c => allowedIds.has(c.id));
+      const allowedIds = new Set(list.map(course => course.id));
+      list = filterIndexedCourses(indexedCourses, searchQuery)
+        .filter(course => allowedIds.has(course.id));
     }
     return list;
   }, [filterDept, filterCtePath, filterFineArts, filterMisc, searchQuery, liveCourses, indexedCourses]);
@@ -365,13 +370,26 @@ export default function App() {
           --bg:#F7F8FA; --card:#fff; --text:#111827; --muted:#6B7280;
           --border:#E5E7EB; --light-red:#FFF1F0;
         }
-        body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);}
+        html,body,#root{width:100%;min-height:100%;overflow-x:hidden;}
+        body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);-webkit-text-size-adjust:100%;}
+        button,input,select,textarea{font:inherit;}
+        button,.c-card,.add-btn,.dept-btn,.prereq-chip,[role="button"]{
+          -webkit-tap-highlight-color:transparent;
+        }
         .fade-in{animation:fadeIn 0.3s ease;}
         @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         .nav-link{cursor:pointer;padding:8px 15px;border-radius:8px;font-weight:600;font-size:14px;
           color:rgba(255,255,255,0.65);transition:all 0.2s;white-space:nowrap;}
         .nav-link:hover{color:#fff;background:rgba(255,255,255,0.14);}
         .nav-link.active{color:#fff;background:rgba(255,255,255,0.22);}
+        .top-nav{overscroll-behavior-x:contain;}
+        .nav-logo{flex:0 0 auto;}
+        .logo-short,.nav-label-short{display:none;}
+        .nav-item{position:relative;cursor:pointer;padding:8px 15px;border-radius:8px;
+          min-height:42px;display:flex;align-items:center;justify-content:center;
+          touch-action:manipulation;flex:0 0 auto;}
+        .nav-item-label{position:relative;z-index:1;font-weight:600;font-size:14px;
+          transition:color 0.2s;white-space:nowrap;}
         .c-card{background:white;border-radius:12px;padding:16px;border:1px solid var(--border);
           cursor:pointer;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.06);
           display:flex;flex-direction:column;height:100%;}
@@ -418,6 +436,8 @@ export default function App() {
         .warn-banner{background:#FEF9C3;border:1.5px solid #EAB308;border-radius:10px;padding:12px 16px;margin:10px 0;font-size:13px;color:#78350F;}
         .honors-check{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
         .honors-check:last-child{border-bottom:none;}
+        .match-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
+        .course-meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
         @media(max-width:900px){
           .plan-grid{grid-template-columns:1fr 1fr !important;}
         }
@@ -427,35 +447,68 @@ export default function App() {
           .planner-sidebar > div{position:static !important;}
           .catalog-search-row{flex-direction:column !important;align-items:stretch !important;}
           .catalog-search-row .si{max-width:100% !important;}
+          .top-nav{height:auto !important;min-height:58px !important;overflow-x:auto;
+            -webkit-overflow-scrolling:touch;scrollbar-width:none;padding:8px 12px !important;
+            gap:6px !important;align-items:center !important;}
+          .top-nav::-webkit-scrollbar{display:none;}
+          .nav-item{padding:8px 12px !important;min-height:42px;}
+          .si{font-size:16px;}
+          .overlay{padding:12px;align-items:flex-end;}
+          .modal{width:100% !important;max-height:calc(100dvh - 24px) !important;
+            border-radius:16px !important;overscroll-behavior:contain;}
+          .grade-toggle-btn{min-width:calc(50% - 4px) !important;flex:1 1 calc(50% - 4px);}
+          .match-grid{grid-template-columns:1fr !important;}
+          .course-meta-grid{grid-template-columns:1fr !important;}
         }
         @media(max-width:600px){
           .plan-grid{grid-template-columns:1fr !important;}
           .catalog-grid{grid-template-columns:1fr !important;}
           .stat-grid{grid-template-columns:1fr 1fr !important;}
           .grad-grid{grid-template-columns:1fr !important;}
-          nav{gap:0 !important;padding:0 10px !important;}
-          .nav-logo{font-size:16px !important;margin-right:6px !important;}
+          .nav-logo{font-size:16px !important;margin-right:2px !important;max-width:72px;
+            overflow:hidden;white-space:nowrap;}
+          .logo-full,.nav-label-full{display:none !important;}
+          .logo-short,.nav-label-short{display:inline !important;}
+          .nav-item{padding:8px 8px !important;}
+          .nav-item-label{font-size:12px !important;}
           .nav-link{padding:6px 8px !important;font-size:11px !important;}
-          .modal{border-radius:14px !important;margin:8px !important;padding:0 !important;}
+          .modal{border-radius:14px 14px 0 0 !important;margin:0 !important;padding:0 !important;}
           h1{font-size:24px !important;}
           .hero-btns{flex-direction:column !important;align-items:center !important;}
+          .hero-btns button{width:100%;max-width:320px;min-height:46px;}
           .grade-btn-row{flex-wrap:wrap !important;}
+          .p-tag{min-width:0;flex-basis:100%;}
           /* delete button always visible on touch */
           .delete-reveal{opacity:1 !important;transform:translateX(0) !important;}
           .planner-hint{display:none;}
         }
-        @media(hover:hover){
+        @media(hover:hover) and (pointer:fine){
           /* restore hover-only delete on non-touch devices */
           .delete-reveal{opacity:0;transform:translateX(12px);}
           .card-hover-group:hover .delete-reveal{opacity:1;transform:translateX(0);}
           .planner-hint{display:block;}
+        }
+        @media(hover:none), (pointer:coarse){
+          .c-card,.dept-btn,.add-btn,.prereq-chip,.delete-reveal{transition:none !important;}
+          .c-card:hover{transform:none;box-shadow:0 1px 3px rgba(0,0,0,0.06);border-color:var(--border);}
+          .dept-btn:hover{transform:none;border-color:var(--border);color:var(--muted);}
+          .dept-btn.active:hover{transform:none;color:white!important;}
+          .add-btn:hover{border-color:#D1D5DB;color:#9CA3AF;background:transparent;}
+          .rm-btn:hover{color:#9CA3AF;}
+          .delete-reveal{opacity:1 !important;transform:translateX(0) !important;}
+          .plan-card-new,.fade-in{animation:none !important;}
+        }
+        @media(prefers-reduced-motion:reduce){
+          *,*::before,*::after{animation-duration:0.001ms !important;
+            animation-iteration-count:1 !important;scroll-behavior:auto !important;
+            transition-duration:0.001ms !important;}
         }
       `}</style>
 
       <div style={{ minHeight:"100vh" }}>
 
         {/* NAV */}
-        <nav style={{ background:`linear-gradient(90deg,var(--red-deep),var(--red-dark) 50%,var(--red))`,
+        <nav className="top-nav" style={{ background:`linear-gradient(90deg,var(--red-deep),var(--red-dark) 50%,var(--red))`,
           padding:"0 24px", display:"flex", alignItems:"center", gap:"2px", height:"58px",
           position:"sticky", top:0, zIndex:100, boxShadow:"0 2px 20px rgba(107,5,3,0.4)" }}>
           <div onClick={()=>navigate("home")}
@@ -463,18 +516,18 @@ export default function App() {
               marginRight:"20px", cursor:"pointer", textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>
             🦅 Kalani Compass
           </div>
-          {[["home","Home"],["catalog","Courses"],["match","Course Match"],["planner","4-Year Planner"]].map(([id,label])=>(
+          {[["home","Home","Home"],["catalog","Courses","Courses"],["match","Course Match","Match"],["planner","4-Year Planner","Planner"]].map(([id,label,shortLabel])=>(
             <div key={id} onClick={()=>navigate(id)}
-              style={{ position:"relative", cursor:"pointer", padding:"8px 15px", borderRadius:"8px" }}>
+              className="nav-item">
               {page===id ? (
                 <motion.div layoutId="nav-pill"
                   style={{ position:"absolute", inset:0, borderRadius:"8px",
                     background:"rgba(255,255,255,0.22)", boxShadow:"0 2px 8px rgba(0,0,0,0.15) inset" }}
                   transition={{ type:"spring", stiffness:400, damping:25 }}/>
               ) : null}
-              <span style={{ position:"relative", zIndex:1, fontWeight:600, fontSize:"14px",
-                color:page===id?"white":"rgba(255,255,255,0.65)", transition:"color 0.2s", whiteSpace:"nowrap" }}>
-                {label}
+              <span className="nav-item-label" style={{ color:page===id?"white":"rgba(255,255,255,0.65)" }}>
+                <span className="nav-label-full">{label}</span>
+                <span className="nav-label-short">{shortLabel}</span>
               </span>
             </div>
             ))}
@@ -717,7 +770,7 @@ export default function App() {
                 {CTE_PATHS.map(p=>(
                   <motion.div key={p}
                     whileTap={{ scale:0.90 }}
-                    whileHover={{ scale:filterCtePath===p?1:1.06 }}
+                    whileHover={canUseHover ? { scale:filterCtePath===p?1:1.06 } : undefined}
                     transition={{ type:"spring", stiffness:400, damping:20 }}
                     onClick={()=>{ setFilterCtePath(p); setGridKey(k=>k+1); }}
                     style={{ padding:"5px 11px", borderRadius:"7px", cursor:"pointer", fontSize:"11px",
@@ -735,7 +788,7 @@ export default function App() {
                 {FINE_ARTS_TYPES.map(t=>(
                   <motion.div key={t}
                     whileTap={{ scale:0.90 }}
-                    whileHover={{ scale:filterFineArts===t?1:1.06 }}
+                    whileHover={canUseHover ? { scale:filterFineArts===t?1:1.06 } : undefined}
                     transition={{ type:"spring", stiffness:400, damping:20 }}
                     onClick={()=>{ setFilterFineArts(t); setGridKey(k=>k+1); }}
                     style={{ padding:"5px 11px", borderRadius:"7px", cursor:"pointer", fontSize:"11px",
@@ -753,7 +806,7 @@ export default function App() {
                 {MISC_TYPES.map(t=>(
                   <motion.div key={t}
                     whileTap={{ scale:0.90 }}
-                    whileHover={{ scale:filterMisc===t?1:1.06 }}
+                    whileHover={canUseHover ? { scale:filterMisc===t?1:1.06 } : undefined}
                     transition={{ type:"spring", stiffness:400, damping:20 }}
                     onClick={()=>{ setFilterMisc(t); setGridKey(k=>k+1); }}
                     style={{ padding:"5px 11px", borderRadius:"7px", cursor:"pointer", fontSize:"11px",
@@ -772,7 +825,7 @@ export default function App() {
             <div key={gridKey} className="catalog-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(295px,1fr))", gap:"14px" }}>
               {filteredCourses.map((c, index)=>(
                 <div key={c.id} className="c-card"
-                  style={{ animation:"cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) "+(index*0.045)+"s both" }}
+                  style={{ animation:canUseHover ? "cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) "+(index*0.045)+"s both" : "none" }}
                   onClick={()=>setSelectedCourse(c)}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"8px" }}>
                     <div style={{ display:"flex", flexWrap:"wrap", gap:"4px", alignItems:"center" }}>
@@ -1002,16 +1055,17 @@ export default function App() {
                                   {/* Left color bar */}
                                   <div style={{ width:"4px", alignSelf:"stretch",
                                     background:isOffCampus?"#475569":col, flexShrink:0 }}/>
-                                  {/* Shimmer - exact from planner-demo.jsx */}
-                                  <motion.div
-                                    initial={{ x:"-150%", skewX:-12 }}
-                                    animate={{ x:"250%",  skewX:-12 }}
-                                    transition={{ duration:0.9, ease:"easeInOut", delay:0.12 }}
-                                    style={{
-                                      position:"absolute", top:"-30%", bottom:"-30%", left:0, width:"55%",
-                                      background:"linear-gradient(to right,transparent,"+(isOffCampus?"rgba(71,85,105,0.25)":col+"60")+","+(isOffCampus?"rgba(71,85,105,0.1)":col+"35")+",transparent)",
-                                      pointerEvents:"none", zIndex:20,
-                                    }}/>
+                                  {canUseHover ? (
+                                    <motion.div
+                                      initial={{ x:"-150%", skewX:-12 }}
+                                      animate={{ x:"250%",  skewX:-12 }}
+                                      transition={{ duration:0.9, ease:"easeInOut", delay:0.12 }}
+                                      style={{
+                                        position:"absolute", top:"-30%", bottom:"-30%", left:0, width:"55%",
+                                        background:"linear-gradient(to right,transparent,"+(isOffCampus?"rgba(71,85,105,0.25)":col+"60")+","+(isOffCampus?"rgba(71,85,105,0.1)":col+"35")+",transparent)",
+                                        pointerEvents:"none", zIndex:20,
+                                      }}/>
+                                  ) : null}
                                   {/* Content */}
                                   <div style={{ flex:1, padding:"9px 10px", minWidth:0, position:"relative", zIndex:1 }}>
                                     <div style={{ display:"flex", alignItems:"center", gap:"4px", marginBottom:"2px" }}>
@@ -1047,7 +1101,7 @@ export default function App() {
                                   {/* Delete button - hover reveal */}
                                   <div className="delete-reveal" style={{ padding:"0 10px", flexShrink:0, zIndex:1 }}>
                                     <motion.div
-                                      whileHover={{ backgroundColor:"#EF4444", scale:1.1, boxShadow:"0 4px 12px rgba(239,68,68,0.4)" }}
+                                      whileHover={canUseHover ? { backgroundColor:"#EF4444", scale:1.1, boxShadow:"0 4px 12px rgba(239,68,68,0.4)" } : undefined}
                                       whileTap={{ scale:0.92 }}
                                       onClick={()=>removeCourse(grade,idx)}
                                       style={{ width:"30px", height:"30px", borderRadius:"50%",
@@ -1321,14 +1375,13 @@ export default function App() {
             textTransform:"uppercase", color:"var(--muted)", marginBottom:"12px" }}>
             📌 Featured Plans
           </p>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",
-            gap:"14px", marginBottom:"32px" }}>
+          <div className="match-grid" style={{ marginBottom:"32px" }}>
             {COURSE_MATCH_TEMPLATES.filter(t=>t.pinned).map((t,index)=>(
               <motion.div key={t.id}
                 initial={{ opacity:0, y:22, scale:0.96 }}
                 animate={{ opacity:1, y:0, scale:1,
                   transition:{ type:"spring", stiffness:350, damping:22, delay:index*0.06 } }}
-                whileHover={{ y:-3, boxShadow:"0 10px 28px rgba(0,0,0,0.10)" }}
+                whileHover={canUseHover ? { y:-3, boxShadow:"0 10px 28px rgba(0,0,0,0.10)" } : undefined}
                 transition={{ type:"spring", stiffness:350, damping:22 }}
                 onClick={()=>{ setMatchSelected(t); setApplyConfirm(false); }}
                 style={{ background:"white", borderRadius:"14px", padding:"18px",
@@ -1356,14 +1409,13 @@ export default function App() {
             textTransform:"uppercase", color:"var(--muted)", marginBottom:"12px" }}>
             More Plans
           </p>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",
-            gap:"14px" }}>
+          <div className="match-grid">
             {COURSE_MATCH_TEMPLATES.filter(t=>!t.pinned).map((t,index)=>(
               <motion.div key={t.id}
                 initial={{ opacity:0, y:22, scale:0.96 }}
                 animate={{ opacity:1, y:0, scale:1,
                   transition:{ type:"spring", stiffness:350, damping:22, delay:0.12 + index*0.05 } }}
-                whileHover={{ y:-3, boxShadow:"0 10px 28px rgba(0,0,0,0.10)" }}
+                whileHover={canUseHover ? { y:-3, boxShadow:"0 10px 28px rgba(0,0,0,0.10)" } : undefined}
                 transition={{ type:"spring", stiffness:350, damping:22 }}
                 onClick={()=>{ setMatchSelected(t); setApplyConfirm(false); }}
                 style={{ background:"white", borderRadius:"14px", padding:"18px",
@@ -1853,7 +1905,7 @@ export default function App() {
                 ) : (
                   /* ── REGULAR COURSE BODY ── */
                   <div>
-                    <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"10px", marginBottom:"16px" }}>
+                    <div className="course-meta-grid">
                       {[["Credits",selectedCourse.credits+" cr"],
                         ["Grade",selectedCourse.gradeLevel.join("/")],
                         ["Duration",selectedCourse.credits===0.5?"Semester":"Year"]].map(([k,v])=>(
@@ -2097,4 +2149,3 @@ export default function App() {
     </>
   );
 }
-

@@ -29,30 +29,52 @@ export function buildCourseSearchIndex(courses) {
     // name/code/dept/id → searched as substrings (precise fields)
     const nameText = [c.name, c.code, c.dept, c.id,
       c.ctePath, c.fineArtsType, c.miscType]
-      .filter(Boolean).join(" ").toLowerCase();
+      .filter(Boolean).join(" ");
     // desc/tips → tokenised into individual words for whole-word matching only
     const descWords = new Set(
       [c.desc, c.tips].filter(Boolean).join(" ")
         .toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(w => w.length > 2)
     );
-    index.set(c.id, { course: c, nameText, descWords });
+    index.set(c.id, { course: c, nameText: normalizeSearchText(nameText), descWords });
   }
   return index;
 }
+
+function normalizeSearchText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function filterIndexedCourses(index, query, limit) {
   if (!query || !query.trim()) return [];
-  const tokens = query.trim().toLowerCase().split(/\s+/);
+  const queryText = normalizeSearchText(query);
+  if (!queryText) return [];
+  const tokens = queryText.split(/\s+/).filter(Boolean);
+  const queryCompact = queryText.replace(/\s/g, "");
   const results = [];
   for (const { course, nameText, descWords } of index.values()) {
     let score = 0;
-    const nameLow = (course.name || "").toLowerCase();
+    const nameLow = normalizeSearchText(course.name);
+    const nameCompact = nameLow.replace(/\s/g, "");
+
+    if (nameLow === queryText || nameCompact === queryCompact) {
+      score += 1000;
+    } else if (nameLow.startsWith(queryText + " ") || nameCompact.startsWith(queryCompact)) {
+      score += 700;
+    } else if (nameLow.includes(queryText)) {
+      score += 500;
+    }
+
     for (const token of tokens) {
       // Tier 1 (10): exact full-name match
-      if (nameLow === token) { score += 10; continue; }
+      if (nameLow === token) { score += 100; continue; }
       // Tier 2 (7): name starts with token (e.g. "AP " matches all AP courses)
-      if (nameLow.startsWith(token + " ") || nameLow === token) { score += 7; continue; }
+      if (nameLow.startsWith(token + " ") || nameLow === token) { score += 70; continue; }
       // Tier 3 (5): name contains token as word (e.g. "calculus" in "AP Calculus")
-      if (new RegExp("\\b" + token).test(nameLow)) { score += 5; continue; }
+      if (nameLow.split(" ").some(word => word.startsWith(token))) { score += 50; continue; }
       // Tier 4 (3): code / dept / id / pathway substring match
       if (nameText.includes(token)) { score += 3; continue; }
       // Tier 5 (1): whole-word match in description only — no substring
@@ -60,7 +82,10 @@ export function filterIndexedCourses(index, query, limit) {
     }
     if (score > 0) results.push({ course, score });
   }
-  results.sort((a, b) => b.score - a.score);
+  results.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return sortCourses([a.course, b.course])[0] === a.course ? -1 : 1;
+  });
   const out = results.map(r => r.course);
   return limit ? out.slice(0, limit) : out;
 }
@@ -470,16 +495,16 @@ export const cardVariants = {
 export const contentVariants = {
   hidden: { x:50, opacity:0, scale:0.95 },
   show:  { x:0, opacity:1, scale:1, transition:{ type:"spring", stiffness:350, damping:25, delay:0.05 } },
-  exit:  { x:-60, opacity:0, scale:0.95, filter:"blur(8px)", transition:{ type:"spring", stiffness:400, damping:25 } }
+  exit:  { x:-60, opacity:0, scale:0.95, transition:{ type:"spring", stiffness:400, damping:25 } }
 };
 export const shakeAnim = { x:[0,-8,8,-6,6,-3,3,0], transition:{ duration:0.4, ease:"easeInOut" } };
 
 // ── PAGE TRANSITION (from nav-demo.jsx) ──────────────────────────────
 const pageVariants = {
-  initial: { opacity:0, y:15, filter:"blur(4px)", scale:0.98 },
-  animate: { opacity:1, y:0,  filter:"blur(0px)", scale:1,
+  initial: { opacity:0, y:12, scale:0.99 },
+  animate: { opacity:1, y:0, scale:1,
     transition:{ type:"spring", stiffness:300, damping:25, mass:0.8 } },
-  exit:    { opacity:0, y:-15, filter:"blur(4px)", scale:0.98,
+  exit:    { opacity:0, y:-10, scale:0.99,
     transition:{ duration:0.2, ease:"easeIn" } },
 };
 
@@ -596,7 +621,8 @@ export function DataDisclaimerModal({ onClose, items = DEFAULT_DISCLAIMER_ITEMS.
         initial={{ opacity:0, scale:0.88, y:24 }}
         animate={{ opacity:1, scale:1, y:0, transition:{ type:"spring", stiffness:350, damping:22 } }}
         exit={{ opacity:0, scale:0.92, y:16, transition:{ duration:0.18, ease:"easeIn" } }}
-        style={{ maxWidth:"540px", width:"92vw" }}>
+        style={{ maxWidth:"540px", width:"92vw", display:"flex", flexDirection:"column",
+          overflow:"hidden" }}>
         <div style={{ padding:"24px 26px", borderBottom:"1px solid #E5E7EB",
           display:"flex", justifyContent:"space-between", alignItems:"center", gap:"16px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:"10px", minWidth:0 }}>
@@ -612,7 +638,8 @@ export function DataDisclaimerModal({ onClose, items = DEFAULT_DISCLAIMER_ITEMS.
               height:"32px", cursor:"pointer", fontSize:"16px", color:"#B00804",
               flexShrink:0, touchAction:"manipulation" }}>×</button>
         </div>
-        <div style={{ padding:"22px 26px", display:"flex", flexDirection:"column", gap:"16px" }}>
+        <div style={{ padding:"22px 26px", display:"flex", flexDirection:"column", gap:"16px",
+          overflowY:"auto", flex:"1 1 auto", minHeight:0 }}>
           {items.map(({icon,label,text}, i)=>(
             <motion.div key={label}
               initial={{ opacity:0, y:12 }}
@@ -630,7 +657,8 @@ export function DataDisclaimerModal({ onClose, items = DEFAULT_DISCLAIMER_ITEMS.
         </div>
         {showNeverAgain ? (
           <div style={{ padding:"16px 26px 22px", borderTop:"1px solid #E5E7EB",
-            display:"flex", flexDirection:"column", gap:"14px" }}>
+            display:"flex", flexDirection:"column", gap:"14px", flex:"0 0 auto",
+            background:"white", boxShadow:"0 -8px 18px rgba(15,23,42,0.04)" }}>
             <label style={{ display:"flex", alignItems:"center", gap:"9px",
               fontSize:"12px", color:"#475569", fontWeight:700, cursor:"pointer",
               userSelect:"none" }}>
@@ -695,6 +723,9 @@ export function GradeBtn({ grade, plan, selectedCourse, GRADE_MAX, gradeSlots,
   // justAdded: true right after clicking add — prevents immediate × Remove on hover
   const justAdded = useRef(false);
   const [hovered, setHovered] = useState(false);
+  const canUseHover = typeof window !== "undefined" &&
+    window.matchMedia?.("(hover: hover) and (pointer: fine)")?.matches;
+  const actionDelay = canUseHover ? 220 : 120;
 
   const already     = !selectedCourse.repeatable && Object.values(plan).flat().includes(selectedCourse.id);
   const inThisGrade = (plan[grade]||[]).includes(selectedCourse.id);
@@ -718,7 +749,7 @@ export function GradeBtn({ grade, plan, selectedCourse, GRADE_MAX, gradeSlots,
       justAdded.current = true;
       setModalWarn(null);
       showToast("Added \"" + selectedCourse.name + "\" to Grade " + grade);
-    }, 320);
+    }, actionDelay);
   }
 
   function doRemove() {
@@ -735,12 +766,16 @@ export function GradeBtn({ grade, plan, selectedCourse, GRADE_MAX, gradeSlots,
       justAdded.current = false;
       setBtnState("idle");
       showToast("Removed \"" + selectedCourse.name + "\" from Grade " + grade);
-    }, 320);
+    }, actionDelay);
   }
 
   function handleClick() {
     if (disabled) return;
-    if (isDone || isRemoving) { doRemove(); return; }
+    if (isDone || isRemoving) {
+      if (!canUseHover || !hovered || justAdded.current) return;
+      doRemove();
+      return;
+    }
     if (btnState !== "idle") return;
     const before = getCoursesBeforeGrade(plan, grade);
     const upTo   = getAllCoursesUpTo(plan, grade);
@@ -785,7 +820,7 @@ export function GradeBtn({ grade, plan, selectedCourse, GRADE_MAX, gradeSlots,
         transition:"transform 0.2s cubic-bezier(0.34,1.56,0.64,1), background 0.25s, border-color 0.25s, color 0.25s",
         opacity: disabled ? 0.45 : 1,
       }}
-      onMouseEnter={e=>{ if(disabled) return;
+      onMouseEnter={e=>{ if(disabled || !canUseHover) return;
         justAdded.current = false;
         setHovered(true);
         if(isDone){
@@ -800,14 +835,17 @@ export function GradeBtn({ grade, plan, selectedCourse, GRADE_MAX, gradeSlots,
           e.currentTarget.style.transform="scale(1.06)";
         }
       }}
-      onMouseLeave={e=>{ if(disabled) return;
+      onMouseLeave={e=>{ if(disabled || !canUseHover) return;
         justAdded.current = false;
         setHovered(false);
         e.currentTarget.style.background=bgCol;
         e.currentTarget.style.color=textCol;
         e.currentTarget.style.borderColor=borderCol;
         e.currentTarget.style.transform="scale(1)";
-      }}>
+      }}
+      onTouchStart={()=>setHovered(false)}
+      onPointerCancel={()=>setHovered(false)}
+      onBlur={()=>setHovered(false)}>
       {/* "Grade X" — idle label, slides out when adding or done */}
       <span style={{
         position:"absolute", left:0, right:0,
