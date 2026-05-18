@@ -2,12 +2,23 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../supabase.js";
 import {
-  COURSES, GRAD_REQUIREMENTS, PREREQ_EQUIV, HONORS_DEFS,
-  BEYOND_ALG2_IDS, DEPT_COLORS, DEFAULT_PLAN, DEPT_ORDER,
+  COURSES, GRAD_REQUIREMENTS, PREREQ_EQUIV,
+  BEYOND_ALG2_IDS, DEPT_COLORS, DEPT_ORDER,
 } from "./data.js";
 
 // ───────────────────────────────────────────────────────────────────────────
 export const GRADE_MAX = 14.0;
+
+export function safeExternalUrl(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    return ["http:", "https:"].includes(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
 
 export function getCourseSlots(course) {
   if (!course) return 0;
@@ -191,13 +202,11 @@ export function sortCourses(arr) {
 
 export function useCourseData() {
   const [courses, setCourses] = useState(sortCourses(COURSES));
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchCourses() {
       if (!supabase) {
         console.warn("[Kalani Compass] Supabase not configured, using local fallback");
-        setLoading(false);
         return;
       }
 
@@ -210,7 +219,6 @@ export function useCourseData() {
       if (error) {
         console.error("[Kalani Compass] fetchCourses error:", error.message);
         // Fallback: keep using local COURSES array
-        setLoading(false);
         return;
       }
       if (data && data.length > 0) {
@@ -219,38 +227,33 @@ export function useCourseData() {
       } else {
         console.warn("[Kalani Compass] fetchCourses: empty response, using local fallback");
       }
-      setLoading(false);
     }
     fetchCourses();
   }, []);
 
-  return { courses, gradReqs: GRAD_REQUIREMENTS, loading, error: null };
+  return { courses };
 }
 export function useAnnouncements() {
   const [announcements, setAnnouncements] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchAnnouncements() {
-      if (!supabase) {
-        setLoading(false);
-        return;
-      }
+      if (!supabase) return;
 
       const now = new Date().toISOString();
       const { data, error } = await supabase
         .from("announcements")
         .select("*")
         .eq("visible", true)
+        .or(`starts_at.is.null,starts_at.lte.${now}`)
         .or(`ends_at.is.null,ends_at.gte.${now}`)
         .order("created_at", { ascending: false });
       if (!error && data) setAnnouncements(data);
-      setLoading(false);
     }
     fetchAnnouncements();
   }, []);
 
-  return { announcements, loading };
+  return { announcements };
 }
 // ─────────────────────────────────────────────────────────────────────────────────
 
@@ -263,14 +266,10 @@ const DEFAULT_PAGE_MAINTENANCE = {
 
 export function usePageMaintenance() {
   const [maintenance, setMaintenance] = useState(DEFAULT_PAGE_MAINTENANCE);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchPageMaintenance() {
-      if (!supabase) {
-        setLoading(false);
-        return;
-      }
+      if (!supabase) return;
 
       const { data, error } = await supabase
         .from("page_maintenance")
@@ -278,7 +277,6 @@ export function usePageMaintenance() {
 
       if (error) {
         console.error("[Kalani Compass] fetchPageMaintenance error:", error.message);
-        setLoading(false);
         return;
       }
 
@@ -289,16 +287,13 @@ export function usePageMaintenance() {
         }
       });
       setMaintenance(next);
-      setLoading(false);
     }
 
     fetchPageMaintenance();
   }, []);
 
-  return { maintenance, loading };
+  return { maintenance };
 }
-
-const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');`;
 
 // ───────────────────────────────────────────────────────────────────────────
 export function getCourseName(id, getCourseForId = getCourse) {
@@ -569,7 +564,7 @@ export const DEFAULT_DISCLAIMER_ITEMS = [
   { id:"primary-source", icon:"📚", label:"Primary Source", text:"Kalani High School 2026-2027 Registration Guide & Course Catalog. All course names, codes, credit values, grade levels, and prerequisite chains are derived from this document.", sortOrder:10, visible:true },
   { id:"graduation-requirements", icon:"🎓", label:"Graduation Requirements", text:"Hawaii Department of Education Graduation Requirements, effective July 2023. Credit minimums and subject-area breakdowns follow this policy document.", sortOrder:20, visible:true },
   { id:"planning-reference", icon:"⚠️", label:"Planning Reference Only", text:"Kalani Compass is an unofficial planning tool. It is not affiliated with Kalani High School or the Hawaii DOE. Always confirm your 4-year plan with your school counselor before submitting your registration card.", sortOrder:30, visible:true },
-  { id:"plan-privacy", icon:"💾", label:"Your Plan & Privacy", text:"Your 4-year plan is saved in your browser's local storage and is never uploaded to any server or shared with anyone. However, your plan is tied to this specific browser and device — switching to a different device will reset your plan. We recommand to use your private device.", sortOrder:40, visible:true },
+  { id:"plan-privacy", icon:"💾", label:"Your Plan & Privacy", text:"Your 4-year plan is saved in your browser's local storage and is never uploaded to any server or shared with anyone. However, your plan is tied to this specific browser and device — switching to a different device will reset your plan. We recommend using your private device.", sortOrder:40, visible:true },
   { id:"last-data-update", icon:"🔄", label:"Last Data Update", text:"Course catalog last reviewed: March 2026. Based on the 2026-2027 Kalani High School Course Catalog.", sortOrder:50, visible:true },
 ];
 
@@ -586,14 +581,10 @@ function normalizeDisclaimerItem(row) {
 
 export function useDisclaimerItems() {
   const [items, setItems] = useState(DEFAULT_DISCLAIMER_ITEMS.filter(item => item.visible));
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchDisclaimerItems() {
-      if (!supabase) {
-        setLoading(false);
-        return;
-      }
+      if (!supabase) return;
 
       const { data, error } = await supabase
         .from("disclaimer_items")
@@ -606,12 +597,11 @@ export function useDisclaimerItems() {
       } else if (error) {
         console.error("[Kalani Compass] fetchDisclaimerItems error:", error.message);
       }
-      setLoading(false);
     }
     fetchDisclaimerItems();
   }, []);
 
-  return { items, loading };
+  return { items };
 }
 
 export function DataDisclaimerModal({ onClose, items = DEFAULT_DISCLAIMER_ITEMS.filter(item => item.visible), showNeverAgain = false, neverAgain = false, onNeverAgainChange }) {
@@ -714,10 +704,10 @@ export function DataCitationFooter({ items = DEFAULT_DISCLAIMER_ITEMS.filter(ite
   );
 }
 // ── GradeBtn — slide-text animation, supports add + remove toggle ──
-export function GradeBtn({ grade, plan, selectedCourse, GRADE_MAX, gradeSlots,
+export function GradeBtn({ grade, plan, selectedCourse, gradeSlots,
                    getCoursesBeforeGrade, getAllCoursesUpTo, getUnmetPrereqs,
                    getCoreConflict, planUids, setPlan,
-                   showToast, modalWarn, setModalWarn }) {
+                   showToast, setModalWarn }) {
   // btnState: "idle" | "adding" | "done" | "removing"
   const [btnState, setBtnState] = useState("idle");
   // justAdded: true right after clicking add — prevents immediate × Remove on hover
@@ -729,26 +719,34 @@ export function GradeBtn({ grade, plan, selectedCourse, GRADE_MAX, gradeSlots,
 
   const already     = !selectedCourse.repeatable && Object.values(plan).flat().includes(selectedCourse.id);
   const inThisGrade = (plan[grade]||[]).includes(selectedCourse.id);
-  const full        = gradeSlots(plan, grade) >= GRADE_MAX;
+  const usedSlots   = gradeSlots(plan, grade);
+  const wouldExceed = !inThisGrade && usedSlots + getCourseSlots(selectedCourse) > GRADE_MAX;
+  const full        = usedSlots >= GRADE_MAX;
   // disabled only when another grade has it AND not repeatable, or grade is full (but not for the grade it's already IN)
-  const disabled    = (already && !inThisGrade && !selectedCourse.repeatable) || (full && !inThisGrade);
+  const disabled    = (already && !inThisGrade && !selectedCourse.repeatable) || wouldExceed;
   const isDone      = btnState === "done" || (btnState === "idle" && inThisGrade);
   const isRemoving  = btnState === "removing";
 
   function doAdd() {
     setBtnState("adding");
     setTimeout(() => {
-      planUids.current[grade].push(Math.random().toString(36).slice(2));
+      let added = false;
       setPlan(p => {
         const n = JSON.parse(JSON.stringify(p));
         if (!selectedCourse.repeatable && Object.values(n).flat().includes(selectedCourse.id)) return p;
         n[grade].push(selectedCourse.id);
+        planUids.current[grade].push(Math.random().toString(36).slice(2));
+        added = true;
         return n;
       });
-      setBtnState("done");
-      justAdded.current = true;
-      setModalWarn(null);
-      showToast("Added \"" + selectedCourse.name + "\" to Grade " + grade);
+      if (added) {
+        setBtnState("done");
+        justAdded.current = true;
+        setModalWarn(null);
+        showToast("Added \"" + selectedCourse.name + "\" to Grade " + grade);
+      } else {
+        setBtnState("idle");
+      }
     }, actionDelay);
   }
 
@@ -855,7 +853,7 @@ export function GradeBtn({ grade, plan, selectedCourse, GRADE_MAX, gradeSlots,
         opacity:   (showLeaving || showDone) ? 0 : 1,
         pointerEvents:"none",
       }}>
-        {full ? "Full " + grade : "Grade " + grade}
+        {wouldExceed ? "No room" : full ? "Full " + grade : "Grade " + grade}
       </span>
       {/* "✓ Added!" — done label; shows × Remove only after mouse leaves + re-enters */}
       <span style={{

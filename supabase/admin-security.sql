@@ -304,7 +304,7 @@ values
   ('primary-source', '📚', 'Primary Source', 'Kalani High School 2026-2027 Registration Guide & Course Catalog. All course names, codes, credit values, grade levels, and prerequisite chains are derived from this document.', 10, true),
   ('graduation-requirements', '🎓', 'Graduation Requirements', 'Hawaii Department of Education Graduation Requirements, effective July 2023. Credit minimums and subject-area breakdowns follow this policy document.', 20, true),
   ('planning-reference', '⚠️', 'Planning Reference Only', 'Kalani Compass is an unofficial planning tool. It is not affiliated with Kalani High School or the Hawaii DOE. Always confirm your 4-year plan with your school counselor before submitting your registration card.', 30, true),
-  ('plan-privacy', '💾', 'Your Plan & Privacy', 'Your 4-year plan is saved in your browser''s local storage and is never uploaded to any server or shared with anyone. However, your plan is tied to this specific browser and device — switching to a different device will reset your plan. We recommand to use your private device.', 40, true),
+  ('plan-privacy', '💾', 'Your Plan & Privacy', 'Your 4-year plan is saved in your browser''s local storage and is never uploaded to any server or shared with anyone. However, your plan is tied to this specific browser and device — switching to a different device will reset your plan. We recommend using your private device.', 40, true),
   ('last-data-update', '🔄', 'Last Data Update', 'Course catalog last reviewed: March 2026. Based on the 2026-2027 Kalani High School Course Catalog.', 50, true)
 on conflict (id) do update
 set icon = excluded.icon,

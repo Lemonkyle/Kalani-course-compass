@@ -1,18 +1,17 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  COURSES, GRAD_REQUIREMENTS, PREREQ_EQUIV, HONORS_DEFS, BEYOND_ALG2_IDS,
-  DEPTS, CTE_PATHS, FINE_ARTS_TYPES, MISC_TYPES, DEPT_COLORS,
-  DEFAULT_PLAN, DEPT_ORDER, COURSE_MATCH_TEMPLATES,
+  GRAD_REQUIREMENTS, PREREQ_EQUIV, HONORS_DEFS,
+  DEPTS, CTE_PATHS, FINE_ARTS_TYPES, MISC_TYPES,
+  DEFAULT_PLAN, COURSE_MATCH_TEMPLATES,
 } from "./lib/data.js";
 import {
   buildCourseSearchIndex, filterIndexedCourses,
-  normalizeCourse, sortCourses,
   useCourseData, useAnnouncements, useDisclaimerItems, usePageMaintenance,
   getCourseName as getCourseNameFromData,
   getPrereqDisplay as getPrereqDisplayFromData,
-  isPrereqSatisfied, getCoursesBeforeGrade, getAllCoursesUpTo, getUnmetPrereqs,
-  computeHonorsProgress, deptColor, calcWlfa, calcPlannerCredits, getCourseSlots,
+  getCoursesBeforeGrade, getAllCoursesUpTo, getUnmetPrereqs,
+  computeHonorsProgress, deptColor, calcPlannerCredits, getCourseSlots, GRADE_MAX, safeExternalUrl,
   AnimatedProgressBar, DataCitationFooter, DataDisclaimerModal, GradeBtn, renderPage,
   cardVariants, contentVariants, shakeAnim,
 } from "./lib/utils.jsx";
@@ -54,8 +53,8 @@ function MaintenanceNotice({ onBackHome, showBackHome = true }) {
 }
 
 export default function App() {
-  // V4: courses fetched from Supabase, falls back to local COURSES if unavailable
-  const { courses: liveCourses, gradReqs: liveGradReqs, loading: dataLoading } = useCourseData();
+  // V4: courses fetched from Supabase, falls back to local course data if unavailable
+  const { courses: liveCourses } = useCourseData();
 
   const { announcements } = useAnnouncements();
   const { items: disclaimerItems } = useDisclaimerItems();
@@ -90,7 +89,6 @@ export default function App() {
   const [gridKey, setGridKey] = useState(0);
   const [toast, setToast] = useState(null); // {msg, grade}
   const [shakeGrade, setShakeGrade] = useState(null);
-  const [removingCards, setRemovingCards] = useState(new Set());
   const [modalWarn, setModalWarn] = useState(null); // { grade, unmet, coreConflict }
   // Middle-school prior credits (e.g. ALG1 completed before 9th grade)
   const [priorCredits, setPriorCredits] = useState(() => {
@@ -224,7 +222,16 @@ export default function App() {
     planUids.current[grade].splice(idx, 1);
     setPlan(p => { const n = JSON.parse(JSON.stringify(p)); n[grade].splice(idx, 1); return n; });
   }
-  const GRADE_MAX = 14.0; // 14 slots per grade year
+
+  function addCourseEntry(grade, courseId, course = getCourse(courseId)) {
+    setPlan(p => {
+      const n = JSON.parse(JSON.stringify(p));
+      if (!course?.repeatable && Object.values(n).flat().includes(courseId)) return p;
+      n[grade].push(courseId);
+      planUids.current[grade].push(Math.random().toString(36).slice(2));
+      return n;
+    });
+  }
 
 
   // Core subjects limited to 1 per grade year (English, Math, Social Studies)
@@ -245,9 +252,9 @@ export default function App() {
   function addCourseToPlan(courseId) {
     if (!addTarget) return;
     const course = getCourse(courseId);
-    if (gradeSlots(plan, addTarget) >= GRADE_MAX) {
+    if (!canFitCourse(addTarget, course)) {
       setShakeGrade(addTarget);
-      showToast(`✋ Grade ${addTarget} is full — max ${GRADE_MAX} slots`);
+      showToast(`Grade ${addTarget} does not have enough room for this course`);
       return;
     }
     const completedBefore = [...getCoursesBeforeGrade(plan, addTarget), ...priorCredits];
@@ -262,26 +269,18 @@ export default function App() {
       setPrereqWarn({ courseId, grade: addTarget, unmet: [], coreConflict });
       return;
     }
-    planUids.current[addTarget].push(Math.random().toString(36).slice(2));
-    setPlan(p => {
-      const n = JSON.parse(JSON.stringify(p));
-      if (!course?.repeatable && Object.values(n).flat().includes(courseId)) return p;
-      n[addTarget].push(courseId);
-      return n;
-    });
+    addCourseEntry(addTarget, courseId, course);
     setAddTarget(null); setAddSearch("");
   }
   function forceAddCourse(courseId) {
     if (!addTarget) return;
     const course = getCourse(courseId);
-    if (gradeSlots(plan, addTarget) >= GRADE_MAX) return;
-    planUids.current[addTarget].push(Math.random().toString(36).slice(2));
-    setPlan(p => {
-      const n = JSON.parse(JSON.stringify(p));
-      if (!course?.repeatable && Object.values(n).flat().includes(courseId)) return p;
-      n[addTarget].push(courseId);
-      return n;
-    });
+    if (!canFitCourse(addTarget, course)) {
+      setShakeGrade(addTarget);
+      showToast(`Grade ${addTarget} does not have enough room for this course`);
+      return;
+    }
+    addCourseEntry(addTarget, courseId, course);
     setAddTarget(null); setAddSearch(""); setPrereqWarn(null);
   }
 
@@ -290,6 +289,10 @@ export default function App() {
     return (p[grade]||[]).reduce((sum, cid) => {
       return sum + getCourseSlots(getCourse(cid));
     }, 0);
+  }
+
+  function canFitCourse(grade, course) {
+    return gradeSlots(plan, grade) + getCourseSlots(course) <= GRADE_MAX;
   }
 
   function closeStartupDisclaimer() {
@@ -541,6 +544,7 @@ export default function App() {
           const palTxt = a.type==="new"?"#DCFCE7":a.type==="warning"?"#FEF9C3":"#DBEAFE";
           const palSub = a.type==="new"?"rgba(220,252,231,0.75)":a.type==="warning"?"rgba(254,249,195,0.75)":"rgba(219,234,254,0.75)";
           const palBtn = a.type==="new"?"rgba(34,197,94,0.25)":a.type==="warning"?"rgba(245,158,11,0.25)":"rgba(59,130,246,0.25)";
+          const linkUrl = safeExternalUrl(a.link_url);
           const icon   = a.type==="new"?"🆕":a.type==="warning"?"⚠️":"📢";
           return (
             <div key={a.id} style={{
@@ -554,8 +558,8 @@ export default function App() {
                 <span style={{ fontWeight:700, color:palTxt }}>{a.title}</span>
                 {a.body && <span style={{ color:palSub }}> — {a.body}</span>}
               </div>
-              {a.link_url && (
-                <a href={a.link_url} target="_blank" rel="noopener noreferrer"
+              {linkUrl && (
+                <a href={linkUrl} target="_blank" rel="noopener noreferrer"
                   style={{ background:palBtn, border:`1px solid ${palBar}`,
                     borderRadius:"7px", padding:"5px 12px", fontSize:"12px",
                     fontWeight:700, color:palTxt, textDecoration:"none",
@@ -1236,7 +1240,7 @@ export default function App() {
                                   style={{ flex:"0 0 auto", borderColor:"#64748B", color:"#64748B",
                                     opacity:atCap?0.4:1, cursor:atCap?"not-allowed":"pointer",
                                     pointerEvents:atCap?"none":"auto" }}
-                                  onClick={()=>{ if(gradeSlots(plan,12)<GRADE_MAX){ planUids.current[12].push(Math.random().toString(36).slice(2)); setPlan(p=>{ const n=JSON.parse(JSON.stringify(p)); n[12].push("OFF_CAMPUS"); return n; }); } }}>
+                                  onClick={()=>{ const course=getCourse("OFF_CAMPUS"); if(canFitCourse(12,course)){ addCourseEntry(12,"OFF_CAMPUS",course); } else { setShakeGrade(12); showToast("Grade 12 does not have enough room for Off Campus"); } }}>
                                   🚗 Off Campus
                                 </div>
                               ) : null}
@@ -1766,6 +1770,11 @@ export default function App() {
                   disabled={!customForm.name.trim()}
                   onClick={()=>{
                     if (!customForm.name.trim()) return;
+                    if (gradeSlots(plan, customGradeTarget) + customForm.credits > GRADE_MAX) {
+                      setShakeGrade(customGradeTarget);
+                      showToast(`Grade ${customGradeTarget} does not have enough room for this course`);
+                      return;
+                    }
                     const uid = "CUSTOM_" + Date.now();
                     const newCourse = {
                       id: uid,
@@ -1779,18 +1788,13 @@ export default function App() {
                       isAP: customForm.isAP || false,
                       gradCategory: customForm.dept === "World Language" ? "wlfa" :
                                     customForm.dept === "Fine Arts" ? "wlfa" :
-                                    customForm.dept === "CTE" ? "wlfa" : "elective",
+                                    customForm.dept === "CTE" ? "wlfa" : "electives",
                       gradCredits: customForm.credits,
                       desc: "Custom course added by student.",
                       code: "CUSTOM",
                     };
                     setCustomCourses(prev => [...prev, newCourse]);
-                    planUids.current[customGradeTarget].push(Math.random().toString(36).slice(2));
-                    setPlan(p=>{
-                      const n = JSON.parse(JSON.stringify(p));
-                      n[customGradeTarget].push(uid);
-                      return n;
-                    });
+                    addCourseEntry(customGradeTarget, uid, newCourse);
                     setShowCustomModal(false);
                     setCustomForm({ name:"", dept:"Mathematics", credits:0.5, isAP:false });
                     showToast("Added \"" + customForm.name.trim() + "\" to Grade " + customGradeTarget);
@@ -2050,7 +2054,6 @@ export default function App() {
                         <GradeBtn key={g} grade={g}
                           plan={plan}
                           selectedCourse={selectedCourse}
-                          GRADE_MAX={GRADE_MAX}
                           gradeSlots={gradeSlots}
                           getCoursesBeforeGrade={(p,g)=>[...getCoursesBeforeGrade(p,g),...priorCredits]}
                           getAllCoursesUpTo={(p,g)=>[...getAllCoursesUpTo(p,g),...priorCredits]}
@@ -2059,7 +2062,6 @@ export default function App() {
                           planUids={planUids}
                           setPlan={setPlan}
                           showToast={showToast}
-                          modalWarn={modalWarn}
                           setModalWarn={setModalWarn}
                         />
                       ))}
@@ -2083,8 +2085,12 @@ export default function App() {
                           <div style={{ display:"flex", gap:"8px" }}>
                             <button
                               onClick={()=>{
-                                planUids.current[modalWarn.grade].push(Math.random().toString(36).slice(2));
-                                setPlan(p=>{const n=JSON.parse(JSON.stringify(p));if(!selectedCourse.repeatable&&Object.values(n).flat().includes(selectedCourse.id))return p;n[modalWarn.grade].push(selectedCourse.id);return n;});
+                                if (!canFitCourse(modalWarn.grade, selectedCourse)) {
+                                  setShakeGrade(modalWarn.grade);
+                                  showToast(`Grade ${modalWarn.grade} does not have enough room for this course`);
+                                  return;
+                                }
+                                addCourseEntry(modalWarn.grade, selectedCourse.id, selectedCourse);
                                 showToast("Added \""+selectedCourse.name+"\" to Grade "+modalWarn.grade);
                                 setModalWarn(null);
                               }}

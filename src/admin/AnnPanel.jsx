@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase.js";
+import { safeExternalUrl } from "../lib/utils.jsx";
 
 const TYPE_CONFIG = {
   new:     { label:"🆕 New",     bg:"#F0FDF4", border:"#86EFAC", text:"#166534" },
@@ -73,11 +74,22 @@ export default function AnnPanel() {
     }
 
     setSaving(true);
+    const linkUrl = safeExternalUrl(form.link_url);
+    if (form.link_url.trim() && !linkUrl) {
+      setSaving(false);
+      setToast("Link URL must start with http:// or https://");
+      return;
+    }
+    if (form.starts_at && form.ends_at && new Date(form.starts_at) > new Date(form.ends_at)) {
+      setSaving(false);
+      setToast("Start date must be before expiry date");
+      return;
+    }
     const payload = {
       title:     form.title.trim(),
       body:      form.body.trim()     || null,
       type:      form.type,
-      link_url:  form.link_url.trim() || null,
+      link_url:  linkUrl,
       visible:   form.visible,
       starts_at: form.starts_at || null,
       ends_at:   form.ends_at   || null,
@@ -117,6 +129,11 @@ export default function AnnPanel() {
 
   const active   = announcements.filter(a => a.visible);
   const inactive = announcements.filter(a => !a.visible);
+  const now = new Date();
+  const activeNow = active.filter(a =>
+    (!a.starts_at || new Date(a.starts_at) <= now) &&
+    (!a.ends_at || new Date(a.ends_at) > now)
+  );
 
   return (
     <div>
@@ -141,7 +158,7 @@ export default function AnnPanel() {
       {/* Stats */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"12px", marginBottom:"24px" }}>
         {[
-          ["Active now",    active.filter(a=>!a.ends_at||new Date(a.ends_at)>new Date()).length, "#B00804"],
+          ["Active now",    activeNow.length, "#B00804"],
           ["Hidden",        inactive.length,   "#6B7280"],
           ["Total created", announcements.length, "#1D4ED8"],
         ].map(([label,val,color])=>(

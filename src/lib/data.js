@@ -615,8 +615,8 @@ export const COURSE_MATCH_TEMPLATES = [
     highlights: ["All core requirements covered", "Space for 2 electives per year", "No AP pressure"],
     plan: {
       9:  ["ELA1","GEO","PID","MHH","ISCI","PE_LF","HEALTH"],
-      10: ["ELA2","ALG2","USH","BIO1_10","PE_ELEC"],
-      11: ["ELA3","PRECALC","WH","CHEM","PTP"],
+      10: ["ELA2","ALG2","USH","BIO1_10","PE_LA"],
+      11: ["ELA3","TRIG","WH","CHEM","PTP"],
       12: ["ELA4","ECON","PSYCH","HCHEM"],
     }
   },
@@ -632,9 +632,9 @@ export const COURSE_MATCH_TEMPLATES = [
     highlights: ["University-ready course selection", "Includes recommended electives", "Counselor-verified sequence"],
     plan: {
       9:  ["ELA1","GEO","PID","MHH","ISCI","PE_LF","HEALTH","JPN1"],
-      10: ["ELA2","ALG2","USH","BIO1_10","JPN2","PE_ELEC"],
-      11: ["AP_LANG","PRECALC","WH","CHEM","JPN3","PTP"],
-      12: ["AP_LIT","CALC","ECON","PSYCH","HCHEM"],
+      10: ["ELA2","ALG2","USH","BIO1_10","JPN2","PE_LA"],
+      11: ["AP_ENG3","TRIG","WH","CHEM","JPN3","PTP"],
+      12: ["AP_ENG4","CALC","ECON","PSYCH","HCHEM"],
     }
   },
   {
@@ -648,10 +648,10 @@ export const COURSE_MATCH_TEMPLATES = [
     suited: ["Future engineers, doctors, or researchers", "Students interested in STEM careers", "Students targeting UH Mānoa STEM programs"],
     highlights: ["Full AP Science sequence", "Advanced math through Calculus", "CTE tech pathway included"],
     plan: {
-      9:  ["ELA1","GEO","PID","MHH","ISCI","PE_LF","HEALTH","CS_PRIN"],
+      9:  ["ELA1","GEO","PID","MHH","ISCI","PE_LF","HEALTH","CS_FOUND"],
       10: ["ELA2","ALG2","AP_USH","AP_BIO","AP_CSP"],
-      11: ["AP_LANG","PRECALC","AP_WH","AP_CHEM","PTP"],
-      12: ["AP_LIT","AP_CALC","ECON","AP_PHYS","AP_CSA"],
+      11: ["AP_ENG3","TRIG","AP_WH","AP_CHEM","PTP"],
+      12: ["AP_ENG4","AP_CALC","ECON","AP_PHYS","AP_CSA"],
     }
   },
   {
@@ -665,9 +665,9 @@ export const COURSE_MATCH_TEMPLATES = [
     suited: ["High-achieving students", "Students pursuing the Honors Recognition Certificate", "Students who enjoy academic challenge"],
     highlights: ["Targets all 3 Honors certificates", "Beyond-Alg2 math included", "AP courses in core subjects"],
     plan: {
-      9:  ["ELA1","ALG2","PID","MHH","ISCI","PE_LF","HEALTH","CS_PRIN"],
-      10: ["AP_LANG","PRECALC","AP_USH","AP_BIO","AP_CSP","JPN1"],
-      11: ["AP_LIT","AP_CALC","AP_WH","AP_CHEM","JPN2","PTP"],
+      9:  ["ELA1","ALG2","PID","MHH","ISCI","PE_LF","HEALTH","CS_FOUND"],
+      10: ["AP_ENG3","TRIG","AP_USH","AP_BIO","AP_CSP","JPN1"],
+      11: ["AP_ENG4","AP_CALC","AP_WH","AP_CHEM","JPN2","PTP"],
       12: ["AP_CSA","AP_STATS","ECON","AP_PHYS","JPN3"],
     }
   },
@@ -683,9 +683,9 @@ export const COURSE_MATCH_TEMPLATES = [
     highlights: ["Full Fine Arts sequence", "World language through level 3", "AP Humanities courses"],
     plan: {
       9:  ["ELA1","GEO","PID","MHH","ISCI","PE_LF","HEALTH","ART1"],
-      10: ["AP_LANG","ALG2","AP_USH","BIO1_10","ART2","JPN1"],
-      11: ["AP_LIT","PRECALC","AP_WH","CHEM","ART3","JPN2","PTP"],
-      12: ["ELA4","ECON","PSYCH","DRAMA1","ART4","JPN3"],
+      10: ["AP_ENG3","ALG2","AP_USH","BIO1_10","ART2","JPN1"],
+      11: ["AP_ENG4","TRIG","AP_WH","CHEM","ART3","JPN2","PTP"],
+      12: ["ELA4","ECON","PSYCH","DANCE","DIR_ART","JPN3"],
     }
   },
   {
@@ -699,9 +699,9 @@ export const COURSE_MATCH_TEMPLATES = [
     suited: ["Students interested in a specific career pathway", "Students who prefer hands-on learning", "Students targeting community college or technical training"],
     highlights: ["Full CTE pathway sequence", "CTE Honors certificate eligible", "Practical skill-building focus"],
     plan: {
-      9:  ["ELA1","GEO","PID","MHH","ISCI","PE_LF","HEALTH","CS_PRIN"],
-      10: ["ELA2","ALG2","USH","BIO1_10","AP_CSP","PE_ELEC"],
-      11: ["ELA3","PRECALC","WH","CHEM","AP_CSA","PTP"],
+      9:  ["ELA1","GEO","PID","MHH","ISCI","PE_LF","HEALTH","CS_FOUND"],
+      10: ["ELA2","ALG2","USH","BIO1_10","AP_CSP","PE_LA"],
+      11: ["ELA3","TRIG","WH","CHEM","AP_CSA","PTP"],
       12: ["ELA4","ECON","PSYCH","HCHEM"],
     }
   },

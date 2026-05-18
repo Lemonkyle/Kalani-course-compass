@@ -28,6 +28,124 @@ const EMPTY_FORM = {
   is_off_campus:false, desc:"", tips:"", grade_reqs:{}, archived:false,
 };
 
+function cleanCsvCell(value) {
+  return String(value ?? "").trim();
+}
+
+function readCsvRows(text) {
+  const source = String(text || "").replace(/^\uFEFF/, "");
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i];
+    const next = source[i + 1];
+
+    if (ch === '"') {
+      if (inQuotes && next === '"') {
+        cell += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (ch === "," && !inQuotes) {
+      row.push(cleanCsvCell(cell));
+      cell = "";
+      continue;
+    }
+
+    if ((ch === "\n" || ch === "\r") && !inQuotes) {
+      if (ch === "\r" && next === "\n") i += 1;
+      row.push(cleanCsvCell(cell));
+      if (row.some(value => value !== "")) rows.push(row);
+      row = [];
+      cell = "";
+      continue;
+    }
+
+    cell += ch;
+  }
+
+  row.push(cleanCsvCell(cell));
+  if (row.some(value => value !== "")) rows.push(row);
+  return rows;
+}
+
+function parseCsvList(value) {
+  if (!value) return [];
+  const clean = String(value).replace(/^\{|\}$/g, "").trim();
+  if (!clean) return [];
+  return clean.split(",").map(item => {
+    const trimmed = item.trim();
+    const numberValue = Number(trimmed);
+    return Number.isNaN(numberValue) ? trimmed : numberValue;
+  });
+}
+
+function parseCsvBoolean(value) {
+  return ["true", "1", "yes", "y"].includes(String(value || "").trim().toLowerCase());
+}
+
+function parseCsvNumber(value, fallback) {
+  const numberValue = Number.parseFloat(value);
+  return Number.isNaN(numberValue) ? fallback : numberValue;
+}
+
+function parseCsvObject(value) {
+  if (!value) return {};
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
+}
+
+function parseCourseCsv(text, { normalize = false } = {}) {
+  const rows = readCsvRows(text);
+  if (rows.length === 0) return [];
+
+  const headers = rows[0].map(cleanCsvCell);
+  const parsedRows = rows.slice(1).map(values => {
+    const obj = {};
+    headers.forEach((header, index) => {
+      if (header) obj[header] = cleanCsvCell(values[index]);
+    });
+    return obj;
+  }).filter(row => row.id && row.name);
+
+  if (!normalize) return parsedRows;
+
+  return parsedRows.map(row => ({
+    id: row.id,
+    code: row.code || "",
+    name: row.name,
+    subtitle: row.subtitle || "",
+    dept: row.dept,
+    cte_path: row.cte_path || null,
+    fine_arts_type: row.fine_arts_type || null,
+    misc_type: row.misc_type || null,
+    credits: parseCsvNumber(row.credits, 1),
+    grade_level: parseCsvList(row.grade_level),
+    prereqs: parseCsvList(row.prereqs),
+    concurrent_ok: parseCsvList(row.concurrent_ok),
+    grad_category: row.grad_category || null,
+    grad_credits: row.grad_credits ? parseCsvNumber(row.grad_credits, null) : null,
+    is_ap: parseCsvBoolean(row.is_ap),
+    repeatable: parseCsvBoolean(row.repeatable),
+    teacher_sig_required: parseCsvBoolean(row.teacher_sig_required),
+    is_off_campus: parseCsvBoolean(row.is_off_campus),
+    desc: row.desc || "",
+    tips: row.tips || "",
+    grade_reqs: parseCsvObject(row.grade_reqs),
+    archived: false,
+  }));
+}
+
 function Tag({ label, color, onRemove }) {
   return (
     <span style={{ display:"inline-flex", alignItems:"center", gap:"4px",
@@ -299,17 +417,7 @@ export default function CoursePanel() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const text = ev.target.result;
-      const lines = text.trim().split("\n");
-      const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g,""));
-      const rows = lines.slice(1).map(line => {
-        const vals = line.match(/(".*?"|[^,]+)(?=,|$)/g) || [];
-        const obj = {};
-        headers.forEach((h,i) => {
-          obj[h] = (vals[i]||"").trim().replace(/^"|"$/g,"");
-        });
-        return obj;
-      }).filter(r => r.id && r.name);
+      const rows = parseCourseCsv(ev.target.result);
       setImportPreview(rows.slice(0,5));
       setShowImport(true);
     };
@@ -326,39 +434,12 @@ export default function CoursePanel() {
 
     setImporting(true);
     const text = await file.text();
-    const lines = text.trim().split("\n");
-    const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g,""));
-
-    function parseArr(val) {
-      if (!val) return [];
-      const clean = val.replace(/^\{|\}$/g,"").trim();
-      if (!clean) return [];
-      return clean.split(",").map(s => {
-        const t = s.trim().replace(/^"|"$/g,"");
-        const n = parseInt(t);
-        return isNaN(n) ? t : n;
-      });
+    const rows = parseCourseCsv(text, { normalize: true });
+    if (rows.length === 0) {
+      setImporting(false);
+      setToast("No valid courses found in CSV");
+      return;
     }
-
-    const rows = lines.slice(1).map(line => {
-      const vals = line.match(/(".*?"|[^,\n]+)(?=,|$)/g) || [];
-      const obj = {};
-      headers.forEach((h,i) => { obj[h] = (vals[i]||"").trim().replace(/^"|"$/g,""); });
-      return obj;
-    }).filter(r => r.id && r.name).map(r => ({
-      id: r.id, code: r.code||"", name: r.name, subtitle: r.subtitle||"",
-      dept: r.dept, cte_path: r.cte_path||null, fine_arts_type: r.fine_arts_type||null,
-      misc_type: r.misc_type||null, credits: parseFloat(r.credits)||1,
-      grade_level: parseArr(r.grade_level),
-      prereqs: parseArr(r.prereqs), concurrent_ok: parseArr(r.concurrent_ok),
-      grad_category: r.grad_category||null, grad_credits: parseFloat(r.grad_credits)||null,
-      is_ap: r.is_ap==="true", repeatable: r.repeatable==="true",
-      teacher_sig_required: r.teacher_sig_required==="true",
-      is_off_campus: r.is_off_campus==="true",
-      desc: r.desc||"", tips: r.tips||"",
-      grade_reqs: (() => { try { return JSON.parse(r.grade_reqs||"{}"); } catch { return {}; } })(),
-      archived: false,
-    }));
 
     const { error } = await supabase.from("courses").upsert(rows, { onConflict:"id" });
     setImporting(false);
@@ -367,15 +448,6 @@ export default function CoursePanel() {
     setShowImport(false);
     fileRef.current.value = "";
     fetchCourses();
-  }
-
-  function F({ k }) {
-    return (
-      <div style={{ marginBottom:"12px" }}>
-        {/* label injected by parent */}
-        {arguments[0].children}
-      </div>
-    );
   }
 
   function label(text, hint) {

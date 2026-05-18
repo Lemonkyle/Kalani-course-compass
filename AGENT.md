@@ -1,6 +1,6 @@
 # Kalani Course Compass - Agent Context
 
-Last updated: May 2026. Read this before changing code.
+Last updated: May 2026. Cloud audit refreshed May 18, 2026. Read this before changing code.
 
 ## Project Summary
 
@@ -13,6 +13,7 @@ Important context:
 - Student planner data stays in browser `localStorage`; it is not uploaded.
 - Course and announcement data can come from Supabase, with a static local fallback.
 - Admin write access is protected by Supabase Auth plus Supabase RLS policies.
+- The consolidated Chinese project/architecture/roadmap review lives in `PROJECT_DOCUMENTATION.md`.
 
 Repository:
 
@@ -152,15 +153,20 @@ Current expected tables:
 - `courses`
 - `announcements`
 - `admin_users`
+- `disclaimer_items`
+- `page_maintenance`
 
-The older ratings feature has been removed from the UI/admin code. Do not assume `ratings` is part of the current active app unless the user explicitly asks to restore it.
+The older ratings feature has been removed from the UI/admin code and is not present in the current public Supabase table list. Do not assume `ratings` is part of the current active app unless the user explicitly asks to restore it.
 
 Important Supabase notes:
 
 - Public users should only read active, non-archived courses.
 - Public users should only read visible announcements inside their date window.
-- Authenticated admins can read/write courses and announcements.
+- Public users can read visible disclaimer items and page maintenance state.
+- Authenticated admins can read/write courses, announcements, disclaimer items, and page maintenance.
 - `archived` may be `null` for older rows, so course fetches should include both `archived is null` and `archived = false` when appropriate.
+- Supabase Advisor currently reports leaked password protection disabled in Auth.
+- Supabase Advisor also reports RLS performance warnings: admin policies call `auth.uid()` directly and some authenticated SELECT policies are multiple permissive policies. Prefer `(select auth.uid())` and consolidate overlapping SELECT policies when editing RLS.
 
 ## Core Product Rules
 
@@ -253,6 +259,8 @@ Current tabs:
 
 - Announcements
 - Courses
+- Maintenance
+- Disclaimer
 
 There is no active Ratings tab.
 
@@ -291,7 +299,7 @@ Use the existing style unless there is a strong reason not to:
 
 ## Important Gotchas
 
-- `App.jsx` has its own `GRADE_MAX = 14.0` and `utils.jsx` exports `GRADE_MAX = 14.0`. If the slot limit changes, update both or refactor to a single source.
+- `GRADE_MAX = 14.0` is exported from `utils.jsx` and imported by `App.jsx`. Do not reintroduce a second grade-cap constant.
 - `App.jsx` defines a live/custom-aware `getCourse(id)`. Do not accidentally use the static utility lookup for planner calculations.
 - Supabase can be unconfigured locally. Any code touching Supabase should handle `supabase === null` where local fallback mode should continue.
 - Admin auth state can expire. Write operations should report Supabase errors instead of silently failing.
@@ -299,6 +307,7 @@ Use the existing style unless there is a strong reason not to:
 - Vite build can fail locally if Windows blocks esbuild process spawning; distinguish environment permission errors from real compile errors.
 - Avoid bringing back hardcoded admin credentials.
 - Avoid committing `.env.local` or any real secrets.
+- The V3 report says World Language WLFA should require 2 credits in the same language sequence, but current `calcWlfa()` pools all World Language credits. Verify counselor/product intent before changing or relying on this behavior.
 
 ## Verification Checklist
 
@@ -337,11 +346,14 @@ Recently completed or in progress:
 - Supabase client creation now supports local fallback when env vars are missing.
 - Ratings UI/admin code was removed from the active app.
 - Utility functions were updated to accept live/custom course lookups.
+- Current Supabase project is active/healthy with RLS enabled on all active public tables.
+- Current Vercel production domain is READY on `main`; the `course_match&custom_course` branch has READY preview deployments.
 
 Recommended next cleanup:
 
-- Fix all planner add paths to prevent adding a course that would exceed `GRADE_MAX`.
+- Address Supabase Advisor warnings: enable leaked password protection and optimize RLS policies.
 - Add visible error handling for admin toggle/archive/import failures.
 - Replace hand-rolled CSV parsing with a safer parser if bulk import remains important.
-- Consider consolidating duplicated `GRADE_MAX` constants.
-
+- Split `utils.jsx` into pure rule modules, data hooks, and UI components.
+- Split `App.jsx` by page/component before adding another major student-facing feature.
+- Add unit tests for planner credits, WLFA, prerequisites, and honors progress.
