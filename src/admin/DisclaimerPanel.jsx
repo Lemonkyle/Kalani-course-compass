@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabase.js";
-import { DEFAULT_DISCLAIMER_ITEMS } from "../lib/utils.jsx";
+import { DEFAULT_DISCLAIMER_ITEMS } from "../data/disclaimerItems.js";
 
 const EMPTY_FORM = {
   id:"",

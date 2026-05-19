@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../supabase.js";
-import { sortCourses } from "../lib/utils.jsx";
+import { sortCourses } from "../lib/courseRules.js";
 
 const DEPTS = ["All","English","Mathematics","Social Studies","Science",
   "Health & PE","CTE","World Language","Fine Arts","Miscellaneous","Off Campus"];

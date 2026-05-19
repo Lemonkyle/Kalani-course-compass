@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase.js";
-import { safeExternalUrl } from "../lib/utils.jsx";
+import { safeExternalUrl } from "../lib/url.js";
 
 const TYPE_CONFIG = {
   new:     { label:"🆕 New",     bg:"#F0FDF4", border:"#86EFAC", text:"#166534" },
