@@ -1,5 +1,7 @@
 # Kalani Compass Security Setup
 
+Last updated: May 23, 2026
+
 ## Local Development
 
 Create `.env.local` in the project root. This file is ignored by git.
@@ -34,3 +36,7 @@ The database rules are the real security layer:
 - Students can read active courses and visible announcements.
 - Only authenticated admins can insert, update, or delete managed content.
 - The frontend must never store an admin password.
+
+## Documentation Maintenance
+
+When changing auth, RLS, environment variables, or admin access behavior, update this file and the matching Chinese file at `docs/zh/security-setup.md`.

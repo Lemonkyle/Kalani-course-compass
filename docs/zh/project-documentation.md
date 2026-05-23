@@ -1,6 +1,6 @@
 # Kalani Course Compass 项目文档
 
-更新日期：2026-05-18
+更新日期：2026-05-23
 
 ## 产品概览
 
@@ -17,9 +17,9 @@ Kalani Course Compass 是一个面向 Kalani High School 学生的非官方四�
 | `src/pages/` | 学生端页面：Home、Catalog、Planner、Course Match。 |
 | `src/components/` | 按 `course`、`planner`、`match`、`shared` 分类的 UI 组件。 |
 | `src/components/shared/AppStyles.jsx` | 学生端全局样式和响应式规则。 |
-| `src/hooks/` | Supabase 读取、本地 planner 持久化、课程搜索/筛选、启动免责声明和临时 UI 状态 hooks。 |
+| `src/hooks/` | Supabase 读取、本地 planner 持久化、课程搜索/筛选、启动免责声明、站点设置、页面维护和临时 UI 反馈 hooks。 |
 | `src/lib/` | 纯业务逻辑：课程排序/搜索、planner 学分、先修规则、honors 规则、安全 URL 等。 |
-| `src/data/` | 静态 fallback 数据、毕业要求、常量、免责声明、Course Match 模板。 |
+| `src/data/` | 静态 fallback 数据、毕业要求、常量、免责声明、站点设置和 Course Match 模板。 |
 | `src/admin/` | 后台应用和管理面板。 |
 | `supabase/` | Supabase RLS 和管理员权限初始化 SQL。 |
 | `docs/en`, `docs/zh` | 英文和中文维护文档。 |
@@ -30,9 +30,10 @@ Kalani Course Compass 是一个面向 Kalani High School 学生的非官方四�
 2. `useCourseData()` 从 Supabase 读取未归档课程；如果 Supabase 不可用，则 fallback 到 `src/data/courses.js`。
 3. `usePlannerStorage()` 管理浏览器本地 planner、prior credits、自定义课程和稳定卡片 ID。
 4. `useCourseCatalog()` 合并 Supabase 课程和本地自定义课程，建立课程查询、首页搜索、目录筛选和 planner 添加搜索。
-5. 启动免责声明的关闭状态保存在浏览器 `localStorage`。
-6. 毕业学分、先修课、容量限制、Honors 计算都通过 `src/lib/` 的纯函数在浏览器端完成。
-7. 后台写入依赖 Supabase Auth 和数据库 RLS 策略，不依赖前端隐藏按钮作为安全边界。
+5. `useAnnouncements()`、`useDisclaimerItems()`、`usePageMaintenance()` 和 `useSiteSettings()` 从 Supabase 读取后台维护内容，并在适用场景使用静态 fallback。
+6. 启动免责声明的关闭状态保存在浏览器 `localStorage`。
+7. 毕业学分、先修课、容量限制、Honors 计算都通过 `src/lib/` 的纯函数在浏览器端完成。
+8. 后台写入依赖 Supabase Auth 和数据库 RLS 策略，不依赖前端隐藏按钮作为安全边界。
 
 ## 模块化状态
 
@@ -49,6 +50,7 @@ Kalani Course Compass 是一个面向 Kalani High School 学生的非官方四�
 - toast 和 planner shake 临时反馈拆到 `src/hooks/useTransientUi.js`。
 - 学生端全局样式拆到 `src/components/shared/AppStyles.jsx`。
 - 人类阅读文档按语言放到 `docs/en/` 和 `docs/zh/`。
+- 根目录 README 已调整为英文在前、中文在后，并链接到两套语言文档。
 
 ## 维护建议
 
@@ -59,6 +61,7 @@ Kalani Course Compass 是一个面向 Kalani High School 学生的非官方四�
 - 静态 fallback 数据放在 `src/data/`，课程 ID 必须保持稳定。
 - 不要随意修改 `localStorage` key；如果必须修改，需要提供迁移或兼容读取逻辑。
 - 更新维护行为或目录职责时，同步更新英文和中文文档。
+- 修改项目启动、架构、安全或交接说明时，同步更新根目录 README、`docs/en/` 和 `docs/zh/`。
 
 ## 后续路线
 

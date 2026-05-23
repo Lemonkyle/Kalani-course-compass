@@ -1,5 +1,7 @@
 # Kalani Compass 安全配置
 
+更新日期：2026-05-23
+
 ## 本地开发
 
 在项目根目录创建 `.env.local`。该文件已被 git 忽略。
@@ -34,3 +36,7 @@ VITE_SUPABASE_ANON_KEY
 - 学生只能读取 active courses 和 visible announcements。
 - 只有通过 Auth 且属于管理员名单的用户可以新增、更新或删除后台内容。
 - 前端不能再存储硬编码后台密码。
+
+## 文档维护
+
+如果修改 Auth、RLS、环境变量或后台权限行为，需要同步更新本文档和对应英文文件 `docs/en/security-setup.md`。

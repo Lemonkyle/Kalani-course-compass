@@ -1,6 +1,6 @@
 # Kalani Course Compass 维护交接说明
 
-更新日期：2026-05-18
+更新日期：2026-05-23
 
 ## 快速开始
 
@@ -33,9 +33,9 @@ src/
   components/planner/      Planner 专属 UI 和自定义课程弹窗。
   components/match/        Course Match 卡片和详情弹窗。
   components/shared/       跨领域 UI、全局样式和页面动画。
-  hooks/                   Supabase 读取、本地 planner、课程目录/搜索、免责声明和临时 UI 状态。
+  hooks/                   Supabase 读取、本地 planner、课程目录/搜索、免责声明、站点设置、页面维护和临时 UI 反馈状态。
   lib/                     纯业务规则和工具函数。
-  data/                    静态 fallback 数据和常量。
+  data/                    静态 fallback 数据、站点设置、毕业要求、模板和常量。
   admin/                   后台应用和管理面板。
 docs/en, docs/zh           人类阅读维护文档。
 ```
@@ -48,6 +48,7 @@ docs/en, docs/zh           人类阅读维护文档。
 - Supabase 读取放在 hooks，后台写入放在 admin panels，不要放进通用 UI 组件。
 - 未经明确规划，不引入新的框架、路由库、状态管理库或 UI 库。
 - 改动维护行为或目录职责时，需要同时更新英文和中文文档。
+- 修改项目启动或文档链接时，根目录 README 继续保持英文在前、中文在后。
 
 ## 下一步推荐清理
 

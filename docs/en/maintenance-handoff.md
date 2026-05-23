@@ -1,6 +1,6 @@
 # Kalani Course Compass Maintenance Handoff
 
-Last updated: May 18, 2026
+Last updated: May 23, 2026
 
 ## Quick Start
 
@@ -33,9 +33,9 @@ src/
   components/planner/      Planner-specific UI and custom course modal.
   components/match/        Course Match cards and detail modal.
   components/shared/       Cross-domain UI components, app styles, and page transitions.
-  hooks/                   Supabase reads plus local planner, catalog/search, disclaimer, and UI feedback state.
+  hooks/                   Supabase reads plus local planner, catalog/search, disclaimer, settings, maintenance, and UI feedback state.
   lib/                     Pure business rules and utilities.
-  data/                    Static fallback data and constants.
+  data/                    Static fallback data, settings, requirements, templates, and constants.
   admin/                   Admin app and panels.
 docs/en, docs/zh           Human-readable maintenance docs.
 ```
@@ -49,6 +49,7 @@ docs/en, docs/zh           Human-readable maintenance docs.
 - Do not introduce a new framework, router, state library, or UI library unless explicitly planned.
 - Preserve localStorage keys unless adding migration logic.
 - Update both English and Chinese docs when changing maintenance behavior or folder responsibilities.
+- Keep the root README in English first, then Chinese, when changing project setup or doc links.
 
 ## Next Recommended Cleanup
 
