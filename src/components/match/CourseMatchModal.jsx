@@ -90,7 +90,7 @@ export function CourseMatchModal({ context }) {
                       transition={{ type:"spring", stiffness:330, damping:24, delay:0.34 + i*0.045 }}
                       style={{ display:"flex", alignItems:"center", gap:"8px",
                       fontSize:"13px", color:"var(--text)", marginBottom:"4px" }}>
-                      <span style={{ color:"#059669", fontWeight:700 }}>OK</span> {h}
+                      <span style={{ color:"#059669", fontWeight:700 }}>✅</span> {h}
                     </motion.div>
                   ))}
                 </motion.div>
