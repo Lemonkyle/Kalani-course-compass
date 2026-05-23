@@ -10,6 +10,7 @@ export function useCourseCatalog(liveCourses, customCourses) {
   const [searchQuery, setSearchQuery] = useState("");
   const [homeSearch, setHomeSearch] = useState("");
   const [homeSearchFocus, setHomeSearchFocus] = useState(false);
+  const [filterGrade, setFilterGrade] = useState("All Grades");
   const [filterDept, setFilterDept] = useState("All");
   const [filterCtePath, setFilterCtePath] = useState("All CTE");
   const [filterFineArts, setFilterFineArts] = useState("All Fine Arts");
@@ -45,6 +46,9 @@ export function useCourseCatalog(liveCourses, customCourses) {
 
   const filteredCourses = useMemo(() => {
     let list = liveCourses;
+    if (filterGrade !== "All Grades") {
+      list = list.filter(course => (course.gradeLevel || []).some(grade => Number(grade) === filterGrade));
+    }
     if (filterDept !== "All") list = list.filter(course => course.dept === filterDept);
     if (filterDept === "CTE" && filterCtePath !== "All CTE") {
       list = list.filter(course => course.ctePath === filterCtePath);
@@ -61,7 +65,7 @@ export function useCourseCatalog(liveCourses, customCourses) {
         .filter(course => allowedIds.has(course.id));
     }
     return list;
-  }, [filterDept, filterCtePath, filterFineArts, filterMisc, searchQuery, liveCourses, indexedCourses]);
+  }, [filterGrade, filterDept, filterCtePath, filterFineArts, filterMisc, searchQuery, liveCourses, indexedCourses]);
 
   const homeSearchResults = useMemo(
     () => filterIndexedCourses(indexedCourses, homeSearch, 4),
@@ -80,6 +84,8 @@ export function useCourseCatalog(liveCourses, customCourses) {
     setHomeSearch,
     homeSearchFocus,
     setHomeSearchFocus,
+    filterGrade,
+    setFilterGrade,
     filterDept,
     setFilterDept,
     filterCtePath,

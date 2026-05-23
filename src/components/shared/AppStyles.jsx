@@ -139,6 +139,7 @@ export function AppStyles() {
         .honors-check:last-child{border-bottom:none;}
         .match-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
         .course-meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+        .catalog-grade-filter-btn{flex:0 0 auto;white-space:nowrap;touch-action:manipulation;}
         @media(max-width:900px){
           .plan-grid{grid-template-columns:1fr 1fr !important;}
         }
@@ -148,6 +149,10 @@ export function AppStyles() {
           .planner-sidebar > div{position:static !important;}
           .catalog-search-row{flex-direction:column !important;align-items:stretch !important;}
           .catalog-search-row .si{max-width:100% !important;}
+          .catalog-grade-filter-row{flex-wrap:nowrap !important;overflow-x:auto;
+            -webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px;
+            margin-left:-24px;margin-right:-24px;padding-left:24px;padding-right:24px;}
+          .catalog-grade-filter-row::-webkit-scrollbar{display:none;}
           .top-nav{height:auto !important;min-height:58px !important;overflow-x:auto;
             -webkit-overflow-scrolling:touch;scrollbar-width:none;padding:8px 12px !important;
             gap:6px !important;align-items:center !important;}

@@ -19,6 +19,7 @@ export default function AnnPanel() {
   const [showForm, setShowForm]           = useState(false);
   const [editItem, setEditItem]           = useState(null); // null = new, object = editing
   const [form, setForm]                   = useState(EMPTY_FORM);
+  const [annView, setAnnView]             = useState("live");
   const [saving, setSaving]               = useState(false);
   const [toast, setToast]                 = useState("");
 
@@ -127,13 +128,42 @@ export default function AnnPanel() {
     fetchAll();
   }
 
-  const active   = announcements.filter(a => a.visible);
-  const inactive = announcements.filter(a => !a.visible);
   const now = new Date();
+  const active = announcements.filter(a => a.visible);
+  const inactive = announcements.filter(a => !a.visible);
   const activeNow = active.filter(a =>
     (!a.starts_at || new Date(a.starts_at) <= now) &&
     (!a.ends_at || new Date(a.ends_at) > now)
   );
+  const scheduled = announcements.filter(a => a.visible && a.starts_at && new Date(a.starts_at) > now);
+  const expired = announcements.filter(a => a.ends_at && new Date(a.ends_at) < now);
+  const filteredAnnouncements = announcements.filter(a => {
+    if (annView === "live") {
+      return a.visible &&
+        (!a.starts_at || new Date(a.starts_at) <= now) &&
+        (!a.ends_at || new Date(a.ends_at) > now);
+    }
+    if (annView === "scheduled") return scheduled.some(item => item.id === a.id);
+    if (annView === "expired") return expired.some(item => item.id === a.id);
+    if (annView === "hidden") return !a.visible;
+    return true;
+  });
+
+  async function deleteItem(item) {
+    if (!window.confirm(`Permanently delete "${item.title}"?`)) return;
+    if (!supabase) {
+      setToast("Supabase is not configured in local fallback mode.");
+      return;
+    }
+
+    const { error } = await supabase.from("announcements").delete().eq("id", item.id);
+    if (error) {
+      setToast("Error: " + error.message);
+      return;
+    }
+    setToast("Deleted");
+    fetchAll();
+  }
 
   return (
     <div>
@@ -170,6 +200,28 @@ export default function AnnPanel() {
         ))}
       </div>
 
+      <div style={{ display:"flex", gap:"8px", marginBottom:"16px", flexWrap:"wrap" }}>
+        {[
+          ["live", "Live now", activeNow.length],
+          ["scheduled", "Scheduled", scheduled.length],
+          ["expired", "Expired", expired.length],
+          ["hidden", "Hidden", inactive.length],
+          ["all", "All", announcements.length],
+        ].map(([id,label,count]) => {
+          const selected = annView === id;
+          return (
+            <button key={id} onClick={()=>setAnnView(id)}
+              style={{ background:selected?"#111827":"white",
+                color:selected?"white":"#374151", border:"1px solid #D1D5DB",
+                borderColor:selected?"#111827":"#D1D5DB", borderRadius:"8px",
+                padding:"7px 12px", fontSize:"12px", fontWeight:700,
+                cursor:"pointer", fontFamily:"inherit" }}>
+              {label} <span style={{ color:selected?"rgba(255,255,255,0.72)":"#9CA3AF" }}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* List */}
       {loading ? (
         <div style={{ textAlign:"center", padding:"40px", color:"#9CA3AF", fontSize:"14px" }}>Loading…</div>
@@ -182,8 +234,14 @@ export default function AnnPanel() {
               No announcements yet. Create one to get started.
             </div>
           )}
+          {announcements.length > 0 && filteredAnnouncements.length === 0 && (
+            <div style={{ textAlign:"center", padding:"40px", color:"#9CA3AF",
+              background:"white", borderRadius:"12px", border:"1px solid #E5E7EB" }}>
+              No announcements in this view.
+            </div>
+          )}
 
-          {announcements.map(a => {
+          {filteredAnnouncements.map(a => {
             const cfg = TYPE_CONFIG[a.type] || TYPE_CONFIG.info;
             const now = new Date();
             const expired = a.ends_at && new Date(a.ends_at) < now;
@@ -245,6 +303,13 @@ export default function AnnPanel() {
                         color:"#9CA3AF", fontFamily:"inherit" }}
                       title="Archive">
                       🗄
+                    </button>
+                    <button onClick={()=>deleteItem(a)}
+                      style={{ background:"transparent", border:"none", borderRadius:"7px",
+                        padding:"6px 8px", fontSize:"12px", cursor:"pointer",
+                        color:"#DC2626", fontFamily:"inherit" }}
+                      title="Delete permanently">
+                      Delete
                     </button>
                   </div>
                 </div>

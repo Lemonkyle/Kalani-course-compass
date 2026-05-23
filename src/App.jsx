@@ -14,6 +14,7 @@ import { useCourseData } from "./hooks/useCourseData.js";
 import { useDisclaimerItems } from "./hooks/useDisclaimerItems.js";
 import { usePageMaintenance } from "./hooks/usePageMaintenance.js";
 import { usePlannerStorage } from "./hooks/usePlannerStorage.js";
+import { useSiteSettings } from "./hooks/useSiteSettings.js";
 import { useStartupDisclaimer } from "./hooks/useStartupDisclaimer.js";
 import { useTransientUi } from "./hooks/useTransientUi.js";
 import { deptColor, getCourseSlots } from "./lib/courseRules.js";
@@ -26,6 +27,7 @@ export default function App() {
 
   const { announcements } = useAnnouncements();
   const { items: disclaimerItems } = useDisclaimerItems();
+  const { settings: siteSettings } = useSiteSettings();
   const { maintenance: pageMaintenance } = usePageMaintenance();
   const plannerStorage = usePlannerStorage();
   const {
@@ -54,6 +56,8 @@ export default function App() {
     setHomeSearch,
     homeSearchFocus,
     setHomeSearchFocus,
+    filterGrade,
+    setFilterGrade,
     filterDept,
     setFilterDept,
     filterCtePath,
@@ -208,6 +212,8 @@ export default function App() {
     homeSearchFocus,
     setHomeSearchFocus,
     homeSearchResults,
+    filterGrade,
+    setFilterGrade,
     filterDept,
     setFilterDept,
     filterCtePath,
@@ -375,7 +381,7 @@ export default function App() {
       </div>
 
       {/* Data citation footer */}
-      <DataCitationFooter items={disclaimerItems} />
+      <DataCitationFooter items={disclaimerItems} settings={siteSettings} />
 
       <AnimatePresence>
         {showStartupDisclaimer ? (

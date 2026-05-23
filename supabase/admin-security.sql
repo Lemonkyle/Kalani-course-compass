@@ -24,6 +24,12 @@ create table if not exists public.disclaimer_items (
   updated_at timestamptz not null default now()
 );
 alter table public.disclaimer_items enable row level security;
+create table if not exists public.site_settings (
+  key text primary key,
+  value text not null default '',
+  updated_at timestamptz not null default now()
+);
+alter table public.site_settings enable row level security;
 create table if not exists public.page_maintenance (
   page_id text primary key,
   enabled boolean not null default false,
@@ -37,16 +43,19 @@ revoke all on public.admin_users from anon, authenticated;
 revoke all on public.courses from anon, authenticated;
 revoke all on public.announcements from anon, authenticated;
 revoke all on public.disclaimer_items from anon, authenticated;
+revoke all on public.site_settings from anon, authenticated;
 revoke all on public.page_maintenance from anon, authenticated;
 
 grant select on public.courses to anon, authenticated;
 grant select on public.announcements to anon, authenticated;
 grant select on public.disclaimer_items to anon, authenticated;
+grant select on public.site_settings to anon, authenticated;
 grant select on public.page_maintenance to anon, authenticated;
 grant select on public.admin_users to authenticated;
 grant insert, update, delete on public.courses to authenticated;
 grant insert, update, delete on public.announcements to authenticated;
 grant insert, update, delete on public.disclaimer_items to authenticated;
+grant insert, update, delete on public.site_settings to authenticated;
 grant insert, update, delete on public.page_maintenance to authenticated;
 
 do $$
@@ -57,7 +66,7 @@ begin
     select schemaname, tablename, policyname
     from pg_policies
     where schemaname = 'public'
-      and tablename in ('admin_users', 'courses', 'announcements', 'disclaimer_items', 'page_maintenance')
+      and tablename in ('admin_users', 'courses', 'announcements', 'disclaimer_items', 'site_settings', 'page_maintenance')
   loop
     execute format(
       'drop policy if exists %I on %I.%I',
@@ -246,6 +255,51 @@ using (
   )
 );
 
+create policy "Public can read site settings"
+on public.site_settings
+for select
+to anon, authenticated
+using (true);
+
+create policy "Admins can insert site settings"
+on public.site_settings
+for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.admin_users
+    where admin_users.user_id = auth.uid()
+  )
+);
+
+create policy "Admins can update site settings"
+on public.site_settings
+for update
+to authenticated
+using (
+  exists (
+    select 1 from public.admin_users
+    where admin_users.user_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1 from public.admin_users
+    where admin_users.user_id = auth.uid()
+  )
+);
+
+create policy "Admins can delete site settings"
+on public.site_settings
+for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.admin_users
+    where admin_users.user_id = auth.uid()
+  )
+);
+
 create policy "Public can read page maintenance"
 on public.page_maintenance
 for select
@@ -313,6 +367,14 @@ set icon = excluded.icon,
     sort_order = excluded.sort_order,
     visible = excluded.visible,
     updated_at = now();
+
+insert into public.site_settings (key, value)
+values
+  ('catalog_year_label', '2026-2027'),
+  ('catalog_source_title', 'Kalani High School 2026-2027 Registration Guide & Course Catalog'),
+  ('catalog_source_url', 'https://www.kalanihighschool.org/admissions/course-registration-information/'),
+  ('catalog_last_reviewed', 'March 2026')
+on conflict (key) do nothing;
 
 -- Replace this email with the Supabase Auth user that should manage the admin panel.
 insert into public.admin_users (user_id, email)
