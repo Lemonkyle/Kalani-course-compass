@@ -272,9 +272,9 @@ export function CourseDetailModal({ context }) {
                           setModalWarn={setModalWarn}
                         />
                       ))}
-                      {/* Inline warning - appears below grade buttons, stays in modal */}
+                      {/* Inline warning - appears above grade buttons, stays in modal */}
                       {modalWarn && (
-                        <div style={{ width:"100%", marginTop:"10px",
+                        <div style={{ width:"100%", order:-1, marginBottom:"10px",
                           background:"#FEF9C3", border:"1.5px solid #EAB308",
                           borderRadius:"10px", padding:"12px 14px" }}>
                           <div style={{ fontWeight:700, fontSize:"12px",
