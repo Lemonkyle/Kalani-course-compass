@@ -36,6 +36,12 @@ export function DataCitationFooter({
             fontFamily:"inherit" }}>
           Data Sources & Disclaimer
         </button>
+        <a href="/admin"
+          style={{ fontSize:"11px", color:"#7F1D1D", background:"#FFF1F0", border:"1px solid #FECACA",
+            borderRadius:"6px", padding:"4px 10px", textDecoration:"none", whiteSpace:"nowrap",
+            fontWeight:700 }}>
+          Admin
+        </a>
       </footer>
       <AnimatePresence>
         {open ? <DataDisclaimerModal onClose={()=>setOpen(false)} items={items} /> : null}
