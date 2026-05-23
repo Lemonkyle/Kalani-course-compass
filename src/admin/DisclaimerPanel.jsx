@@ -28,6 +28,7 @@ export default function DisclaimerPanel() {
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [itemView, setItemView] = useState("visible");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
 
@@ -136,26 +137,13 @@ export default function DisclaimerPanel() {
     fetchAll();
   }
 
-  async function restoreDefaults() {
-    if (!window.confirm("Restore the default disclaimer items? Existing matching IDs will be overwritten.")) return;
-    if (!supabase) return;
-    const payload = DEFAULT_DISCLAIMER_ITEMS.map(item => ({
-      id: item.id,
-      icon: item.icon,
-      label: item.label,
-      body: item.text,
-      sort_order: item.sortOrder,
-      visible: item.visible,
-      updated_at: new Date().toISOString(),
-    }));
-    const { error } = await supabase.from("disclaimer_items").upsert(payload, { onConflict:"id" });
-    if (error) {
-      setToast("Error: " + error.message);
-      return;
-    }
-    setToast("Defaults restored");
-    fetchAll();
-  }
+  const visibleItems = items.filter(item => item.visible);
+  const hiddenItems = items.filter(item => !item.visible);
+  const filteredItems = items.filter(item => {
+    if (itemView === "visible") return item.visible;
+    if (itemView === "hidden") return !item.visible;
+    return true;
+  });
 
   return (
     <div>
@@ -169,12 +157,6 @@ export default function DisclaimerPanel() {
           </p>
         </div>
         <div style={{ display:"flex", gap:"8px" }}>
-          <button onClick={restoreDefaults}
-            style={{ background:"white", color:"#6B7280", border:"1px solid #D1D5DB",
-              borderRadius:"9px", padding:"9px 14px", fontSize:"13px", fontWeight:700,
-              cursor:"pointer", fontFamily:"inherit" }}>
-            Restore defaults
-          </button>
           <button onClick={openNew}
             style={{ background:"#B00804", color:"white", border:"none", borderRadius:"9px",
               padding:"9px 18px", fontSize:"13px", fontWeight:700, cursor:"pointer",
@@ -184,11 +166,37 @@ export default function DisclaimerPanel() {
         </div>
       </div>
 
+      <div style={{ display:"flex", gap:"8px", marginBottom:"16px", flexWrap:"wrap" }}>
+        {[
+          ["visible", "Visible", visibleItems.length],
+          ["hidden", "Hidden", hiddenItems.length],
+          ["all", "All", items.length],
+        ].map(([id,label,count]) => {
+          const selected = itemView === id;
+          return (
+            <button key={id} onClick={()=>setItemView(id)}
+              style={{ background:selected?"#111827":"white",
+                color:selected?"white":"#374151", border:"1px solid #D1D5DB",
+                borderColor:selected?"#111827":"#D1D5DB", borderRadius:"8px",
+                padding:"7px 12px", fontSize:"12px", fontWeight:700,
+                cursor:"pointer", fontFamily:"inherit" }}>
+              {label} <span style={{ color:selected?"rgba(255,255,255,0.72)":"#9CA3AF" }}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {loading ? (
         <div style={{ textAlign:"center", padding:"40px", color:"#9CA3AF", fontSize:"14px" }}>Loading...</div>
       ) : (
         <div>
-          {items.map(item => (
+          {filteredItems.length === 0 && (
+            <div style={{ textAlign:"center", padding:"40px", color:"#9CA3AF",
+              background:"white", borderRadius:"12px", border:"1px solid #E5E7EB" }}>
+              No disclaimer items in this view.
+            </div>
+          )}
+          {filteredItems.map(item => (
             <div key={item.id} style={{ background:"white", border:"1px solid #E5E7EB",
               borderRadius:"12px", padding:"16px 18px", marginBottom:"10px",
               opacity:item.visible ? 1 : 0.55 }}>

@@ -298,6 +298,9 @@ export default function CoursePanel() {
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
   const [filterDept, setFilterDept] = useState("All");
+  const [filterGrade, setFilterGrade] = useState("All");
+  const [filterType, setFilterType] = useState("All");
+  const [courseView, setCourseView] = useState("active");
   const [showForm, setShowForm]     = useState(false);
   const [editItem, setEditItem]     = useState(null);
   const [form, setForm]             = useState(EMPTY_FORM);
@@ -329,9 +332,19 @@ export default function CoursePanel() {
     setLoading(false);
   }
 
+  const activeCourses = courses.filter(c => !c.archived);
+  const archivedCourses = courses.filter(c => c.archived);
+
   const filtered = courses.filter(c => {
-    if (c.archived) return false;
+    if (courseView === "active" && c.archived) return false;
+    if (courseView === "archived" && !c.archived) return false;
     if (filterDept !== "All" && c.dept !== filterDept) return false;
+    if (filterGrade !== "All" && !(c.grade_level||[]).includes(Number(filterGrade))) return false;
+    if (filterType === "AP" && !c.is_ap) return false;
+    if (filterType === "Non-AP" && c.is_ap) return false;
+    if (filterType === "Missing code" && c.code) return false;
+    if (filterType === "Missing description" && c.desc) return false;
+    if (filterType === "Teacher signature" && !c.teacher_sig_required) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       return c.name.toLowerCase().includes(q) ||
@@ -384,7 +397,10 @@ export default function CoursePanel() {
     }
 
     setSaving(true);
-    const payload = { ...form };
+    const payload = {
+      ...form,
+      grad_credits: form.grad_category ? Number(form.credits) : null,
+    };
 
     let error;
     if (editItem) {
@@ -408,6 +424,38 @@ export default function CoursePanel() {
 
     await supabase.from("courses").update({ archived: true }).eq("id", course.id);
     setToast("🗄 Archived");
+    fetchCourses();
+  }
+
+  async function restoreCourse(course) {
+    if (!window.confirm(`Restore "${course.name}" to the live catalog?`)) return;
+    if (!supabase) {
+      setToast("Supabase is not configured in local fallback mode.");
+      return;
+    }
+
+    const { error } = await supabase.from("courses").update({ archived: false }).eq("id", course.id);
+    if (error) {
+      setToast("Error: " + error.message);
+      return;
+    }
+    setToast("Course restored");
+    fetchCourses();
+  }
+
+  async function deleteCourse(course) {
+    if (!window.confirm(`Permanently delete "${course.name}"? This should only be used for test data or mistaken imports.`)) return;
+    if (!supabase) {
+      setToast("Supabase is not configured in local fallback mode.");
+      return;
+    }
+
+    const { error } = await supabase.from("courses").delete().eq("id", course.id);
+    if (error) {
+      setToast("Error: " + error.message);
+      return;
+    }
+    setToast("Course deleted");
     fetchCourses();
   }
 
@@ -476,7 +524,7 @@ export default function CoursePanel() {
           <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:"22px",
             color:"#111827", marginBottom:"4px" }}>Courses</h2>
           <p style={{ fontSize:"13px", color:"#6B7280" }}>
-            {courses.filter(c=>!c.archived).length} active courses · 2026–27 catalog
+            {activeCourses.length} active courses · live catalog management
           </p>
         </div>
         <div style={{ display:"flex", gap:"8px" }}>
@@ -500,10 +548,10 @@ export default function CoursePanel() {
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)",
         gap:"10px", marginBottom:"20px" }}>
         {[
-          ["Total active", courses.filter(c=>!c.archived).length, "#B00804"],
-          ["AP courses",   courses.filter(c=>c.is_ap&&!c.archived).length, "#7C3AED"],
-          ["CTE courses",  courses.filter(c=>c.dept==="CTE"&&!c.archived).length, "#B00804"],
-          ["Archived",     courses.filter(c=>c.archived).length, "#6B7280"],
+          ["Total active", activeCourses.length, "#B00804"],
+          ["AP courses",   activeCourses.filter(c=>c.is_ap).length, "#7C3AED"],
+          ["CTE courses",  activeCourses.filter(c=>c.dept==="CTE").length, "#B00804"],
+          ["Archived",     archivedCourses.length, "#6B7280"],
         ].map(([label,val,color])=>(
           <div key={label} style={{ background:"white", border:"1px solid #E5E7EB",
             borderRadius:"10px", padding:"12px 14px" }}>
@@ -511,6 +559,26 @@ export default function CoursePanel() {
             <div style={{ fontSize:"12px", color:"#6B7280", marginTop:"2px" }}>{label}</div>
           </div>
         ))}
+      </div>
+
+      <div style={{ display:"flex", gap:"8px", marginBottom:"14px", flexWrap:"wrap" }}>
+        {[
+          ["active", "Active", activeCourses.length],
+          ["archived", "Archived", archivedCourses.length],
+          ["all", "All", courses.length],
+        ].map(([id, label, count]) => {
+          const selected = courseView === id;
+          return (
+            <button key={id} onClick={()=>setCourseView(id)}
+              style={{ background:selected?"#111827":"white",
+                color:selected?"white":"#374151", border:"1px solid #D1D5DB",
+                borderColor:selected?"#111827":"#D1D5DB", borderRadius:"8px",
+                padding:"7px 12px", fontSize:"12px", fontWeight:700,
+                cursor:"pointer", fontFamily:"inherit" }}>
+              {label} <span style={{ color:selected?"rgba(255,255,255,0.72)":"#9CA3AF" }}>{count}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Filters */}
@@ -529,6 +597,28 @@ export default function CoursePanel() {
             fontFamily:"inherit", background:"white", cursor:"pointer" }}>
           {DEPTS.map(d=><option key={d} value={d}>{d}</option>)}
         </select>
+        <select value={filterGrade} onChange={e=>setFilterGrade(e.target.value)}
+          style={{ padding:"9px 13px", borderRadius:"8px",
+            border:"1.5px solid #E5E7EB", fontSize:"13px", outline:"none",
+            fontFamily:"inherit", background:"white", cursor:"pointer" }}>
+          {["All",9,10,11,12].map(g=><option key={g} value={g}>{g === "All" ? "All grades" : `Grade ${g}`}</option>)}
+        </select>
+        <select value={filterType} onChange={e=>setFilterType(e.target.value)}
+          style={{ padding:"9px 13px", borderRadius:"8px",
+            border:"1.5px solid #E5E7EB", fontSize:"13px", outline:"none",
+            fontFamily:"inherit", background:"white", cursor:"pointer" }}>
+          {["All","AP","Non-AP","Teacher signature","Missing code","Missing description"].map(t=>(
+            <option key={t} value={t}>{t === "All" ? "All course types" : t}</option>
+          ))}
+        </select>
+        {(search || filterDept !== "All" || filterGrade !== "All" || filterType !== "All") && (
+          <button onClick={()=>{ setSearch(""); setFilterDept("All"); setFilterGrade("All"); setFilterType("All"); }}
+            style={{ padding:"9px 13px", borderRadius:"8px", border:"1.5px solid #E5E7EB",
+              background:"white", color:"#6B7280", fontSize:"13px", fontWeight:700,
+              cursor:"pointer", fontFamily:"inherit" }}>
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* Course list */}
@@ -538,12 +628,12 @@ export default function CoursePanel() {
           <div style={{ padding:"40px", textAlign:"center", color:"#9CA3AF" }}>Loading…</div>
         ) : filtered.length === 0 ? (
           <div style={{ padding:"40px", textAlign:"center", color:"#9CA3AF" }}>
-            No courses found
+            No {courseView === "all" ? "" : courseView} courses found
           </div>
         ) : (
           <>
             {/* Table header */}
-            <div style={{ display:"grid", gridTemplateColumns:"3fr 1.5fr 80px 80px 80px 80px",
+            <div style={{ display:"grid", gridTemplateColumns:"3fr 1.5fr 80px 80px 80px 170px",
               padding:"10px 16px", background:"#F9FAFB",
               borderBottom:"1px solid #E5E7EB", fontSize:"11px",
               fontWeight:700, color:"#6B7280", letterSpacing:"0.04em" }}>
@@ -555,7 +645,7 @@ export default function CoursePanel() {
               return (
                 <div key={c.id}
                   style={{ display:"grid",
-                    gridTemplateColumns:"3fr 1.5fr 80px 80px 80px 80px",
+                    gridTemplateColumns:"3fr 1.5fr 80px 80px 80px 170px",
                     padding:"11px 16px", borderBottom:"1px solid #F3F4F6",
                     alignItems:"center", transition:"background 0.1s" }}
                   onMouseEnter={e=>e.currentTarget.style.background="#FAFAFA"}
@@ -567,6 +657,9 @@ export default function CoursePanel() {
                       {c.is_ap && <span style={{ background:"#FEF3C7", color:"#92400E",
                         fontSize:"10px", fontWeight:800, padding:"1px 6px",
                         borderRadius:"4px" }}>AP</span>}
+                      {c.archived && <span style={{ background:"#F3F4F6", color:"#6B7280",
+                        fontSize:"10px", fontWeight:800, padding:"1px 6px",
+                        borderRadius:"4px" }}>ARCHIVED</span>}
                     </div>
                     <div style={{ fontSize:"11px", color:"#9CA3AF", marginTop:"1px" }}>
                       {c.id} · {c.code||"—"}
@@ -589,20 +682,38 @@ export default function CoursePanel() {
                         color:"#374151", fontFamily:"inherit" }}>
                       Edit
                     </button>
-                    <button onClick={()=>archiveCourse(c)}
-                      title="Archive"
-                      style={{ background:"transparent", border:"none", borderRadius:"6px",
-                        padding:"5px 7px", fontSize:"13px", cursor:"pointer",
-                        color:"#9CA3AF", fontFamily:"inherit" }}>
-                      🗄
-                    </button>
+                    {c.archived ? (
+                      <>
+                        <button onClick={()=>restoreCourse(c)}
+                          style={{ background:"#ECFDF5", border:"none", borderRadius:"6px",
+                            padding:"5px 10px", fontSize:"12px", cursor:"pointer",
+                            color:"#047857", fontFamily:"inherit" }}>
+                          Restore
+                        </button>
+                        <button onClick={()=>deleteCourse(c)}
+                          title="Delete permanently"
+                          style={{ background:"transparent", border:"none", borderRadius:"6px",
+                            padding:"5px 7px", fontSize:"13px", cursor:"pointer",
+                            color:"#DC2626", fontFamily:"inherit" }}>
+                          Delete
+                        </button>
+                      </>
+                    ) : (
+                      <button onClick={()=>archiveCourse(c)}
+                        title="Archive"
+                        style={{ background:"transparent", border:"none", borderRadius:"6px",
+                          padding:"5px 7px", fontSize:"13px", cursor:"pointer",
+                          color:"#9CA3AF", fontFamily:"inherit" }}>
+                        🗄
+                      </button>
+                    )}
                   </div>
                 </div>
               );
             })}
             <div style={{ padding:"12px 16px", fontSize:"12px", color:"#9CA3AF",
               textAlign:"center", borderTop:"1px solid #F3F4F6" }}>
-              Showing {filtered.length} of {courses.filter(c=>!c.archived).length} courses
+              Showing {filtered.length} of {courseView === "active" ? activeCourses.length : courseView === "archived" ? archivedCourses.length : courses.length} courses
             </div>
           </>
         )}
@@ -738,7 +849,11 @@ export default function CoursePanel() {
               </div>
               <div>
                 {label("Credits *")}
-                <select value={form.credits} onChange={e=>setForm(f=>({...f,credits:parseFloat(e.target.value)}))}
+                <select value={form.credits} onChange={e=>setForm(f=>({
+                    ...f,
+                    credits: parseFloat(e.target.value),
+                    grad_credits: parseFloat(e.target.value),
+                  }))}
                   style={{...inp.style, cursor:"pointer", background:"white"}}
                   onFocus={inp.onFocus} onBlur={inp.onBlur}>
                   <option value={0.5}>0.5 (semester)</option>
@@ -819,26 +934,15 @@ export default function CoursePanel() {
             </div>
 
             {/* Grad category */}
-            <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:"12px", marginBottom:"12px" }}>
-              <div>
-                {label("Graduation category")}
-                <select value={form.grad_category||""}
-                  onChange={e=>setForm(f=>({...f,grad_category:e.target.value||null}))}
-                  style={{...inp.style, cursor:"pointer", background:"white"}}
-                  onFocus={inp.onFocus} onBlur={inp.onBlur}>
-                  <option value="">None</option>
-                  {GRAD_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                {label("Grad credits")}
-                <input type="number" step="0.5" min="0" max="2"
-                  value={form.grad_credits||""}
-                  onChange={e=>setForm(f=>({...f,grad_credits:parseFloat(e.target.value)||null}))}
-                  {...inp} style={{...inp.style}}
-                  onFocus={inp.onFocus} onBlur={inp.onBlur}
-                />
-              </div>
+            <div style={{ marginBottom:"12px" }}>
+              {label("Graduation category", "uses the same credit value as Credits")}
+              <select value={form.grad_category||""}
+                onChange={e=>setForm(f=>({...f,grad_category:e.target.value||null}))}
+                style={{...inp.style, cursor:"pointer", background:"white"}}
+                onFocus={inp.onFocus} onBlur={inp.onBlur}>
+                <option value="">None</option>
+                {GRAD_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
 
             {/* Flags */}

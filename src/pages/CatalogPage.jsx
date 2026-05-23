@@ -7,7 +7,7 @@ export function CatalogPage({ context }) {
   const {
     page, maintenanceContent, navigate, selectedCourse, setSelectedCourse, searchQuery,
     setSearchQuery, homeSearch, setHomeSearch, homeSearchFocus, setHomeSearchFocus, homeSearchResults,
-    filterDept, setFilterDept, filterCtePath, setFilterCtePath, filterFineArts, setFilterFineArts,
+    filterGrade, setFilterGrade, filterDept, setFilterDept, filterCtePath, setFilterCtePath, filterFineArts, setFilterFineArts,
     filterMisc, setFilterMisc, gridKey, setGridKey, filteredCourses, canUseHover,
     getCourseName, deptColor, plan, showResetConfirm, setShowResetConfirm, setPlan,
     priorCredits, setPriorCredits, alg1Anim, setAlg1Anim, customCourses, setCustomCourses,
@@ -19,6 +19,7 @@ export function CatalogPage({ context }) {
     setApplyConfirm, showCustomModal, customGradeTarget, setCustomGradeTarget, customForm, setCustomForm,
     modalWarn, setModalWarn, getCoreConflict, liveCourses,
   } = context;
+  const gradeFilters = ["All Grades", 9, 10, 11, 12];
   return renderPage(page==="catalog","catalog", maintenanceContent("catalog",
           <div className="fade-in" style={{ maxWidth:"1200px", margin:"0 auto", padding:"32px 24px" }}>
             <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"30px", color:"var(--red-dark)",
@@ -27,15 +28,24 @@ export function CatalogPage({ context }) {
               <input className="si" placeholder="🔍 Search courses…" value={searchQuery}
                 onChange={e=>setSearchQuery(e.target.value)}
                 style={{ flex:"1", minWidth:"200px", maxWidth:"320px" }} />
-              <div style={{ display:"flex", flexWrap:"wrap", gap:"5px" }}>
-                {DEPTS.map(d=>(
-                  <button key={d}
-                    className={"dept-btn"+(filterDept===d?" active":"")}
-                    onClick={()=>{ setFilterDept(d); setFilterCtePath("All CTE"); setFilterFineArts("All Fine Arts"); setFilterMisc("All Miscellaneous"); setGridKey(k=>k+1); }}>
-                    <span>{d}</span>
-                  </button>
-                  ))}
-              </div>
+            </div>
+            <div className="catalog-grade-filter-row" style={{ display:"flex", flexWrap:"wrap", gap:"5px", marginBottom:"14px" }}>
+              {gradeFilters.map(g=>(
+                <button key={g}
+                  className={"dept-btn catalog-grade-filter-btn"+(filterGrade===g?" active":"")}
+                  onClick={()=>{ setFilterGrade(g); setGridKey(k=>k+1); }}>
+                  <span>{g === "All Grades" ? g : `Grade ${g}`}</span>
+                </button>
+                ))}
+            </div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:"5px", marginBottom:"20px" }}>
+              {DEPTS.map(d=>(
+                <button key={d}
+                  className={"dept-btn"+(filterDept===d?" active":"")}
+                  onClick={()=>{ setFilterDept(d); setFilterCtePath("All CTE"); setFilterFineArts("All Fine Arts"); setFilterMisc("All Miscellaneous"); setGridKey(k=>k+1); }}>
+                  <span>{d}</span>
+                </button>
+                ))}
             </div>
             {filterDept === "CTE" && (
               <div style={{ display:"flex", flexWrap:"wrap", gap:"5px", marginBottom:"12px" }}>
