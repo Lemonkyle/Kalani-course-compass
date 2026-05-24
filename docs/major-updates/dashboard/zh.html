@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kalani Compass 大版本更新 Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand">
+          <span>Kalani Compass</span>
+          <small>大版本更新归档 · 2026-05-23</small>
+        </div>
+        <nav class="lang-switch" aria-label="Language">
+          <a href="en.html">English</a>
+          <a class="active" href="zh.html">中文</a>
+        </nav>
+      </div>
+      <div class="hero-grid">
+        <div>
+          <p class="eyebrow">V1-V8 产品记录</p>
+          <h1>从选课原型，到可以进入校内 review 的工具。</h1>
+          <p class="hero-copy">这个 dashboard 汇总 Kalani Compass 的阶段报告、Google Form 反馈、校内 stakeholder 沟通、Supabase/Vercel 当前状态，以及开学前继续推进的重点。</p>
+        </div>
+        <aside class="hero-panel">
+          <strong>当前建议</strong>
+          <p>先采用 link-first 的方式在开学前收集更多反馈，保持非官方说明清晰，等 counselor / registration / IT 进一步确认后再决定是否进入学校官网或服务器迁移。</p>
+        </aside>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="kpis" aria-label="反馈核心数据">
+      <div class="kpi"><span>反馈总数</span><strong>99</strong><em>Google Form responses</em></div>
+      <div class="kpi"><span>有帮助程度</span><strong>4.02</strong><em>满分 5 分</em></div>
+      <div class="kpi"><span>易用性</span><strong>4.17</strong><em>满分 5 分</em></div>
+      <div class="kpi"><span>清晰/准确</span><strong>4.16</strong><em>满分 5 分</em></div>
+      <div class="kpi"><span>愿意推荐</span><strong>86.9%</strong><em>Definitely / probably yes</em></div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>版本路线</h2>
+        <p>报告保留在本地 <code>reports/</code>，不会上传到 GitHub。</p>
+      </div>
+      <div class="versions">
+        <article class="version" style="--accent:#b00804"><div class="version-top"><span>V1</span><small>3/8</small></div><h3>Demo 原型</h3><p>纯前端原型、结构化课程数据、先修链路、四年 planner 基础。</p></article>
+        <article class="version" style="--accent:#2563eb"><div class="version-top"><span>V2</span><small>3 月</small></div><h3>Planner 持久化</h3><p>localStorage 保存、Honors / Off Campus 逻辑、课程容量和毕业进度修正。</p></article>
+        <article class="version" style="--accent:#047857"><div class="version-top"><span>V3</span><small>3 月</small></div><h3>2026-27 课程更新</h3><p>139 门课程重建、Supabase 公告、评分实验、搜索与课程目录增强。</p></article>
+        <article class="version" style="--accent:#b45309"><div class="version-top"><span>V4</span><small>3 月</small></div><h3>数据库与后台</h3><p>课程迁移到 Supabase，建立 admin panel，修复排序和 fallback 逻辑。</p></article>
+        <article class="version" style="--accent:#6d28d9"><div class="version-top"><span>V5</span><small>4 月</small></div><h3>Beta 反馈响应</h3><p>学生反馈分析、暂停公开评分、修复 8 年级 Algebra 1 prior credit 问题。</p></article>
+        <article class="version" style="--accent:#0f766e"><div class="version-top"><span>V6</span><small>4-5 月</small></div><h3>隐私与部署稳定</h3><p>解释本地保存机制、设备/账号测试、启动免责声明、Vercel build 修复。</p></article>
+        <article class="version" style="--accent:#be123c"><div class="version-top"><span>V7</span><small>5/14-18</small></div><h3>自定义课程与重构</h3><p>HOC、summer、dual credit、transfer 自定义课程；RLS 后台安全；文档模块化。</p></article>
+        <article class="version" style="--accent:#1d4ed8"><div class="version-top"><span>V8</span><small>5/22-23</small></div><h3>校内推广准备</h3><p>Site settings、stakeholder roadmap、冲突提醒 UX、开学前 link-first 计划。</p></article>
+      </div>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <div class="section-head"><h2>最多人想要的功能</h2></div>
+        <div class="bar-row"><div class="bar-label">Dual credit 信息</div><div class="bar-track"><span style="width:100%;background:var(--red)"></span></div><div class="bar-value">26</div></div>
+        <div class="bar-row"><div class="bar-label">教师评分 / 评价</div><div class="bar-track"><span style="width:88.5%;background:var(--blue)"></span></div><div class="bar-value">23</div></div>
+        <div class="bar-row"><div class="bar-label">Summer school / HOC</div><div class="bar-track"><span style="width:84.6%;background:var(--green)"></span></div><div class="bar-value">22</div></div>
+        <div class="bar-row"><div class="bar-label">更好的四年规划建议</div><div class="bar-track"><span style="width:38.5%;background:var(--amber)"></span></div><div class="bar-value">10</div></div>
+        <div class="bar-row"><div class="bar-label">教室号码</div><div class="bar-track"><span style="width:34.6%;background:var(--violet)"></span></div><div class="bar-value">9</div></div>
+      </div>
+      <div class="panel">
+        <div class="section-head"><h2>推荐意愿</h2></div>
+        <div class="donut-wrap">
+          <div class="donut"><strong>86.9%</strong></div>
+          <div class="legend">
+            <div class="legend-item"><span class="dot" style="background:var(--green)"></span><span>Definitely / probably yes</span><strong>86</strong></div>
+            <div class="legend-item"><span class="dot" style="background:#cbd5e1"></span><span>其他回复</span><strong>13</strong></div>
+            <div class="legend-item"><span class="dot" style="background:var(--red)"></span><span>总回复</span><strong>99</strong></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <div class="section-head"><h2>反馈者年级分布</h2></div>
+        <div class="bar-row"><div class="bar-label">10 年级</div><div class="bar-track"><span style="width:100%;background:var(--navy)"></span></div><div class="bar-value">49</div></div>
+        <div class="bar-row"><div class="bar-label">11 年级</div><div class="bar-track"><span style="width:59.2%;background:var(--blue)"></span></div><div class="bar-value">29</div></div>
+        <div class="bar-row"><div class="bar-label">9 年级</div><div class="bar-track"><span style="width:32.7%;background:var(--green)"></span></div><div class="bar-value">16</div></div>
+        <div class="bar-row"><div class="bar-label">12 年级</div><div class="bar-track"><span style="width:8.2%;background:var(--amber)"></span></div><div class="bar-value">4</div></div>
+        <div class="bar-row"><div class="bar-label">Counselor</div><div class="bar-track"><span style="width:2.1%;background:var(--violet)"></span></div><div class="bar-value">1</div></div>
+      </div>
+      <div class="panel">
+        <div class="section-head"><h2>校内反馈主题</h2></div>
+        <table>
+          <thead><tr><th>主题</th><th>含义</th></tr></thead>
+          <tbody>
+            <tr><td>隐私</td><td>学生计划继续保存在本地浏览器；必须清楚解释保存机制与共享设备限制。</td></tr>
+            <tr><td>Registration 准确性</td><td>自定义课程很有用，但毕业条件和学分归类需要进一步 review。</td></tr>
+            <tr><td>规划质量</td><td>需要加入 workload balance、purposeful course building、personal growth trajectory。</td></tr>
+            <tr><td>部署/服务器</td><td>先放链接收集反馈，同时继续了解学校官网和 IT/server 限制。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Stakeholder Map</h2>
+        <p>根据最新校内沟通整理。</p>
+      </div>
+      <div class="panel">
+        <table>
+          <thead><tr><th>对象</th><th>反馈 / 角色</th><th>状态</th></tr></thead>
+          <tbody>
+            <tr><td>Mrs. Young-Chan</td><td>讨论隐私与数据安全；建议 planner 中可以把课程从一个年级拖到另一个年级。</td><td>隐私处理完成；拖拽功能待做。</td></tr>
+            <tr><td>Mrs. Yoshida</td><td>Registration 反馈很好；建议添加自定义课程。</td><td>已实现；准确性待确认。</td></tr>
+            <tr><td>Mrs. Amine</td><td>建议年级 filter；提出部署服务器和 IT 协调问题。</td><td>filter 已有；服务器路线待定。</td></tr>
+            <tr><td>Dr. Ida</td><td>项目指导；提醒账号登录风险、介绍应找的老师、解释服务器/firewall。</td><td>持续指导中。</td></tr>
+            <tr><td>Counselor department</td><td>已分享但 review 不多；反馈包括 saveability、workload balance、growth、NCAA。</td><td>需要继续 follow up。</td></tr>
+            <tr><td>Mrs. Akasaki</td><td>下一步计划联系，讨论学校通知和网站链接。</td><td>计划中。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>当前运行状态</h2></div>
+      <div class="grid-3">
+        <div class="status-card"><span class="status-tag tag-green">Ready</span><h3>Vercel 部署</h3><p>最新 production deployment 是 READY；之前 missing export 导致的 build 问题已修复。</p></div>
+        <div class="status-card"><span class="status-tag tag-blue">Protected</span><h3>Supabase 数据</h3><p>6 个 public table 开启 RLS；学生 planner 不写入 Supabase。</p></div>
+        <div class="status-card"><span class="status-tag tag-amber">Action</span><h3>后台 Auth 加固</h3><p>在把后台登录视为 production-grade 前，建议开启 leaked-password protection。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Roadmap Board</h2></div>
+      <div class="roadmap">
+        <div class="lane"><h3>已完成</h3><ul><li>启动隐私免责声明</li><li>自定义课程</li><li>Catalog 年级 filter</li><li>Site settings 后台</li><li>V1-V8 归档结构</li></ul></div>
+        <div class="lane"><h3>大范围分享前</h3><ul><li>课程与毕业条件准确性 review</li><li>Supabase 密码保护</li><li>联系 Mrs. Akasaki 放链接</li><li>给 counselor 的说明措辞</li></ul></div>
+        <div class="lane"><h3>后续功能</h3><ul><li>Planner 年级间拖拽</li><li>Workload balance 指导</li><li>NCAA coursework reference</li><li>学校 IT/server 路线判断</li></ul></div>
+      </div>
+    </section>
+
+    <section class="local-note">
+      报告和原始反馈表会保留在本地归档里，但已经被 `.gitignore` 忽略，不会上传到 GitHub。适合进 repo 的只有 dashboard、README 和统计摘要。
+    </section>
+  </main>
+
+  <footer class="shell">Kalani Compass 是非官方学生项目，不隶属于 Kalani High School 或 Hawaii DOE。</footer>
+</body>
+</html>

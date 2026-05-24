@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kalani Compass Major Update Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand">
+          <span>Kalani Compass</span>
+          <small>Major update archive · May 23, 2026</small>
+        </div>
+        <nav class="lang-switch" aria-label="Language">
+          <a class="active" href="en.html">English</a>
+          <a href="zh.html">中文</a>
+        </nav>
+      </div>
+      <div class="hero-grid">
+        <div>
+          <p class="eyebrow">V1-V8 product history</p>
+          <h1>From class-planning prototype to school-review-ready tool.</h1>
+          <p class="hero-copy">This dashboard summarizes the major Kalani Compass release reports, Google Form feedback, stakeholder outreach, Supabase/Vercel operating status, and the next steps before broader school sharing.</p>
+        </div>
+        <aside class="hero-panel">
+          <strong>Current recommendation</strong>
+          <p>Use a link-first rollout before the new school year, keep the product clearly unofficial, and collect more counselor/registration feedback before any official website or server migration decision.</p>
+        </aside>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="kpis" aria-label="Feedback key metrics">
+      <div class="kpi"><span>Responses</span><strong>99</strong><em>Google Form feedback</em></div>
+      <div class="kpi"><span>Helpful</span><strong>4.02</strong><em>Average out of 5</em></div>
+      <div class="kpi"><span>Easy to use</span><strong>4.17</strong><em>Average out of 5</em></div>
+      <div class="kpi"><span>Clear / accurate</span><strong>4.16</strong><em>Average out of 5</em></div>
+      <div class="kpi"><span>Recommend</span><strong>86.9%</strong><em>Definitely/probably yes</em></div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Release Timeline</h2>
+        <p>Reports are stored locally in <code>reports/</code> and ignored for GitHub upload.</p>
+      </div>
+      <div class="versions">
+        <article class="version" style="--accent:#b00804"><div class="version-top"><span>V1</span><small>Mar 8</small></div><h3>Demo foundation</h3><p>Pure frontend prototype, structured course dataset, prerequisite links, and 4-year planner.</p></article>
+        <article class="version" style="--accent:#2563eb"><div class="version-top"><span>V2</span><small>March</small></div><h3>Planner persistence</h3><p>localStorage saving, honors/off-campus logic, course-cap fixes, and graduation tracking improvements.</p></article>
+        <article class="version" style="--accent:#047857"><div class="version-top"><span>V3</span><small>March</small></div><h3>2026-27 catalog refresh</h3><p>139-course catalog rebuild, Supabase announcements, ratings experiment, and search/catalog upgrades.</p></article>
+        <article class="version" style="--accent:#b45309"><div class="version-top"><span>V4</span><small>March</small></div><h3>Database + admin</h3><p>Courses moved to Supabase, admin panels introduced, sort order and fallback behavior stabilized.</p></article>
+        <article class="version" style="--accent:#6d28d9"><div class="version-top"><span>V5</span><small>April</small></div><h3>Beta response</h3><p>Student feedback analysis, public ratings suspended, and Algebra 1 middle-school credit fix.</p></article>
+        <article class="version" style="--accent:#0f766e"><div class="version-top"><span>V6</span><small>Apr-May</small></div><h3>Privacy readiness</h3><p>Local-storage privacy explanation, device/account testing, startup disclaimer, and Vercel build recovery.</p></article>
+        <article class="version" style="--accent:#be123c"><div class="version-top"><span>V7</span><small>May 14-18</small></div><h3>Custom courses + refactor</h3><p>HOC, summer, dual-credit, and transfer custom courses; RLS-backed admin security; modular docs.</p></article>
+        <article class="version" style="--accent:#1d4ed8"><div class="version-top"><span>V8</span><small>May 22-23</small></div><h3>Outreach readiness</h3><p>Site settings, stakeholder roadmap, conflict-warning UX, and link-first launch planning.</p></article>
+      </div>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <div class="section-head"><h2>Top Feature Requests</h2></div>
+        <div class="bar-row"><div class="bar-label">Dual credit information</div><div class="bar-track"><span style="width:100%;background:var(--red)"></span></div><div class="bar-value">26</div></div>
+        <div class="bar-row"><div class="bar-label">Teacher ratings or reviews</div><div class="bar-track"><span style="width:88.5%;background:var(--blue)"></span></div><div class="bar-value">23</div></div>
+        <div class="bar-row"><div class="bar-label">Summer school / HOC</div><div class="bar-track"><span style="width:84.6%;background:var(--green)"></span></div><div class="bar-value">22</div></div>
+        <div class="bar-row"><div class="bar-label">Better 4-year suggestions</div><div class="bar-track"><span style="width:38.5%;background:var(--amber)"></span></div><div class="bar-value">10</div></div>
+        <div class="bar-row"><div class="bar-label">Classroom room numbers</div><div class="bar-track"><span style="width:34.6%;background:var(--violet)"></span></div><div class="bar-value">9</div></div>
+      </div>
+      <div class="panel">
+        <div class="section-head"><h2>Recommendation Signal</h2></div>
+        <div class="donut-wrap">
+          <div class="donut"><strong>86.9%</strong></div>
+          <div class="legend">
+            <div class="legend-item"><span class="dot" style="background:var(--green)"></span><span>Definitely / probably yes</span><strong>86</strong></div>
+            <div class="legend-item"><span class="dot" style="background:#cbd5e1"></span><span>Other responses</span><strong>13</strong></div>
+            <div class="legend-item"><span class="dot" style="background:var(--red)"></span><span>Total responses</span><strong>99</strong></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <div class="section-head"><h2>Respondent Mix</h2></div>
+        <div class="bar-row"><div class="bar-label">10th Grade</div><div class="bar-track"><span style="width:100%;background:var(--navy)"></span></div><div class="bar-value">49</div></div>
+        <div class="bar-row"><div class="bar-label">11th Grade</div><div class="bar-track"><span style="width:59.2%;background:var(--blue)"></span></div><div class="bar-value">29</div></div>
+        <div class="bar-row"><div class="bar-label">9th Grade</div><div class="bar-track"><span style="width:32.7%;background:var(--green)"></span></div><div class="bar-value">16</div></div>
+        <div class="bar-row"><div class="bar-label">12th Grade</div><div class="bar-track"><span style="width:8.2%;background:var(--amber)"></span></div><div class="bar-value">4</div></div>
+        <div class="bar-row"><div class="bar-label">Counselor</div><div class="bar-track"><span style="width:2.1%;background:var(--violet)"></span></div><div class="bar-value">1</div></div>
+      </div>
+      <div class="panel">
+        <div class="section-head"><h2>Staff Feedback Themes</h2></div>
+        <table>
+          <thead><tr><th>Theme</th><th>What it means</th></tr></thead>
+          <tbody>
+            <tr><td>Privacy</td><td>Keep student plans local; explain save behavior and shared-device limits clearly.</td></tr>
+            <tr><td>Registration accuracy</td><td>Custom courses are useful, but graduation-condition mapping needs review.</td></tr>
+            <tr><td>Planning quality</td><td>Add workload balance, purposeful course-building, and growth trajectory guidance.</td></tr>
+            <tr><td>Hosting</td><td>Start with a simple link while school website/server constraints are clarified.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Stakeholder Map</h2>
+        <p>Updated from latest school outreach notes.</p>
+      </div>
+      <div class="panel">
+        <table>
+          <thead><tr><th>Stakeholder</th><th>Feedback / role</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Mrs. Young-Chan</td><td>Privacy review; requested drag-and-drop course movement between grades.</td><td>Privacy handled; drag-and-drop future.</td></tr>
+            <tr><td>Mrs. Yoshida</td><td>Registration feedback; requested custom courses for non-catalog situations.</td><td>Implemented; accuracy review pending.</td></tr>
+            <tr><td>Mrs. Amine</td><td>Suggested grade filter and raised hosting / IT coordination questions.</td><td>Filter present; hosting pending.</td></tr>
+            <tr><td>Dr. Ida</td><td>Project advisor; guided login risk, staff contacts, server/firewall constraints.</td><td>Ongoing advisor.</td></tr>
+            <tr><td>Counselor department</td><td>Shared for review; feedback includes saveability, workload balance, personal growth, NCAA.</td><td>Needs follow-up.</td></tr>
+            <tr><td>Mrs. Akasaki</td><td>Next planned contact for announcements and website administration.</td><td>Planned.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Operating Status</h2></div>
+      <div class="grid-3">
+        <div class="status-card"><span class="status-tag tag-green">Ready</span><h3>Vercel deployment</h3><p>Latest production deployment is READY. Previous missing-export build failures were fixed.</p></div>
+        <div class="status-card"><span class="status-tag tag-blue">Protected</span><h3>Supabase data model</h3><p>Six public tables have RLS enabled. Student plans are not stored in Supabase.</p></div>
+        <div class="status-card"><span class="status-tag tag-amber">Action</span><h3>Admin auth hardening</h3><p>Enable leaked-password protection before treating admin login as production-grade.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Roadmap Board</h2></div>
+      <div class="roadmap">
+        <div class="lane"><h3>Done</h3><ul><li>Startup privacy disclaimer</li><li>Custom course entries</li><li>Catalog grade filter</li><li>Site settings admin panel</li><li>V1-V8 archive structure</li></ul></div>
+        <div class="lane"><h3>Before wider sharing</h3><ul><li>Course and graduation accuracy review</li><li>Supabase password protection</li><li>Mrs. Akasaki link conversation</li><li>Counselor-facing wording</li></ul></div>
+        <div class="lane"><h3>Future</h3><ul><li>Drag-and-drop planner movement</li><li>Workload-balance guidance</li><li>NCAA coursework reference</li><li>School IT/server decision</li></ul></div>
+      </div>
+    </section>
+
+    <section class="local-note">
+      Reports and raw feedback are intentionally local-only. They are useful for your own archive, but `.gitignore` prevents the DOCX reports and raw CSV from being uploaded to GitHub.
+    </section>
+  </main>
+
+  <footer class="shell">Kalani Compass is an unofficial student-built planning tool. It is not affiliated with Kalani High School or Hawaii DOE.</footer>
+</body>
+</html>
