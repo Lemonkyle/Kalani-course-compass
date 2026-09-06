@@ -67,7 +67,8 @@ The first maintenance refactor split the largest student-side files:
 
 ## September 2026 cloud update
 
-- Shared grade/capacity/duplicate checks across all course-add entry points; prerequisite overrides cannot bypass hard constraints.
+- Grade placement, prerequisites and extra annual core-subject coursework are advisory and can be accepted with **Add Anyway**, including transfer and make-up courses. English, Mathematics, Social Studies and Science use a typical 1-credit annual load; two 0.5-credit entries count as one yearly load. Duplicate non-repeatable courses, unavailable records and total planner capacity remain protected.
+- Course-detail grade buttons animate between the grade label, **Added!** and removal states, with keyboard/touch operation and reduced-motion support. The same planning reminders appear in catalog details, planner search, custom-course entry and template review.
 - Same-language World Language credits; custom outside programs have no separate equivalency rules.
 - Historical course snapshots and recoverable invalid-storage backups.
 - Six clearly labeled example templates validated for current course grades, prerequisites and all graduation-credit categories. The existing Course Match maintenance switch is preserved.

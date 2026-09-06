@@ -11,10 +11,44 @@ export const GRADE_MAX = 14.0;
 
 export function planAdditionError(plan, grade, course, getCourseForId = getCourse) {
   if (![9,10,11,12].includes(Number(grade)) || !course || course.unavailable) return "This course is unavailable for new plans.";
-  if (!(course.gradeLevel || []).map(Number).includes(Number(grade))) return `This course is not offered to Grade ${grade}.`;
   if (!course.repeatable && Object.values(plan).flat().includes(course.id)) return "This course is already in your plan.";
   if (gradeSlots(plan, grade, getCourseForId) + getCourseSlots(course) > GRADE_MAX) return `Grade ${grade} does not have enough room for this course.`;
   return null;
+}
+
+const CORE_DEPARTMENTS = ["English", "Mathematics", "Social Studies", "Science"];
+
+// Two semester courses make one year-long load, regardless of catalog titles.
+export function getCoreLoadWarnings(courses, grade) {
+  return CORE_DEPARTMENTS.flatMap(dept => {
+    const credits = courses.filter(course => course?.dept === dept)
+      .reduce((total, course) => total + (course.credits || 0), 0);
+    return credits > 1 + 1e-8 ? [{
+      code: "workload", dept,
+      message: `Grade ${grade} has ${Number(credits.toFixed(2))} ${dept} credits. A typical yearly plan has 1 credit in this subject: one year-long course or two 0.5-credit courses.`,
+    }] : [];
+  });
+}
+
+// Guidance is advisory; unavailable courses, duplicates and total capacity
+// remain data-integrity checks in planAdditionError.
+export function planAdditionWarnings(plan, grade, course, getCourseForId = getCourse, priorCredits = []) {
+  if (!course || course.unavailable || ![9, 10, 11, 12].includes(Number(grade))) return [];
+  const warnings = [];
+  const listedGrades = (course.gradeLevel || []).map(Number);
+  if (listedGrades.length && !listedGrades.includes(Number(grade))) {
+    warnings.push({code: "grade", message: `${course.name} is normally listed for Grade ${listedGrades.join("/")}, rather than Grade ${grade}. Transfer or make-up coursework may be an exception.`});
+  }
+  warnings.push(...getCoreLoadWarnings([
+    ...(plan[grade] || []).map(getCourseForId), course,
+  ], grade).filter(warning => warning.dept === course.dept));
+  const before = [...getCoursesBeforeGrade(plan, grade), ...priorCredits];
+  const upTo = [...getAllCoursesUpTo(plan, grade), ...priorCredits];
+  const unmet = getUnmetPrereqs(course.id, before, upTo, id => id === course.id ? course : getCourseForId(id));
+  if (unmet.length) {
+    warnings.push({code: "prerequisite", message: `Prerequisites not yet recorded in your plan: ${unmet.map(id => getCourseForId(id)?.name || id).join(", ")}.`});
+  }
+  return warnings;
 }
 
 

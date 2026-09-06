@@ -1,13 +1,17 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { GRADE_MAX } from "../../lib/plannerRules.js";
+import { GRADE_MAX, planAdditionWarnings } from "../../lib/plannerRules.js";
+import { PlanningNotice } from "../shared/PlanningNotice.jsx";
 import { WORLD_LANGUAGES } from "../../lib/worldLanguage.js";
 
 export function CustomCourseModal({ context }) {
   const {
-    plan, setCustomCourses, setShowCustomModal, gradeSlots, addCourseEntry, setShakeGrade, showToast, showCustomModal, customGradeTarget, setCustomGradeTarget, customForm, setCustomForm
+    plan, getCourse, priorCredits, setCustomCourses, setShowCustomModal, gradeSlots, addCourseEntry, setShakeGrade, showToast, showCustomModal, customGradeTarget, setCustomGradeTarget, customForm, setCustomForm
   } = context;
   const needsLanguage = customForm.dept === "World Language" && !customForm.language?.trim();
   const canAdd = Boolean(customForm.name.trim()) && !needsLanguage;
+  const warnings = canAdd ? planAdditionWarnings(plan, customGradeTarget, {
+    ...customForm, id:"CUSTOM_PREVIEW", gradeLevel:[9,10,11,12], prereqs:[],
+  }, getCourse, priorCredits) : [];
   return (
 <AnimatePresence>
         {showCustomModal && (
@@ -154,6 +158,7 @@ export function CustomCourseModal({ context }) {
 
               {/* Add button */}
               <div style={{ padding:"0 22px 20px" }}>
+                <PlanningNotice grade={customGradeTarget} warnings={warnings} />
                 <button
                   disabled={!canAdd}
                   onClick={()=>{
@@ -193,7 +198,7 @@ export function CustomCourseModal({ context }) {
                     cursor:canAdd?"pointer":"not-allowed",
                     opacity:canAdd?1:0.5,
                     fontFamily:"inherit", touchAction:"manipulation" }}>
-                  Add to Grade {customGradeTarget} →
+                  {warnings.length ? "Add Anyway" : "Add"} to Grade {customGradeTarget} →
                 </button>
               </div>
             </motion.div>
