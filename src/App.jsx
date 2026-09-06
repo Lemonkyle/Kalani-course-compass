@@ -19,7 +19,7 @@ import { useStartupDisclaimer } from "./hooks/useStartupDisclaimer.js";
 import { useTransientUi } from "./hooks/useTransientUi.js";
 import { deptColor, getCourseSlots } from "./lib/courseRules.js";
 import { computeHonorsProgress } from "./lib/honorsRules.js";
-import { GRADE_MAX, planAdditionError, calcPlannerCredits, getAllCoursesUpTo, getCoursesBeforeGrade } from "./lib/plannerRules.js";
+import { GRADE_MAX, planAdditionError, planAdditionWarnings, calcPlannerCredits } from "./lib/plannerRules.js";
 import { safeExternalUrl } from "./lib/url.js";
 export default function App() {
   // V4: courses fetched from Supabase, falls back to local course data if unavailable
@@ -90,9 +90,9 @@ export default function App() {
   const [dismissedAnns, setDismissedAnns] = useState([]);
   const [addTarget, setAddTarget] = useState(null);
   const [honorsOpen, setHonorsOpen] = useState({academic:false,stem:false,cte:false});
-  const [prereqWarn, setPrereqWarn] = useState(null); // {courseId, grade, unmet:[]}
+  const [prereqWarn, setPrereqWarn] = useState(null); // {courseId, grade, warnings:[]}
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [modalWarn, setModalWarn] = useState(null); // { courseId, grade, unmet }
+  const [modalWarn, setModalWarn] = useState(null); // { courseId, grade, warnings }
   // Course Match
   const [matchSelected, setMatchSelected] = useState(null); // selected template for detail view
   const [applyConfirm, setApplyConfirm] = useState(false); // show apply confirmation
@@ -136,8 +136,8 @@ export default function App() {
     const course = getCourse(courseId);
     const error = planAdditionError(plan, grade, course, getCourse);
     if (error) { showToast(error); return; }
-    const unmet = getUnmetPrereqsForCurrentCourses(courseId, [...getCoursesBeforeGrade(plan, grade), ...priorCredits], [...getAllCoursesUpTo(plan, grade), ...priorCredits]);
-    if (unmet.length) { setModalWarn({courseId, grade, unmet}); return; }
+    const warnings = planAdditionWarnings(plan, grade, course, getCourse, priorCredits);
+    if (warnings.length) { setModalWarn({courseId, grade, warnings}); return; }
     if (addCourseEntry(grade, courseId)) { setModalWarn(null); showToast('Added "' + course.name + '" to Grade ' + grade); }
   }
   function addCourseToPlan(courseId) {
@@ -149,11 +149,9 @@ export default function App() {
       showToast(additionError);
       return;
     }
-    const completedBefore = [...getCoursesBeforeGrade(plan, addTarget), ...priorCredits];
-    const completedUpTo = [...getAllCoursesUpTo(plan, addTarget), ...priorCredits];
-    const unmet = getUnmetPrereqsForCurrentCourses(courseId, completedBefore, completedUpTo);
-    if (unmet.length > 0) {
-      setPrereqWarn({ courseId, grade: addTarget, unmet });
+    const warnings = planAdditionWarnings(plan, addTarget, course, getCourse, priorCredits);
+    if (warnings.length > 0) {
+      setPrereqWarn({ courseId, grade: addTarget, warnings });
       return;
     }
     addCourseEntry(addTarget, courseId, course);

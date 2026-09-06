@@ -1,8 +1,8 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { AnimatedProgressBar, cardVariants, contentVariants, renderPage, shakeAnim } from "../components/shared/index.js";
 import { DEFAULT_PLAN, GRAD_REQUIREMENTS, HONORS_DEFS } from "../data/index.js";
-import { getCourseSlots } from "../lib/courseRules.js";
-import { GRADE_MAX, getAllCoursesUpTo, getCoursesBeforeGrade } from "../lib/plannerRules.js";
+import { GRADE_MAX, getAllCoursesUpTo, getCoursesBeforeGrade, getCoreLoadWarnings, planAdditionWarnings, planAdditionError } from "../lib/plannerRules.js";
+import { PlanningNotice } from "../components/shared/PlanningNotice.jsx";
 
 export function PlannerPage({ context }) {
   const {
@@ -124,6 +124,7 @@ export function PlannerPage({ context }) {
                   const gradeCredits = plan[grade].reduce((s,cid)=>{ const c=getCourse(cid); return s+(c?.credits||0); },0);
                   const usedSlots = gradeSlots(plan, grade);
                   const atCap = usedSlots >= GRADE_MAX;
+                  const loadWarnings = getCoreLoadWarnings(plan[grade].map(getCourse), grade);
                   return (
                     <motion.div key={grade} animate={shakeGrade===grade ? shakeAnim : {}} style={{ height:"100%" }}>
                       <div style={{ background:"white", borderRadius:"20px", border:"1px solid #E2E8F0",
@@ -141,6 +142,11 @@ export function PlannerPage({ context }) {
                           </span>
                         </div>
                         <div style={{ padding:"12px 14px 0", display:"flex", flexDirection:"column", flex:1 }}>
+                        {loadWarnings.length > 0 && <details style={{fontSize:11,color:"#92400E",background:"#FFFBEB",borderRadius:8,padding:"8px 10px",marginBottom:10}}>
+                          <summary style={{cursor:"pointer",fontWeight:700}}>⚠ Extra coursework · review your plan</summary>
+                          {loadWarnings.map(warning => <p key={warning.dept} style={{margin:"6px 0"}}>{warning.message}</p>)}
+                          <p style={{margin:"6px 0 0"}}>Exceptions are allowed. Check your plan with your counselor.</p>
+                        </details>}
                         <AnimatePresence initial={false}>
                           {plan[grade].map((cid,idx)=>{
                             const c=getCourse(cid);
@@ -202,7 +208,7 @@ export function PlannerPage({ context }) {
                                         {isOffCampus?"🚗 Off Campus":c.name}
                                       </span>
                                       {c.unavailable && <span style={{fontSize:10,color:"#92400E"}}>Unavailable · verify saved credits</span>}
-                                      {!c.unavailable && !c.gradeLevel?.map(Number).includes(grade) && <span style={{fontSize:10,color:"#B91C1C"}}>Check grade eligibility</span>}
+                                      {!c.unavailable && !c.gradeLevel?.map(Number).includes(grade) && <span style={{fontSize:10,color:"#92400E"}}>Outside usual grade</span>}
                                       {c?.isCustom && (
                                         <span style={{ fontSize:"9px", fontWeight:800, flexShrink:0,
                                           background:"#EFF6FF", color:"#1D4ED8",
@@ -239,14 +245,14 @@ export function PlannerPage({ context }) {
                           {addTarget===grade && (
                             <motion.div
                               key="search-panel"
-                              initial={{ opacity:0, height:0, marginTop:0 }}
-                              animate={{ opacity:1, height:"auto", marginTop:"auto",
+                              initial={{ opacity:0, height:0 }}
+                              animate={{ opacity:1, height:"auto",
                                 transition:{ height:{ type:"spring", stiffness:400, damping:30 },
                                   opacity:{ duration:0.15, delay:0.05 } } }}
-                              exit={{ opacity:0, height:0, marginTop:0,
+                              exit={{ opacity:0, height:0,
                                 transition:{ height:{ type:"spring", stiffness:400, damping:30 },
                                   opacity:{ duration:0.1 } } }}
-                              style={{ overflow:"hidden", paddingTop:"8px", paddingBottom:"14px" }}>
+                              style={{ overflow:"hidden", marginTop:"auto", paddingTop:"8px", paddingBottom:"14px" }}>
                               <div style={{ display:"flex", alignItems:"center", gap:"8px",
                                 background:"#F8FAFC", border:"1.5px solid var(--red)", borderRadius:"10px",
                                 padding:"8px 12px", marginBottom:"6px" }}>
@@ -263,28 +269,9 @@ export function PlannerPage({ context }) {
                               </div>
                               {/* Prereq warning inline */}
                               {prereqWarn && prereqWarn.grade===grade && (
-                                <div style={{ background:"#FEF9C3", border:"1.5px solid #EAB308", borderRadius:"8px",
-                                  padding:"10px 12px", marginBottom:"6px" }}>
-                                  <div style={{ fontWeight:700, fontSize:"12px", color:"#78350F", marginBottom:"5px" }}>
-                                    ⚠️ Missing Prerequisites
-                                  </div>
-                                  <div style={{ fontSize:"11px", color:"#78350F", marginBottom:"8px" }}>
-                                    <span><strong>{getCourse(prereqWarn.courseId)?.name}</strong> needs: {prereqWarn.unmet.map(getPrereqDisplay).join(", ")}</span>
-                                  </div>
-                                  <div style={{ display:"flex", gap:"6px" }}>
-                                    <button onClick={()=>forceAddCourse(prereqWarn.courseId)}
-                                      style={{ flex:1, background:"#B45309", color:"white", border:"none", borderRadius:"6px",
-                                        padding:"6px", fontSize:"11px", fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                                      Add Anyway
-                                    </button>
-                                    <button onClick={()=>setPrereqWarn(null)}
-                                      style={{ flex:1, background:"white", color:"#374151", border:"1px solid #D1D5DB",
-                                        borderRadius:"6px", padding:"6px", fontSize:"11px", fontWeight:600,
-                                        cursor:"pointer", fontFamily:"inherit" }}>
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
+                                <PlanningNotice courseName={getCourse(prereqWarn.courseId)?.name} grade={grade}
+                                  warnings={prereqWarn.warnings} onConfirm={()=>forceAddCourse(prereqWarn.courseId)}
+                                  onCancel={()=>setPrereqWarn(null)} />
                               )}
                               {/* Results list */}
                               <div style={{ maxHeight:"200px", overflowY:"auto", borderRadius:"10px",
@@ -292,18 +279,14 @@ export function PlannerPage({ context }) {
                                 boxShadow:"0 4px 16px rgba(0,0,0,0.08)" }}>
                                 {addSearchResults.map(c=>{
                                   const already = !c.repeatable && Object.values(plan).flat().includes(c.id);
-                                  const courseSlots = getCourseSlots(c);
-                                  const wouldExceed = gradeSlots(plan, grade) + courseSlots > GRADE_MAX;
                                   const wrongGrade = !(c.gradeLevel || []).map(Number).includes(grade);
-                                  const blocked = already || wouldExceed || wrongGrade;
-                                  const completedBefore = [...getCoursesBeforeGrade(plan, grade), ...priorCredits];
-                                  const completedUpTo = [...getAllCoursesUpTo(plan, grade), ...priorCredits];
-                                  const unmet = c.id==="OFF_CAMPUS" ? [] : getUnmetPrereqsForCurrentCourses(c.id, completedBefore, completedUpTo);
-                                  const hasWarn = unmet.length > 0;
+                                  const blocked = planAdditionError(plan, grade, c, getCourse);
+                                  const warnings = blocked ? [] : planAdditionWarnings(plan, grade, c, getCourse, priorCredits);
+                                  const hasWarn = warnings.length > 0;
                                   return (
-                                    <div key={c.id}
+                                    <button type="button" key={c.id} disabled={Boolean(blocked)} title={blocked || warnings.map(warning=>warning.message).join("\n") || undefined}
                                       onClick={()=>{ if(!blocked) addCourseToPlan(c.id); }}
-                                      style={{ display:"flex", alignItems:"center", gap:"9px",
+                                      style={{ display:"flex", alignItems:"center", gap:"9px",width:"100%",border:0,background:"white",textAlign:"left",fontFamily:"inherit",
                                         padding:"9px 12px", cursor:blocked?"default":"pointer",
                                         borderBottom:"1px solid #F3F4F6", opacity:blocked?0.45:1,
                                         transition:"background 0.1s" }}
@@ -317,14 +300,14 @@ export function PlannerPage({ context }) {
                                           {c.name}{c.isAP?" ⭐":""}
                                         </div>
                                         <div style={{ fontSize:"11px", color:hasWarn?"#D97706":"var(--muted)" }}>
-                                          {c.dept} · {c.credits}cr{wrongGrade ? " · Not offered to this grade" : hasWarn?" · ⚠️ needs: "+unmet.map(getPrereqDisplay).join(", "):""}
+                                          {c.dept} · {c.credits}cr{wrongGrade ? " · Outside usual grade" : hasWarn ? " · Review planning notes" : ""}
                                         </div>
                                       </div>
                                       {already
                                         ? <span style={{ fontSize:"11px", color:"var(--red)", fontWeight:700, flexShrink:0 }}>Added</span>
                                         : <span style={{ fontSize:"18px", color:hasWarn?"#D97706":"var(--red)", flexShrink:0 }}>{hasWarn?"⚠️":"+"}</span>
                                       }
-                                    </div>
+                                    </button>
                                   );
                                 })}
                               </div>
