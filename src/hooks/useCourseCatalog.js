@@ -7,7 +7,7 @@ import {
 import { getUnmetPrereqs } from "../lib/plannerRules.js";
 
 import { COURSES } from "../data/courses.js";
-import { makeHistoricalCatalog, readSaved, validCustomCourses } from "../lib/plannerStorage.js";
+import { makeHistoricalCatalog, readSaved, validCourseSnapshots } from "../lib/plannerStorage.js";
 
 export function useCourseCatalog(liveCourses, customCourses, plan, catalogStatus) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -21,7 +21,7 @@ export function useCourseCatalog(liveCourses, customCourses, plan, catalogStatus
   const [gridKey, setGridKey] = useState(0);
   const [addSearch, setAddSearch] = useState("");
 
-  const [snapshots, setSnapshots] = useState(() => readSaved(localStorage, "kalani-course-snapshots", {}, value => value && !Array.isArray(value) && validCustomCourses(Object.values(value))));
+  const [snapshots, setSnapshots] = useState(() => readSaved(localStorage, "kalani-course-snapshots", {}, validCourseSnapshots));
   useEffect(() => {
     if (catalogStatus !== "ready") return;
     setSnapshots(previous => {

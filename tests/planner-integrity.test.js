@@ -5,10 +5,16 @@ import { DEFAULT_PLAN } from "../src/data/requirements.js";
 import { COURSE_MATCH_TEMPLATES } from "../src/data/courseMatchTemplates.js";
 import { planAdditionError, calcPlannerCredits } from "../src/lib/plannerRules.js";
 import { assessTemplate } from "../src/lib/templateRules.js";
-import { makeHistoricalCatalog, readSaved, validPlan, validCustomCourses, backupAndReset } from "../src/lib/plannerStorage.js";
+import { makeHistoricalCatalog, readSaved, validPlan, validCustomCourses, validCourseSnapshots, backupAndReset } from "../src/lib/plannerStorage.js";
 import { fromSchoolInput, toSchoolInput } from "../src/lib/schoolTime.js";
 const empty=()=>({9:[],10:[],11:[],12:[]});
 const get=id=>COURSES.find(c=>c.id===id);
+
+test("uncategorized school courses do not invalidate the whole history cache",()=>{
+  assert.equal(validCourseSnapshots({ELA1:{...get("ELA1"),gradCategory:null,gradCredits:null}}),true);
+  assert.equal(validCourseSnapshots({ELA1:{...get("ELA1"),credits:"invalid"}}),false);
+  assert.equal(validPlan({...DEFAULT_PLAN, unexpected:[]}),false);
+});
 
 test("grade, capacity, duplicate and unavailable checks apply independently of prerequisites",()=>{
   assert.match(planAdditionError(empty(),10,get("AP_ENG3")),/not offered/);

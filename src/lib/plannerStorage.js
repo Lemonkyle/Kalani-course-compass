@@ -1,10 +1,14 @@
 export const GRADES = [9, 10, 11, 12];
 const isId = id => typeof id === "string" && id.length > 0 && id.length <= 100;
 export function validPlan(value) {
-  return value && !Array.isArray(value) && GRADES.every(g => Array.isArray(value[g]) && value[g].length <= 100 && value[g].every(isId));
+  return value && !Array.isArray(value) && Object.keys(value).length === 4 && GRADES.every(g => Array.isArray(value[g]) && value[g].length <= 100 && value[g].every(isId));
 }
 export function validCustomCourses(value) {
   return Array.isArray(value) && value.every(c => c && isId(c.id) && typeof c.name === "string" && typeof c.dept === "string" && Number.isFinite(c.credits) && c.credits >= 0 && c.credits <= 14 && Number.isFinite(c.gradCredits) && c.gradCredits >= 0 && c.gradCredits <= c.credits && Array.isArray(c.gradeLevel));
+}
+export function validCourseSnapshots(value) {
+  return value && !Array.isArray(value) && Object.entries(value).every(([id, course]) =>
+    course?.id === id && validCustomCourses([{...course, gradCredits:course.gradCredits ?? 0}]));
 }
 export function readSaved(storage, key, fallback, validate) {
   try {
