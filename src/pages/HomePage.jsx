@@ -3,19 +3,7 @@ import { DEPTS, GRAD_REQUIREMENTS } from "../data/index.js";
 
 export function HomePage({ context }) {
   const {
-    page, maintenanceContent, navigate, selectedCourse, setSelectedCourse, searchQuery,
-    setSearchQuery, homeSearch, setHomeSearch, homeSearchFocus, setHomeSearchFocus, homeSearchResults,
-    filterDept, setFilterDept, filterCtePath, setFilterCtePath, filterFineArts, setFilterFineArts,
-    filterMisc, setFilterMisc, gridKey, setGridKey, filteredCourses, canUseHover,
-    getCourseName, deptColor, plan, showResetConfirm, setShowResetConfirm, setPlan,
-    priorCredits, setPriorCredits, alg1Anim, setAlg1Anim, customCourses, setCustomCourses,
-    setShowCustomModal, addTarget, setAddTarget, addSearch, setAddSearch, prereqWarn,
-    setPrereqWarn, addSearchResults, getCourse, gradeSlots, getUnmetPrereqsForCurrentCourses, getPrereqDisplay,
-    addCourseToPlan, forceAddCourse, removeCourse, ensureUids, canFitCourse, addCourseEntry,
-    setShakeGrade, showToast, shakeGrade, cats, total, honorsOpen,
-    setHonorsOpen, honorsProgress, planUids, matchSelected, setMatchSelected, applyConfirm,
-    setApplyConfirm, showCustomModal, customGradeTarget, setCustomGradeTarget, customForm, setCustomForm,
-    modalWarn, setModalWarn, getCoreConflict, liveCourses,
+    page, maintenanceContent, navigate, setSelectedCourse, setSearchQuery, homeSearch, setHomeSearch, homeSearchFocus, setHomeSearchFocus, homeSearchResults, setFilterDept, setFilterCtePath, setFilterFineArts, setFilterMisc, deptColor, plan, total, liveCourses
   } = context;
   return renderPage(page==="home","home", maintenanceContent("home",
           <div className="fade-in">
@@ -124,9 +112,9 @@ export function HomePage({ context }) {
             {/* Stats */}
             <div className="stat-grid" style={{ maxWidth:"840px", margin:"44px auto 0", padding:"0 24px",
               display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:"14px" }}>
-              {[{n:"24",l:"Credits to graduate",i:"🎓",c:"#B00804"},{n:"140+",l:"Courses in catalog",i:"📚",c:"#0369A1"},
-                {n:"18",l:"AP courses offered",i:"⭐",c:"#7C3AED"},{n:"8",l:"CTE career pathways",i:"🛠",c:"#0F766E"}].map(s=>(
-                <div key={s.n} style={{ background:"white", borderRadius:"14px", padding:"22px",
+              {[{n:"24",l:"Credits to graduate",i:"🎓",c:"#B00804"},{n:String(liveCourses.length),l:"Courses in catalog",i:"📚",c:"#0369A1"},
+                {n:String(liveCourses.filter(c=>c.isAP).length),l:"AP courses offered",i:"⭐",c:"#7C3AED"},{n:String(new Set(liveCourses.filter(c=>c.dept==="CTE" && c.ctePath).map(c=>c.ctePath)).size),l:"CTE career pathways",i:"🛠",c:"#0F766E"}].map(s=>(
+                <div key={s.l} style={{ background:"white", borderRadius:"14px", padding:"22px",
                   textAlign:"center", border:"1px solid var(--border)", boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
                   <div style={{ fontSize:"28px", marginBottom:"8px" }}>{s.i}</div>
                   <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"34px", fontWeight:700,

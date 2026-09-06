@@ -1,22 +1,13 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { GRADE_MAX } from "../../lib/plannerRules.js";
+import { WORLD_LANGUAGES } from "../../lib/worldLanguage.js";
 
 export function CustomCourseModal({ context }) {
   const {
-    page, maintenanceContent, navigate, selectedCourse, setSelectedCourse, searchQuery,
-    setSearchQuery, homeSearch, setHomeSearch, homeSearchFocus, setHomeSearchFocus, homeSearchResults,
-    filterDept, setFilterDept, filterCtePath, setFilterCtePath, filterFineArts, setFilterFineArts,
-    filterMisc, setFilterMisc, gridKey, setGridKey, filteredCourses, canUseHover,
-    getCourseName, deptColor, plan, showResetConfirm, setShowResetConfirm, setPlan,
-    priorCredits, setPriorCredits, alg1Anim, setAlg1Anim, customCourses, setCustomCourses,
-    setShowCustomModal, addTarget, setAddTarget, addSearch, setAddSearch, prereqWarn,
-    setPrereqWarn, addSearchResults, getCourse, gradeSlots, getUnmetPrereqsForCurrentCourses, getPrereqDisplay,
-    addCourseToPlan, forceAddCourse, removeCourse, ensureUids, canFitCourse, addCourseEntry,
-    setShakeGrade, showToast, shakeGrade, cats, total, honorsOpen,
-    setHonorsOpen, honorsProgress, planUids, matchSelected, setMatchSelected, applyConfirm,
-    setApplyConfirm, showCustomModal, customGradeTarget, setCustomGradeTarget, customForm, setCustomForm,
-    modalWarn, setModalWarn, getCoreConflict, liveCourses,
+    plan, setCustomCourses, setShowCustomModal, gradeSlots, addCourseEntry, setShakeGrade, showToast, showCustomModal, customGradeTarget, setCustomGradeTarget, customForm, setCustomForm
   } = context;
+  const needsLanguage = customForm.dept === "World Language" && !customForm.language?.trim();
+  const canAdd = Boolean(customForm.name.trim()) && !needsLanguage;
   return (
 <AnimatePresence>
         {showCustomModal && (
@@ -37,14 +28,15 @@ export function CustomCourseModal({ context }) {
               </div>
               <div style={{ padding:"20px 22px", display:"flex", flexDirection:"column", gap:"16px" }}>
                 <p style={{ fontSize:"12px", color:"var(--muted)", margin:0 }}>
-                  For HOC, dual credit, summer school, or any course not in the Kalani catalog.
+                  This planner focuses on Kalani courses. Record other courses here as custom entries;
+                  external program eligibility and credit equivalencies are not evaluated.
                 </p>
 
                 {/* Course name */}
                 <div>
                   <label style={{ fontSize:"12px", fontWeight:700, color:"var(--text)",
                     display:"block", marginBottom:"6px" }}>Course name</label>
-                  <input className="si" placeholder="e.g. HOC — Marine Science, Running Start Math 141…"
+                  <input className="si" placeholder="e.g. Summer Marine Science"
                     value={customForm.name}
                     onChange={e=>setCustomForm(f=>({...f, name:e.target.value}))}
                     style={{ width:"100%" }} maxLength={60} />
@@ -71,6 +63,23 @@ export function CustomCourseModal({ context }) {
                     ))}
                   </div>
                 </div>
+
+                {customForm.dept === "World Language" && (
+                  <div>
+                    <label htmlFor="custom-language" style={{ fontSize:"12px", fontWeight:700,
+                      color:"var(--text)", display:"block", marginBottom:"6px" }}>Language</label>
+                    <input id="custom-language" className="si" list="custom-language-options"
+                      placeholder="e.g. Japanese" value={customForm.language || ""}
+                      onChange={e=>setCustomForm(f=>({...f, language:e.target.value}))}
+                      style={{ width:"100%" }} maxLength={60} required />
+                    <datalist id="custom-language-options">
+                      {WORLD_LANGUAGES.map(language=><option key={language} value={language} />)}
+                    </datalist>
+                    <p style={{ fontSize:"11px", color:"var(--muted)", marginTop:"5px" }}>
+                      The requirement needs 2 credits in the same language.
+                    </p>
+                  </div>
+                )}
 
                 {/* Credits */}
                 <div>
@@ -146,19 +155,20 @@ export function CustomCourseModal({ context }) {
               {/* Add button */}
               <div style={{ padding:"0 22px 20px" }}>
                 <button
-                  disabled={!customForm.name.trim()}
+                  disabled={!canAdd}
                   onClick={()=>{
-                    if (!customForm.name.trim()) return;
+                    if (!canAdd) return;
                     if (gradeSlots(plan, customGradeTarget) + customForm.credits > GRADE_MAX) {
                       setShakeGrade(customGradeTarget);
                       showToast(`Grade ${customGradeTarget} does not have enough room for this course`);
                       return;
                     }
-                    const uid = "CUSTOM_" + Date.now();
+                    const uid = "CUSTOM_" + crypto.randomUUID();
                     const newCourse = {
                       id: uid,
                       name: customForm.name.trim(),
                       dept: customForm.dept,
+                      language: customForm.dept === "World Language" ? customForm.language.trim() : "",
                       credits: customForm.credits,
                       gradeLevel: [9,10,11,12],
                       prereqs: [],
@@ -172,16 +182,16 @@ export function CustomCourseModal({ context }) {
                       desc: "Custom course added by student.",
                       code: "CUSTOM",
                     };
+                    if (!addCourseEntry(customGradeTarget, uid, newCourse)) return;
                     setCustomCourses(prev => [...prev, newCourse]);
-                    addCourseEntry(customGradeTarget, uid, newCourse);
                     setShowCustomModal(false);
-                    setCustomForm({ name:"", dept:"Mathematics", credits:0.5, isAP:false });
+                    setCustomForm({ name:"", dept:"Mathematics", credits:0.5, isAP:false, language:"" });
                     showToast("Added \"" + customForm.name.trim() + "\" to Grade " + customGradeTarget);
                   }}
                   style={{ width:"100%", background:"var(--red)", color:"white", border:"none",
                     borderRadius:"10px", padding:"13px", fontSize:"14px", fontWeight:800,
-                    cursor:customForm.name.trim()?"pointer":"not-allowed",
-                    opacity:customForm.name.trim()?1:0.5,
+                    cursor:canAdd?"pointer":"not-allowed",
+                    opacity:canAdd?1:0.5,
                     fontFamily:"inherit", touchAction:"manipulation" }}>
                   Add to Grade {customGradeTarget} →
                 </button>

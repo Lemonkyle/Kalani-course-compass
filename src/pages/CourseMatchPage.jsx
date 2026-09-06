@@ -4,19 +4,7 @@ import { COURSE_MATCH_TEMPLATES } from "../data/index.js";
 
 export function CourseMatchPage({ context }) {
   const {
-    page, maintenanceContent, navigate, selectedCourse, setSelectedCourse, searchQuery,
-    setSearchQuery, homeSearch, setHomeSearch, homeSearchFocus, setHomeSearchFocus, homeSearchResults,
-    filterDept, setFilterDept, filterCtePath, setFilterCtePath, filterFineArts, setFilterFineArts,
-    filterMisc, setFilterMisc, gridKey, setGridKey, filteredCourses, canUseHover,
-    getCourseName, deptColor, plan, showResetConfirm, setShowResetConfirm, setPlan,
-    priorCredits, setPriorCredits, alg1Anim, setAlg1Anim, customCourses, setCustomCourses,
-    setShowCustomModal, addTarget, setAddTarget, addSearch, setAddSearch, prereqWarn,
-    setPrereqWarn, addSearchResults, getCourse, gradeSlots, getUnmetPrereqsForCurrentCourses, getPrereqDisplay,
-    addCourseToPlan, forceAddCourse, removeCourse, ensureUids, canFitCourse, addCourseEntry,
-    setShakeGrade, showToast, shakeGrade, cats, total, honorsOpen,
-    setHonorsOpen, honorsProgress, planUids, matchSelected, setMatchSelected, applyConfirm,
-    setApplyConfirm, showCustomModal, customGradeTarget, setCustomGradeTarget, customForm, setCustomForm,
-    modalWarn, setModalWarn, getCoreConflict, liveCourses,
+    page, maintenanceContent, canUseHover, setMatchSelected, setApplyConfirm
   } = context;
   return renderPage(page==="match","match", maintenanceContent("match",
         <div style={{ maxWidth:"1100px", margin:"0 auto", padding:"32px 24px 60px" }}>

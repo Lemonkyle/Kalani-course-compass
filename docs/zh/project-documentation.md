@@ -1,12 +1,16 @@
 # Kalani Course Compass 项目文档
 
-更新日期：2026-05-23
+更新日期：2026-09-05
 
 ## 产品概览
 
 Kalani Course Compass 是一个面向 Kalani High School 学生的非官方四年选课规划工具。它帮助学生浏览课程目录、理解先修课和并修规则、规划 9-12 年级课程、追踪毕业学分，并查看 Course Match 推荐路径。
 
 项目以学生端体验为主，同时提供后台用于维护课程、公告、免责声明和页面维护开关。
+
+当前范围主要是 Kalani 校内课程规划。HOC、dual credit、Running Start、Early College、IB 等不建立专门的资格、学分转换或荣誉认定逻辑；学生可以把相关课程作为普通 custom 课程记录。AP 进度仅按课程的 AP 标记统计，不自动推断校外项目等价关系。
+
+World Language 要求同一种语言累计 2 学分。不同语言分别累计，只取最高的一组计入该要求，其余按现有逻辑进入选修学分。当前目录依据稳定的课程代码识别 Japanese/Korean/Chinese/Spanish，自定义外语课必须填写语言。旧自定义课程仅在名称明确包含一种受支持语言时识别；无法识别的条目暂计选修，不把未知语言合并。新增校内语言时应同步扩展 `src/lib/worldLanguage.js` 的课程代码映射。
 
 ## 当前架构
 
@@ -33,7 +37,7 @@ Kalani Course Compass 是一个面向 Kalani High School 学生的非官方四�
 5. `useAnnouncements()`、`useDisclaimerItems()`、`usePageMaintenance()` 和 `useSiteSettings()` 从 Supabase 读取后台维护内容，并在适用场景使用静态 fallback。
 6. 启动免责声明的关闭状态保存在浏览器 `localStorage`。
 7. 毕业学分、先修课、容量限制、Honors 计算都通过 `src/lib/` 的纯函数在浏览器端完成。
-8. 后台写入依赖 Supabase Auth 和数据库 RLS 策略，不依赖前端隐藏按钮作为安全边界。
+8. 后台写入通过 Vercel 接口验证用户名、密码及登录会话，Supabase 浏览器角色只有读取权限。
 
 ## 模块化状态
 
@@ -63,9 +67,14 @@ Kalani Course Compass 是一个面向 Kalani High School 学生的非官方四�
 - 更新维护行为或目录职责时，同步更新英文和中文文档。
 - 修改项目启动、架构、安全或交接说明时，同步更新根目录 README、`docs/en/` 和 `docs/zh/`。
 
-## 后续路线
+## 2026 年 9 月 Cloud 更新
 
-- 下一阶段优先拆分 `src/admin/CoursePanel.jsx`：CSV 解析、表单字段、列表控制、Supabase 写入动作。
-- 为 planner 学分、先修课、课程搜索、Honors 进度增加基础测试。
-- 考虑建立正式的 `supabase/migrations/` 历史。
-- Course Match 模板后续应尽量来自 counselor-approved 路径，或明确标注为参考建议。
+- 所有添加入口统一检查年级、容量和重复课程；先修课提示允许手动确认，但不能跳过这些硬性检查。
+- 外语按同一种语言累计；外部项目只能作为普通自定义课程记录。
+- 归档课程保留本地历史快照；损坏的本地数据在恢复前留存备份。
+- 六个参考模板已检查当前课程年级、先修顺序及毕业学分类别，不再声称是官方或辅导员认证方案。现有 Course Match 维护开关保持原值。
+- 公告统一使用夏威夷时间；正确区分空内容和请求失败，定期刷新公开数据，首页课程数量随实际目录更新。
+- CSV 导入严格校验，毕业学分可单独编辑，保存失败会明确提示。
+- 管理员改用 Vercel 后端用户名密码登录；数据库变更保存在迁移文件中，并加入回归测试和自动构建检查。
+
+部署顺序、账号配置及回滚限制见[安全配置](security-setup.md)。

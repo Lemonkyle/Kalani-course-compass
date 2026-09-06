@@ -5,7 +5,7 @@ import CoursePanel from "./CoursePanel.jsx";
 import DisclaimerPanel from "./DisclaimerPanel.jsx";
 import MaintenancePanel from "./MaintenancePanel.jsx";
 import SettingsPanel from "./SettingsPanel.jsx";
-import { isSupabaseConfigured, supabase } from "../supabase.js";
+import { adminRequest } from "./adminApi.js";
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');`;
 
@@ -25,71 +25,22 @@ export default function AdminApp() {
 
   useEffect(() => {
     let alive = true;
-
-    async function loadSession() {
-      if (!isSupabaseConfigured || !supabase) {
-        if (alive) setCheckingAuth(false);
-        return;
-      }
-
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        await verifyAdminSession(data.session, alive);
-      }
-      if (alive) setCheckingAuth(false);
-    }
-
-    loadSession();
-
-    if (!supabase) return () => { alive = false; };
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        setAuthed(false);
-        setAdminEmail("");
-      }
+    const expire = () => { setAuthed(false); setAdminEmail(""); };
+    window.addEventListener("kalani-admin-expired", expire);
+    adminRequest("session", undefined, "GET").then(({data}) => {
+      if (!alive) return;
+      setAuthed(Boolean(data?.user)); setAdminEmail(data?.user || ""); setCheckingAuth(false);
     });
-
-    return () => {
-      alive = false;
-      listener.subscription.unsubscribe();
-    };
+    return () => { alive = false; window.removeEventListener("kalani-admin-expired", expire); };
   }, []);
 
-  async function verifyAdminSession(session, alive = true) {
-    if (!session?.user || !supabase) return { ok:false };
-
-    const { data, error } = await supabase
-      .from("admin_users")
-      .select("email")
-      .eq("user_id", session.user.id)
-      .maybeSingle();
-
-    if (error || !data) {
-      if (alive) {
-        setAuthed(false);
-        setAdminEmail("");
-      }
-      return {
-        ok:false,
-        error:"This Supabase account is signed in, but it is not listed as a Kalani Compass admin.",
-      };
-    }
-
-    if (alive) {
-      setAuthed(true);
-      setAdminEmail(data.email || session.user.email || "");
-    }
-    return { ok:true };
+  async function handleLogin(username) {
+    setAuthed(true); setAdminEmail(username); return {ok:true};
   }
-
-  async function handleLogin(session) {
-    return verifyAdminSession(session);
-  }
-
   async function signOut() {
-    if (supabase) await supabase.auth.signOut();
-    setAuthed(false);
-    setAdminEmail("");
+    const {error} = await adminRequest("session", {}, "DELETE");
+    if (error) { window.alert(error.message); return; }
+    setAuthed(false); setAdminEmail("");
   }
 
   if (checkingAuth) {
@@ -171,9 +122,9 @@ export default function AdminApp() {
             <div style={{ padding:"10px 12px", fontSize:"11px", color:"#9CA3AF",
               borderTop:"1px solid #F3F4F6", marginTop:"8px", lineHeight:1.5 }}>
               <div style={{ fontWeight:600, color:"#6B7280", marginBottom:"2px" }}>
-                Protected by Supabase Auth
+                Kalani administrator
               </div>
-              RLS controls write access
+              Session expires after 8 hours
             </div>
           </aside>
 

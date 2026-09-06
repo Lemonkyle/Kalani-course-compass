@@ -9,8 +9,9 @@ This project is student-facing first, with an optional Supabase-backed admin are
 ## Quick Start
 
 ```bash
-npm install
+npm ci
 npm run dev
+npm test
 npm run build
 npm run preview
 ```
@@ -27,7 +28,9 @@ Use `npm run build` before deploying or handing off changes.
 - `src/lib/`: pure rules and utilities for search, prerequisites, planner credits, honors, and safe URLs.
 - `src/data/`: static fallback data, requirements, constants, disclaimers, site settings, and Course Match templates.
 - `src/admin/`: admin app and management panels.
-- `supabase/`: Supabase security setup SQL.
+- `api/admin/`, `server/`: session validation, protected data API and database access.
+- `shared/`: course and CSV validation shared by frontend and backend.
+- `supabase/migrations/`: versioned database integrity and access changes.
 - `docs/en/`, `docs/zh/`: English and Chinese maintenance docs.
 
 ## Documentation
@@ -43,7 +46,7 @@ Use `npm run build` before deploying or handing off changes.
 - This is an unofficial planning tool and is not affiliated with Kalani High School or Hawaii DOE.
 - Student plans are stored in browser `localStorage`; they are not uploaded by the student app.
 - Supabase is optional for local development because the app includes static fallback data.
-- Admin write access depends on Supabase Auth plus Row Level Security policies.
+- Admin writes use authenticated Vercel Functions; Supabase browser roles are read-only. See the security setup guide.
 
 ---
 
@@ -58,7 +61,7 @@ Kalani Course Compass 是一个面向 Kalani High School 学生的非官方四�
 ## 快速开始
 
 ```bash
-npm install
+npm ci
 npm run dev
 npm run build
 npm run preview
@@ -76,7 +79,9 @@ npm run preview
 - `src/lib/`：课程搜索、先修课、planner 学分、Honors 和安全 URL 等纯规则与工具函数。
 - `src/data/`：静态 fallback 数据、毕业要求、常量、免责声明、站点设置和 Course Match 模板。
 - `src/admin/`：后台应用和管理面板。
-- `supabase/`：Supabase 安全配置 SQL。
+- `api/admin/`、`server/`：管理员登录、编辑接口及数据库访问。
+- `shared/`：前后端共用的课程和 CSV 校验。
+- `supabase/migrations/`：数据库约束和权限迁移。
 - `docs/en/`、`docs/zh/`：英文和中文维护文档。
 
 ## 文档
@@ -92,4 +97,4 @@ npm run preview
 - 本项目是非官方规划工具，不隶属于 Kalani High School 或 Hawaii DOE。
 - 学生规划保存在浏览器 `localStorage`，学生端不会上传这些规划。
 - 本地开发可以不配置 Supabase，因为项目包含静态 fallback 数据。
-- 后台写入权限依赖 Supabase Auth 和 Row Level Security 策略。
+- 管理员使用用户名和密码登录 Vercel 后端，Supabase 浏览器角色仅可读取。

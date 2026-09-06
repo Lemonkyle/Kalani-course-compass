@@ -3,10 +3,19 @@ import { GRAD_REQUIREMENTS } from "../data/constants.js";
 import { PREREQ_EQUIV } from "../data/requirements.js";
 
 import { getCourse, getCourseSlots } from "./courseRules.js";
+import { getWorldLanguage } from "./worldLanguage.js";
 
 
 
 export const GRADE_MAX = 14.0;
+
+export function planAdditionError(plan, grade, course, getCourseForId = getCourse) {
+  if (![9,10,11,12].includes(Number(grade)) || !course || course.unavailable) return "This course is unavailable for new plans.";
+  if (!(course.gradeLevel || []).map(Number).includes(Number(grade))) return `This course is not offered to Grade ${grade}.`;
+  if (!course.repeatable && Object.values(plan).flat().includes(course.id)) return "This course is already in your plan.";
+  if (gradeSlots(plan, grade, getCourseForId) + getCourseSlots(course) > GRADE_MAX) return `Grade ${grade} does not have enough room for this course.`;
+  return null;
+}
 
 
 
@@ -51,10 +60,14 @@ export function calcWlfa(plan, getCourseForId = getCourse) {
   const allCourses = allIds.map(getCourseForId).filter(Boolean);
   const wlfaCourses = allCourses.filter(c => c.gradCategory === "wlfa");
 
-  // World Language: any 2 credits of world language count (can mix languages)
-  const worldLangMax = wlfaCourses
-    .filter(c => c.dept === "World Language")
-    .reduce((s, c) => s + c.gradCredits, 0);
+  // Only the strongest single-language sequence counts toward this requirement.
+  const languageCredits = new Map();
+  wlfaCourses.filter(c => c.dept === "World Language").forEach(course => {
+    const language = getWorldLanguage(course);
+    if (!language) return; // Unidentified custom languages remain elective credit.
+    languageCredits.set(language, (languageCredits.get(language) || 0) + course.gradCredits);
+  });
+  const worldLangMax = Math.max(0, ...languageCredits.values());
 
   // Fine Arts: all fine arts credits pool together (can mix Performing/Visual)
   const fineArtsTotal = wlfaCourses
@@ -64,7 +77,8 @@ export function calcWlfa(plan, getCourseForId = getCourse) {
   // CTE: group by ctePath
   const cteGroups = {};
   wlfaCourses.filter(c => c.dept === "CTE").forEach(c => {
-    const path = c.ctePath || "Other";
+    const path = c.ctePath;
+    if (!path) return;
     cteGroups[path] = (cteGroups[path] || 0) + c.gradCredits;
   });
   const cteMax = Object.values(cteGroups).reduce((m, v) => Math.max(m, v), 0);

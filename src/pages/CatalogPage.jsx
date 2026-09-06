@@ -5,19 +5,7 @@ import { PREREQ_EQUIV } from "../data/requirements.js";
 
 export function CatalogPage({ context }) {
   const {
-    page, maintenanceContent, navigate, selectedCourse, setSelectedCourse, searchQuery,
-    setSearchQuery, homeSearch, setHomeSearch, homeSearchFocus, setHomeSearchFocus, homeSearchResults,
-    filterGrade, setFilterGrade, filterDept, setFilterDept, filterCtePath, setFilterCtePath, filterFineArts, setFilterFineArts,
-    filterMisc, setFilterMisc, gridKey, setGridKey, filteredCourses, canUseHover,
-    getCourseName, deptColor, plan, showResetConfirm, setShowResetConfirm, setPlan,
-    priorCredits, setPriorCredits, alg1Anim, setAlg1Anim, customCourses, setCustomCourses,
-    setShowCustomModal, addTarget, setAddTarget, addSearch, setAddSearch, prereqWarn,
-    setPrereqWarn, addSearchResults, getCourse, gradeSlots, getUnmetPrereqsForCurrentCourses, getPrereqDisplay,
-    addCourseToPlan, forceAddCourse, removeCourse, ensureUids, canFitCourse, addCourseEntry,
-    setShakeGrade, showToast, shakeGrade, cats, total, honorsOpen,
-    setHonorsOpen, honorsProgress, planUids, matchSelected, setMatchSelected, applyConfirm,
-    setApplyConfirm, showCustomModal, customGradeTarget, setCustomGradeTarget, customForm, setCustomForm,
-    modalWarn, setModalWarn, getCoreConflict, liveCourses,
+    page, maintenanceContent, setSelectedCourse, searchQuery, setSearchQuery, filterGrade, setFilterGrade, filterDept, setFilterDept, filterCtePath, setFilterCtePath, filterFineArts, setFilterFineArts, filterMisc, setFilterMisc, gridKey, setGridKey, filteredCourses, canUseHover, getCourseName, deptColor, plan
   } = context;
   const gradeFilters = ["All Grades", 9, 10, 11, 12];
   return renderPage(page==="catalog","catalog", maintenanceContent("catalog",

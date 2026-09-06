@@ -1,21 +1,12 @@
 import { AnimatePresence, motion } from "framer-motion";
 
+import { assessTemplate } from "../../lib/templateRules.js";
+
 export function CourseMatchModal({ context }) {
   const {
-    page, maintenanceContent, navigate, selectedCourse, setSelectedCourse, searchQuery,
-    setSearchQuery, homeSearch, setHomeSearch, homeSearchFocus, setHomeSearchFocus, homeSearchResults,
-    filterDept, setFilterDept, filterCtePath, setFilterCtePath, filterFineArts, setFilterFineArts,
-    filterMisc, setFilterMisc, gridKey, setGridKey, filteredCourses, canUseHover,
-    getCourseName, deptColor, plan, showResetConfirm, setShowResetConfirm, setPlan,
-    priorCredits, setPriorCredits, alg1Anim, setAlg1Anim, customCourses, setCustomCourses,
-    setShowCustomModal, addTarget, setAddTarget, addSearch, setAddSearch, prereqWarn,
-    setPrereqWarn, addSearchResults, getCourse, gradeSlots, getUnmetPrereqsForCurrentCourses, getPrereqDisplay,
-    addCourseToPlan, forceAddCourse, removeCourse, ensureUids, canFitCourse, addCourseEntry,
-    setShakeGrade, showToast, shakeGrade, cats, total, honorsOpen,
-    setHonorsOpen, honorsProgress, planUids, matchSelected, setMatchSelected, applyConfirm,
-    setApplyConfirm, showCustomModal, customGradeTarget, setCustomGradeTarget, customForm, setCustomForm,
-    modalWarn, setModalWarn, getCoreConflict, liveCourses,
+    navigate, setSelectedCourse, deptColor, plan, setPlan, priorCredits, getCourse, showToast, total, matchSelected, setMatchSelected, applyConfirm, setApplyConfirm
   } = context;
+  const assessment = matchSelected ? assessTemplate(matchSelected.plan, getCourse, priorCredits) : null;
   return (
 <AnimatePresence mode="wait">
         {matchSelected ? (
@@ -158,8 +149,14 @@ export function CourseMatchModal({ context }) {
               <motion.div initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }}
                 transition={{ type:"spring", stiffness:300, damping:24, delay:0.52 }}
                 style={{ padding:"16px 24px", borderTop:"1px solid var(--border)" }}>
+                <div style={{fontSize:12,lineHeight:1.6,marginBottom:12}}>
+                  <strong>{assessment?.total.toFixed(1)} planned credits</strong>
+                  <p>{assessment?.missing.length ? "Still needed: " + assessment.missing.join("; ") : "All tracked credit categories are covered. GPA, grades and approvals are checked separately."}</p>
+                  {assessment?.errors.map(text=><p key={text} style={{color:"#B91C1C"}}>{text}</p>)}
+                  {assessment?.warnings.map(text=><p key={text} style={{color:"#92400E"}}>{text}</p>)}
+                </div>
                 {!applyConfirm ? (
-                  <button onClick={()=>setApplyConfirm(true)}
+                  <button disabled={assessment.errors.length>0} onClick={()=>setApplyConfirm(true)}
                     style={{ width:"100%", background:"var(--red)", color:"white", border:"none",
                       borderRadius:"10px", padding:"13px", fontSize:"14px", fontWeight:800,
                       cursor:"pointer", fontFamily:"inherit", touchAction:"manipulation" }}>
@@ -170,17 +167,16 @@ export function CourseMatchModal({ context }) {
                     <p style={{ fontSize:"13px", color:"#92400E", background:"#FFFBEB",
                       border:"1px solid #FDE68A", borderRadius:"8px", padding:"10px 12px",
                       margin:0 }}>
-                      ⚠️ This will replace your current 4-year plan. Make sure you've saved a screenshot if you want to keep it.
+                      ⚠️ This will replace your current 4-year plan. A copy of your current plan will be saved on this device.
                     </p>
                     <div style={{ display:"flex", gap:"8px" }}>
                       <button onClick={()=>{
+                        const current = assessTemplate(matchSelected.plan, getCourse, priorCredits);
+                        if (current.errors.length) { showToast(current.errors[0]); return; }
+                        try { localStorage.setItem("kalani-plan-before-template", JSON.stringify(plan)); } catch { showToast("Could not back up your current plan."); return; }
                         const newPlan = { 9:[], 10:[], 11:[], 12:[] };
                         [9,10,11,12].forEach(g=>{
                           newPlan[g] = [...(matchSelected.plan[g]||[])];
-                        });
-                        // Reset planUids
-                        Object.keys(planUids.current).forEach(g=>{
-                          planUids.current[g] = [];
                         });
                         setPlan(newPlan);
                         setMatchSelected(null);

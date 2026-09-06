@@ -28,7 +28,7 @@ export const HONORS_DEFS = [
     checks: [
       { id:"math4", label:"4 credits Math (Algebra 2 + one beyond)", desc:"Algebra 2 + one of: Trig/PreCal, Alg3/Stats, Calculus, AP Calculus, AP Stats, AP CS A, AP CS Principles, Intro to College Math" },
       { id:"sci4",  label:"4 credits Science (incl. Biology 1)",     desc:"Biology 1 + 3 other science credits" },
-      { id:"ap2",   label:"2+ AP/IB/Running Start credits",          desc:"At least 2 credits from AP, IB, or Running Start courses" },
+      { id:"ap2",   label:"2+ AP credits",          desc:"At least 2 AP course credits tracked in this planner" },
     ],
   },
   {

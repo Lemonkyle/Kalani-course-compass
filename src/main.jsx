@@ -1,6 +1,8 @@
 import { StrictMode, Suspense, lazy, Component } from "react";
 import { createRoot } from "react-dom/client";
 
+import { backupAndReset } from "./lib/plannerStorage.js";
+
 const isAdmin = window.location.pathname.startsWith("/admin");
 const App = lazy(() =>
   isAdmin ? import("./admin/AdminApp.jsx") : import("./App.jsx")
@@ -36,7 +38,7 @@ class AppErrorBoundary extends Component {
           </h1>
           <p style={{ fontSize: "14px", color: "#334155", lineHeight: 1.6, marginBottom: "14px" }}>
             Kalani Compass encountered a runtime error. If the issue persists,
-            clearing your saved plan usually fixes it.
+            you can back up and reset your saved planner data.
           </p>
           <pre style={{
             padding: "10px 12px", background: "#F8FAFC", border: "1px solid #E2E8F0",
@@ -47,13 +49,13 @@ class AppErrorBoundary extends Component {
           </pre>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
             <button
-              onClick={() => { localStorage.removeItem("kalani-compass-plan"); window.location.reload(); }}
+              onClick={() => { try { backupAndReset(localStorage); window.location.reload(); } catch { window.alert("Could not back up your data. Your saved plan has been kept."); } }}
               style={{
                 background: "#B00804", color: "white", border: "none",
                 borderRadius: "8px", padding: "9px 16px", fontSize: "13px",
                 fontWeight: 700, cursor: "pointer",
               }}>
-              Clear plan & reload
+              Back up data & reset
             </button>
             <button
               onClick={() => window.location.reload()}

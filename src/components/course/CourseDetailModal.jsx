@@ -5,19 +5,7 @@ import { getAllCoursesUpTo, getCoursesBeforeGrade } from "../../lib/plannerRules
 
 export function CourseDetailModal({ context }) {
   const {
-    page, maintenanceContent, navigate, selectedCourse, setSelectedCourse, searchQuery,
-    setSearchQuery, homeSearch, setHomeSearch, homeSearchFocus, setHomeSearchFocus, homeSearchResults,
-    filterDept, setFilterDept, filterCtePath, setFilterCtePath, filterFineArts, setFilterFineArts,
-    filterMisc, setFilterMisc, gridKey, setGridKey, filteredCourses, canUseHover,
-    getCourseName, deptColor, plan, showResetConfirm, setShowResetConfirm, setPlan,
-    priorCredits, setPriorCredits, alg1Anim, setAlg1Anim, customCourses, setCustomCourses,
-    setShowCustomModal, addTarget, setAddTarget, addSearch, setAddSearch, prereqWarn,
-    setPrereqWarn, addSearchResults, getCourse, gradeSlots, getUnmetPrereqsForCurrentCourses, getPrereqDisplay,
-    addCourseToPlan, forceAddCourse, removeCourse, ensureUids, canFitCourse, addCourseEntry,
-    setShakeGrade, showToast, shakeGrade, cats, total, honorsOpen,
-    setHonorsOpen, honorsProgress, planUids, matchSelected, setMatchSelected, applyConfirm,
-    setApplyConfirm, showCustomModal, customGradeTarget, setCustomGradeTarget, customForm, setCustomForm,
-    modalWarn, setModalWarn, getCoreConflict, liveCourses,
+    selectedCourse, setSelectedCourse, getCourseName, deptColor, plan, getCourse, gradeSlots, getPrereqDisplay, removeCourse, addCourseEntry, showToast, modalWarn, setModalWarn, addFromDetail, liveCourses
   } = context;
   return (
 <AnimatePresence mode="wait">
@@ -262,43 +250,29 @@ export function CourseDetailModal({ context }) {
                           plan={plan}
                           selectedCourse={selectedCourse}
                           gradeSlots={gradeSlots}
-                          getCoursesBeforeGrade={(p,g)=>[...getCoursesBeforeGrade(p,g),...priorCredits]}
-                          getAllCoursesUpTo={(p,g)=>[...getAllCoursesUpTo(p,g),...priorCredits]}
-                          getUnmetPrereqs={getUnmetPrereqsForCurrentCourses}
-                          getCoreConflict={getCoreConflict}
-                          planUids={planUids}
-                          setPlan={setPlan}
-                          showToast={showToast}
-                          setModalWarn={setModalWarn}
+                          onAdd={addFromDetail}
+                          onRemove={removeCourse}
                         />
                       ))}
                       {/* Inline warning - appears above grade buttons, stays in modal */}
-                      {modalWarn && (
+                      {modalWarn?.courseId === selectedCourse.id && (
                         <div style={{ width:"100%", order:-1, marginBottom:"10px",
                           background:"#FEF9C3", border:"1.5px solid #EAB308",
                           borderRadius:"10px", padding:"12px 14px" }}>
                           <div style={{ fontWeight:700, fontSize:"12px",
                             color:"#78350F", marginBottom:"6px" }}>
-                            {modalWarn.coreConflict ? "⚠️ Subject Conflict" : "⚠️ Missing Prerequisites"}
+                            ⚠️ Missing Prerequisites
                           </div>
                           <div style={{ fontSize:"12px", color:"#78350F", marginBottom:"10px",
                             lineHeight:1.5 }}>
-                            {modalWarn.coreConflict ? (
-                              <span>You already have <strong>{modalWarn.coreConflict}</strong> in Grade {modalWarn.grade}. Only one course from this subject is allowed per year.</span>
-                            ) : (
-                              <span><strong>{selectedCourse?.name}</strong> requires: {modalWarn.unmet.map(getPrereqDisplay).join(", ")}</span>
-                            )}
+                            <span><strong>{selectedCourse?.name}</strong> requires: {modalWarn.unmet.map(getPrereqDisplay).join(", ")}</span>
                           </div>
                           <div style={{ display:"flex", gap:"8px" }}>
                             <button
                               onClick={()=>{
-                                if (!canFitCourse(modalWarn.grade, selectedCourse)) {
-                                  setShakeGrade(modalWarn.grade);
-                                  showToast(`Grade ${modalWarn.grade} does not have enough room for this course`);
-                                  return;
-                                }
-                                addCourseEntry(modalWarn.grade, selectedCourse.id, selectedCourse);
-                                showToast("Added \""+selectedCourse.name+"\" to Grade "+modalWarn.grade);
+                                if (modalWarn.courseId !== selectedCourse.id) return;
+                                if (!addCourseEntry(modalWarn.grade, selectedCourse.id, selectedCourse)) return;
+                                showToast('Added "' + selectedCourse.name + '" to Grade ' + modalWarn.grade);
                                 setModalWarn(null);
                               }}
                               style={{ flex:1, background:"#B45309", color:"white",

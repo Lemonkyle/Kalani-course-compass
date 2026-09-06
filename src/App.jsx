@@ -19,11 +19,11 @@ import { useStartupDisclaimer } from "./hooks/useStartupDisclaimer.js";
 import { useTransientUi } from "./hooks/useTransientUi.js";
 import { deptColor, getCourseSlots } from "./lib/courseRules.js";
 import { computeHonorsProgress } from "./lib/honorsRules.js";
-import { GRADE_MAX, calcPlannerCredits, getAllCoursesUpTo, getCoursesBeforeGrade } from "./lib/plannerRules.js";
+import { GRADE_MAX, planAdditionError, calcPlannerCredits, getAllCoursesUpTo, getCoursesBeforeGrade } from "./lib/plannerRules.js";
 import { safeExternalUrl } from "./lib/url.js";
 export default function App() {
   // V4: courses fetched from Supabase, falls back to local course data if unavailable
-  const { courses: liveCourses } = useCourseData();
+  const { courses: liveCourses, status: catalogStatus } = useCourseData();
 
   const { announcements } = useAnnouncements();
   const { items: disclaimerItems } = useDisclaimerItems();
@@ -45,10 +45,8 @@ export default function App() {
     setCustomGradeTarget,
     customForm,
     setCustomForm,
-    planUids,
-    ensureUids,
   } = plannerStorage;
-  const courseCatalog = useCourseCatalog(liveCourses, customCourses);
+  const courseCatalog = useCourseCatalog(liveCourses, customCourses, plan, catalogStatus);
   const {
     searchQuery,
     setSearchQuery,
@@ -94,7 +92,7 @@ export default function App() {
   const [honorsOpen, setHonorsOpen] = useState({academic:false,stem:false,cte:false});
   const [prereqWarn, setPrereqWarn] = useState(null); // {courseId, grade, unmet:[]}
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [modalWarn, setModalWarn] = useState(null); // { grade, unmet, coreConflict }
+  const [modalWarn, setModalWarn] = useState(null); // { courseId, grade, unmet }
   // Course Match
   const [matchSelected, setMatchSelected] = useState(null); // selected template for detail view
   const [applyConfirm, setApplyConfirm] = useState(false); // show apply confirmation
@@ -109,8 +107,10 @@ export default function App() {
   }, [pageMaintenance.match]);
 
   useEffect(() => {
-    if (!selectedCourse) setModalWarn(null);
+    setModalWarn(null);
   }, [selectedCourse?.id]);
+
+  useEffect(() => { setPrereqWarn(null); }, [addTarget, addSearch]);
 
   function navigate(p) { setPage(p); window.scrollTo({ top:0, behavior:"instant" }); }
   function isPageUnderMaintenance(id) { return Boolean(pageMaintenance[id]); }
@@ -123,42 +123,30 @@ export default function App() {
   const honorsProgress = useMemo(() => computeHonorsProgress(plan, getCourse), [plan, courseById]);
 
   function removeCourse(grade, idx) {
-    planUids.current[grade].splice(idx, 1);
     setPlan(p => { const n = JSON.parse(JSON.stringify(p)); n[grade].splice(idx, 1); return n; });
   }
 
   function addCourseEntry(grade, courseId, course = getCourse(courseId)) {
-    setPlan(p => {
-      const n = JSON.parse(JSON.stringify(p));
-      if (!course?.repeatable && Object.values(n).flat().includes(courseId)) return p;
-      n[grade].push(courseId);
-      planUids.current[grade].push(Math.random().toString(36).slice(2));
-      return n;
-    });
+    const error = planAdditionError(plan, grade, course, getCourse);
+    if (error) { showToast(error); return false; }
+    setPlan(p => planAdditionError(p, grade, course, getCourse) ? p : {...p, [grade]: [...p[grade], courseId]});
+    return true;
   }
-
-
-  // Core subjects limited to 1 per grade year (English, Math, Social Studies)
-  const CORE_LIMIT_DEPTS = ["English", "Mathematics", "Social Studies"];
-
-  function getCoreConflict(courseId, grade) {
+  function addFromDetail(grade, courseId) {
     const course = getCourse(courseId);
-    if (!course) return null;
-    if (!CORE_LIMIT_DEPTS.includes(course.dept)) return null;
-    // Check if there's already a course of the same dept in this grade
-    const existing = (plan[grade] || []).find(cid => {
-      const c = getCourse(cid);
-      return c && c.dept === course.dept && cid !== courseId;
-    });
-    if (!existing) return null;
-    return getCourse(existing)?.name || existing;
+    const error = planAdditionError(plan, grade, course, getCourse);
+    if (error) { showToast(error); return; }
+    const unmet = getUnmetPrereqsForCurrentCourses(courseId, [...getCoursesBeforeGrade(plan, grade), ...priorCredits], [...getAllCoursesUpTo(plan, grade), ...priorCredits]);
+    if (unmet.length) { setModalWarn({courseId, grade, unmet}); return; }
+    if (addCourseEntry(grade, courseId)) { setModalWarn(null); showToast('Added "' + course.name + '" to Grade ' + grade); }
   }
   function addCourseToPlan(courseId) {
     if (!addTarget) return;
     const course = getCourse(courseId);
-    if (!canFitCourse(addTarget, course)) {
+    const additionError = planAdditionError(plan, addTarget, course, getCourse);
+    if (additionError) {
       setShakeGrade(addTarget);
-      showToast(`Grade ${addTarget} does not have enough room for this course`);
+      showToast(additionError);
       return;
     }
     const completedBefore = [...getCoursesBeforeGrade(plan, addTarget), ...priorCredits];
@@ -168,20 +156,16 @@ export default function App() {
       setPrereqWarn({ courseId, grade: addTarget, unmet });
       return;
     }
-    const coreConflict = getCoreConflict(courseId, addTarget);
-    if (coreConflict) {
-      setPrereqWarn({ courseId, grade: addTarget, unmet: [], coreConflict });
-      return;
-    }
     addCourseEntry(addTarget, courseId, course);
     setAddTarget(null); setAddSearch("");
   }
   function forceAddCourse(courseId) {
-    if (!addTarget) return;
+    if (!addTarget || prereqWarn?.courseId !== courseId || prereqWarn.grade !== addTarget) return;
     const course = getCourse(courseId);
-    if (!canFitCourse(addTarget, course)) {
+    const additionError = planAdditionError(plan, addTarget, course, getCourse);
+    if (additionError) {
       setShakeGrade(addTarget);
-      showToast(`Grade ${addTarget} does not have enough room for this course`);
+      showToast(additionError);
       return;
     }
     addCourseEntry(addTarget, courseId, course);
@@ -253,7 +237,6 @@ export default function App() {
     addCourseToPlan,
     forceAddCourse,
     removeCourse,
-    ensureUids,
     canFitCourse,
     addCourseEntry,
     setShakeGrade,
@@ -264,7 +247,6 @@ export default function App() {
     honorsOpen,
     setHonorsOpen,
     honorsProgress,
-    planUids,
     matchSelected,
     setMatchSelected,
     applyConfirm,
@@ -276,7 +258,7 @@ export default function App() {
     setCustomForm,
     modalWarn,
     setModalWarn,
-    getCoreConflict,
+    addFromDetail,
     liveCourses,
   };
 
@@ -313,6 +295,7 @@ export default function App() {
           <div style={{ marginLeft:"auto" }} />
         </nav>
 
+        {catalogStatus === "offline" && <div role="status" style={{padding:"10px 24px",background:"#FFFBEB",color:"#92400E",fontSize:13}}>Live catalog unavailable. Showing saved course data; check course availability before registration.</div>}
         {/* ANNOUNCEMENT BANNER */}
         {announcements.filter(a=>!dismissedAnns.includes(a.id)).map((a,i) => {
           const palBg  = a.type==="new"?"linear-gradient(90deg,#14532D,#166534)":a.type==="warning"?"linear-gradient(90deg,#78350F,#92400E)":"linear-gradient(90deg,#1E3A5F,#1E40AF)";
@@ -357,7 +340,7 @@ export default function App() {
           );
         })}
 
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="sync">
 
         {/* Home page */}
         <HomePage key="home" context={pageContext} />

@@ -1,0 +1,6 @@
+.env*
+.admin-credentials.txt
+supabase/.temp
+tests
+docs
+.git
