@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../supabase.js";
+import { adminData } from "./adminApi.js";
 import { safeExternalUrl } from "../lib/url.js";
+
+import { toSchoolInput, fromSchoolInput } from "../lib/schoolTime.js";
 
 const TYPE_CONFIG = {
   new:     { label:"🆕 New",     bg:"#F0FDF4", border:"#86EFAC", text:"#166534" },
@@ -33,17 +35,13 @@ export default function AnnPanel() {
 
   async function fetchAll() {
     setLoading(true);
-    if (!supabase) {
-      setAnnouncements([]);
-      setLoading(false);
-      return;
-    }
 
-    const { data, error } = await supabase
+    const { data, error } = await adminData
       .from("announcements")
       .select("*")
       .order("created_at", { ascending: false });
-    if (!error && data) setAnnouncements(data);
+    if (error) setToast("Could not load announcements: " + error.message);
+    else if (data) setAnnouncements(data);
     setLoading(false);
   }
 
@@ -60,8 +58,8 @@ export default function AnnPanel() {
       body:      item.body  || "",
       type:      item.type  || "info",
       link_url:  item.link_url || "",
-      starts_at: item.starts_at ? item.starts_at.slice(0,16) : "",
-      ends_at:   item.ends_at   ? item.ends_at.slice(0,16)   : "",
+      starts_at: toSchoolInput(item.starts_at),
+      ends_at:   toSchoolInput(item.ends_at),
       visible:   item.visible ?? true,
     });
     setShowForm(true);
@@ -69,10 +67,6 @@ export default function AnnPanel() {
 
   async function saveForm() {
     if (!form.title.trim()) return;
-    if (!supabase) {
-      setToast("Supabase is not configured in local fallback mode.");
-      return;
-    }
 
     setSaving(true);
     const linkUrl = safeExternalUrl(form.link_url);
@@ -86,21 +80,23 @@ export default function AnnPanel() {
       setToast("Start date must be before expiry date");
       return;
     }
+    let startsAt, endsAt;
+    try { startsAt=fromSchoolInput(form.starts_at); endsAt=fromSchoolInput(form.ends_at); } catch (error) { setSaving(false); setToast(error.message); return; }
     const payload = {
       title:     form.title.trim(),
       body:      form.body.trim()     || null,
       type:      form.type,
       link_url:  linkUrl,
       visible:   form.visible,
-      starts_at: form.starts_at || null,
-      ends_at:   form.ends_at   || null,
+      starts_at: startsAt,
+      ends_at:   endsAt,
     };
 
     let error;
     if (editItem) {
-      ({ error } = await supabase.from("announcements").update(payload).eq("id", editItem.id));
+      ({ error } = await adminData.from("announcements").update(payload).eq("id", editItem.id));
     } else {
-      ({ error } = await supabase.from("announcements").insert(payload));
+      ({ error } = await adminData.from("announcements").insert(payload));
     }
 
     setSaving(false);
@@ -111,19 +107,16 @@ export default function AnnPanel() {
   }
 
   async function toggleVisible(item) {
-    if (!supabase) return;
-    await supabase.from("announcements").update({ visible: !item.visible }).eq("id", item.id);
+    const { error } = await adminData.from("announcements").update({ visible: !item.visible }).eq("id", item.id);
+    if (error) { setToast(error.message); return; }
     fetchAll();
   }
 
   async function archiveItem(item) {
     if (!window.confirm(`Archive "${item.title}"? It will be hidden but not deleted.`)) return;
-    if (!supabase) {
-      setToast("Supabase is not configured in local fallback mode.");
-      return;
-    }
 
-    await supabase.from("announcements").update({ visible: false, ends_at: new Date().toISOString() }).eq("id", item.id);
+    const { error } = await adminData.from("announcements").update({ visible: false }).eq("id", item.id);
+    if (error) { setToast(error.message); return; }
     setToast("🗄 Archived");
     fetchAll();
   }
@@ -151,12 +144,8 @@ export default function AnnPanel() {
 
   async function deleteItem(item) {
     if (!window.confirm(`Permanently delete "${item.title}"?`)) return;
-    if (!supabase) {
-      setToast("Supabase is not configured in local fallback mode.");
-      return;
-    }
 
-    const { error } = await supabase.from("announcements").delete().eq("id", item.id);
+    const { error } = await adminData.from("announcements").delete().eq("id", item.id);
     if (error) {
       setToast("Error: " + error.message);
       return;
@@ -269,8 +258,8 @@ export default function AnnPanel() {
                     <div style={{ display:"flex", gap:"12px", flexWrap:"wrap",
                       fontSize:"11px", color:"#9CA3AF" }}>
                       {a.link_url && <span>🔗 Has link</span>}
-                      {a.starts_at && <span>▶ Starts {new Date(a.starts_at).toLocaleDateString()}</span>}
-                      {a.ends_at   && <span>⏱ Expires {new Date(a.ends_at).toLocaleDateString()}</span>}
+                      {a.starts_at && <span>▶ Starts {new Date(a.starts_at).toLocaleString("en-US", {timeZone:"Pacific/Honolulu"})}</span>}
+                      {a.ends_at   && <span>⏱ Expires {new Date(a.ends_at).toLocaleString("en-US", {timeZone:"Pacific/Honolulu"})}</span>}
                       {!a.ends_at  && <span>∞ No expiry</span>}
                       {expired     && <span style={{ color:"#EF4444", fontWeight:700 }}>Expired</span>}
                       {scheduled   && <span style={{ color:"#F59E0B", fontWeight:700 }}>Scheduled</span>}
@@ -413,11 +402,11 @@ export default function AnnPanel() {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"16px" }}>
               <div>
                 <label style={{ display:"block", fontSize:"12px", fontWeight:700,
-                  color:"#374151", marginBottom:"5px" }}>Start date
+                  color:"#374151", marginBottom:"5px" }}>Start date (Hawaii time)
                   <span style={{ fontSize:"11px", color:"#9CA3AF", fontWeight:400,
                     marginLeft:"4px" }}>(blank = now)</span>
                 </label>
-                <input type="datetime-local" value={form.starts_at}
+                <input aria-description="Hawaii Standard Time (UTC-10)" type="datetime-local" value={form.starts_at}
                   onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))}
                   style={{ width:"100%", padding:"9px 12px", borderRadius:"8px",
                     border:"1.5px solid #E5E7EB", fontSize:"12px", outline:"none",
@@ -426,11 +415,11 @@ export default function AnnPanel() {
               </div>
               <div>
                 <label style={{ display:"block", fontSize:"12px", fontWeight:700,
-                  color:"#374151", marginBottom:"5px" }}>Expiry date
+                  color:"#374151", marginBottom:"5px" }}>Expiry date (Hawaii time)
                   <span style={{ fontSize:"11px", color:"#9CA3AF", fontWeight:400,
                     marginLeft:"4px" }}>(blank = forever)</span>
                 </label>
-                <input type="datetime-local" value={form.ends_at}
+                <input aria-description="Hawaii Standard Time (UTC-10)" type="datetime-local" value={form.ends_at}
                   onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))}
                   style={{ width:"100%", padding:"9px 12px", borderRadius:"8px",
                     border:"1.5px solid #E5E7EB", fontSize:"12px", outline:"none",

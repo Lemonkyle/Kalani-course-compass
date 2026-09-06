@@ -23,6 +23,7 @@ export function normalizeCourse(row) {
     name:                row.name,
     subtitle:            row.subtitle || "",
     dept:                row.dept,
+    language:            row.language || "",
     ctePath:             row.cte_path || "",
     fineArtsType:        row.fine_arts_type || "",
     miscType:            row.misc_type || "",

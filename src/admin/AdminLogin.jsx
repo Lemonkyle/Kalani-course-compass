@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { isSupabaseConfigured, supabase } from "../supabase.js";
+import { adminRequest } from "./adminApi.js";
 
 export default function AdminLogin({ onLogin }) {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -11,37 +11,18 @@ export default function AdminLogin({ onLogin }) {
     e.preventDefault();
     setError("");
 
-    if (!isSupabaseConfigured || !supabase) {
-      setError("Supabase is not configured. Add your local or Vercel environment variables first.");
-      return;
-    }
-
     setLoading(true);
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-
-    if (signInError) {
-      setError(signInError.message || "Invalid email or password.");
-      setLoading(false);
-      return;
-    }
-
-    const result = await onLogin(data.session);
-    if (!result?.ok) {
-      await supabase.auth.signOut();
-      setError(result?.error || "This account is not allowed to manage Kalani Compass.");
-      setLoading(false);
-      return;
-    }
-
+    const {data, error: signInError} = await adminRequest("session", {username: username.trim(), password});
     setLoading(false);
+    if (signInError) { setError(signInError.message); return; }
+    setPassword("");
+    await onLogin(data.user);
   }
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column",
       background:"#F7F8FA", fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
+      <style>{`body{margin:0;}*{box-sizing:border-box;}`}</style>
 
       <div style={{ background:"linear-gradient(90deg,#6B0503,#950A07,#B00804)",
         height:"58px", display:"flex", alignItems:"center", padding:"0 28px",
@@ -61,17 +42,17 @@ export default function AdminLogin({ onLogin }) {
             <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"22px",
               color:"#111827", marginBottom:"6px" }}>Admin sign in</h1>
             <p style={{ fontSize:"13px", color:"#6B7280", lineHeight:1.5 }}>
-              Sign in with a Supabase admin account.
+              Manage Kalani courses and site updates.
             </p>
           </div>
 
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom:"14px" }}>
               <label style={{ display:"block", fontSize:"12px", fontWeight:700,
-                color:"#374151", marginBottom:"5px" }}>Email</label>
+                color:"#374151", marginBottom:"5px" }}>Username</label>
               <input
-                type="email" value={email} onChange={e=>setEmail(e.target.value)}
-                placeholder="admin@example.com" required
+                type="text" autoComplete="username" aria-label="Username" value={username} onChange={e=>setUsername(e.target.value)}
+                placeholder="Username" required
                 style={{ width:"100%", padding:"10px 13px", borderRadius:"8px",
                   border:"1.5px solid #E5E7EB", fontSize:"14px", outline:"none",
                   fontFamily:"inherit", transition:"border 0.15s",
@@ -85,7 +66,7 @@ export default function AdminLogin({ onLogin }) {
               <label style={{ display:"block", fontSize:"12px", fontWeight:700,
                 color:"#374151", marginBottom:"5px" }}>Password</label>
               <input
-                type="password" value={password} onChange={e=>setPassword(e.target.value)}
+                type="password" autoComplete="current-password" aria-label="Password" value={password} onChange={e=>setPassword(e.target.value)}
                 placeholder="Password" required
                 style={{ width:"100%", padding:"10px 13px", borderRadius:"8px",
                   border:"1.5px solid #E5E7EB", fontSize:"14px", outline:"none",
@@ -114,7 +95,7 @@ export default function AdminLogin({ onLogin }) {
           </form>
 
           <p style={{ fontSize:"11px", color:"#9CA3AF", textAlign:"center", marginTop:"20px", lineHeight:1.5 }}>
-            Write access is controlled by Supabase Auth and RLS.
+            Administrator access only. No registration required.
           </p>
         </div>
       </div>

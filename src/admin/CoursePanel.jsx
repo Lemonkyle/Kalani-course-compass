@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "../supabase.js";
+import { adminData } from "./adminApi.js";
 import { sortCourses } from "../lib/courseRules.js";
+
+import { parseCourseCsv } from "../../shared/courseCsv.js";
+import { validateCourseReferences } from "../../shared/courseValidation.js";
 
 const DEPTS = ["All","English","Mathematics","Social Studies","Science",
   "Health & PE","CTE","World Language","Fine Arts","Miscellaneous","Off Campus"];
@@ -27,124 +30,6 @@ const EMPTY_FORM = {
   is_ap:false, repeatable:false, teacher_sig_required:false,
   is_off_campus:false, desc:"", tips:"", grade_reqs:{}, archived:false,
 };
-
-function cleanCsvCell(value) {
-  return String(value ?? "").trim();
-}
-
-function readCsvRows(text) {
-  const source = String(text || "").replace(/^\uFEFF/, "");
-  const rows = [];
-  let row = [];
-  let cell = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < source.length; i += 1) {
-    const ch = source[i];
-    const next = source[i + 1];
-
-    if (ch === '"') {
-      if (inQuotes && next === '"') {
-        cell += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (ch === "," && !inQuotes) {
-      row.push(cleanCsvCell(cell));
-      cell = "";
-      continue;
-    }
-
-    if ((ch === "\n" || ch === "\r") && !inQuotes) {
-      if (ch === "\r" && next === "\n") i += 1;
-      row.push(cleanCsvCell(cell));
-      if (row.some(value => value !== "")) rows.push(row);
-      row = [];
-      cell = "";
-      continue;
-    }
-
-    cell += ch;
-  }
-
-  row.push(cleanCsvCell(cell));
-  if (row.some(value => value !== "")) rows.push(row);
-  return rows;
-}
-
-function parseCsvList(value) {
-  if (!value) return [];
-  const clean = String(value).replace(/^\{|\}$/g, "").trim();
-  if (!clean) return [];
-  return clean.split(",").map(item => {
-    const trimmed = item.trim();
-    const numberValue = Number(trimmed);
-    return Number.isNaN(numberValue) ? trimmed : numberValue;
-  });
-}
-
-function parseCsvBoolean(value) {
-  return ["true", "1", "yes", "y"].includes(String(value || "").trim().toLowerCase());
-}
-
-function parseCsvNumber(value, fallback) {
-  const numberValue = Number.parseFloat(value);
-  return Number.isNaN(numberValue) ? fallback : numberValue;
-}
-
-function parseCsvObject(value) {
-  if (!value) return {};
-  try {
-    return JSON.parse(value);
-  } catch {
-    return {};
-  }
-}
-
-function parseCourseCsv(text, { normalize = false } = {}) {
-  const rows = readCsvRows(text);
-  if (rows.length === 0) return [];
-
-  const headers = rows[0].map(cleanCsvCell);
-  const parsedRows = rows.slice(1).map(values => {
-    const obj = {};
-    headers.forEach((header, index) => {
-      if (header) obj[header] = cleanCsvCell(values[index]);
-    });
-    return obj;
-  }).filter(row => row.id && row.name);
-
-  if (!normalize) return parsedRows;
-
-  return parsedRows.map(row => ({
-    id: row.id,
-    code: row.code || "",
-    name: row.name,
-    subtitle: row.subtitle || "",
-    dept: row.dept,
-    cte_path: row.cte_path || null,
-    fine_arts_type: row.fine_arts_type || null,
-    misc_type: row.misc_type || null,
-    credits: parseCsvNumber(row.credits, 1),
-    grade_level: parseCsvList(row.grade_level),
-    prereqs: parseCsvList(row.prereqs),
-    concurrent_ok: parseCsvList(row.concurrent_ok),
-    grad_category: row.grad_category || null,
-    grad_credits: row.grad_credits ? parseCsvNumber(row.grad_credits, null) : null,
-    is_ap: parseCsvBoolean(row.is_ap),
-    repeatable: parseCsvBoolean(row.repeatable),
-    teacher_sig_required: parseCsvBoolean(row.teacher_sig_required),
-    is_off_campus: parseCsvBoolean(row.is_off_campus),
-    desc: row.desc || "",
-    tips: row.tips || "",
-    grade_reqs: parseCsvObject(row.grade_reqs),
-    archived: false,
-  }));
-}
 
 function Tag({ label, color, onRemove }) {
   return (
@@ -320,15 +205,11 @@ export default function CoursePanel() {
 
   async function fetchCourses() {
     setLoading(true);
-    if (!supabase) {
-      setCourses([]);
-      setLoading(false);
-      return;
-    }
 
-    const { data, error } = await supabase
+    const { data, error } = await adminData
       .from("courses").select("*").order("name", { ascending: true });
-    if (!error && data) setCourses(sortCourses(data));
+    if (error) setToast("Could not load courses: " + error.message);
+    else if (data) setCourses(sortCourses(data));
     setLoading(false);
   }
 
@@ -391,22 +272,20 @@ export default function CoursePanel() {
 
   async function saveCourse() {
     if (!form.id.trim() || !form.name.trim()) return;
-    if (!supabase) {
-      setToast("Supabase is not configured in local fallback mode.");
-      return;
-    }
 
     setSaving(true);
     const payload = {
       ...form,
-      grad_credits: form.grad_category ? Number(form.credits) : null,
+      grad_credits: form.grad_category ? Number(form.grad_credits) : null,
     };
+
+    try { validateCourseReferences([payload], courses.map(c=>c.id)); } catch (error) { setSaving(false); setToast(error.message); return; }
 
     let error;
     if (editItem) {
-      ({ error } = await supabase.from("courses").update(payload).eq("id", editItem.id));
+      ({ error } = await adminData.from("courses").update(payload).eq("id", editItem.id));
     } else {
-      ({ error } = await supabase.from("courses").insert(payload));
+      ({ error } = await adminData.from("courses").insert(payload));
     }
     setSaving(false);
     if (error) { setToast("❌ " + error.message); return; }
@@ -417,24 +296,17 @@ export default function CoursePanel() {
 
   async function archiveCourse(course) {
     if (!window.confirm(`Archive "${course.name}"? It won't appear on the site.`)) return;
-    if (!supabase) {
-      setToast("Supabase is not configured in local fallback mode.");
-      return;
-    }
 
-    await supabase.from("courses").update({ archived: true }).eq("id", course.id);
+    const { error } = await adminData.from("courses").update({ archived: true }).eq("id", course.id);
+    if (error) { setToast(error.message); return; }
     setToast("🗄 Archived");
     fetchCourses();
   }
 
   async function restoreCourse(course) {
     if (!window.confirm(`Restore "${course.name}" to the live catalog?`)) return;
-    if (!supabase) {
-      setToast("Supabase is not configured in local fallback mode.");
-      return;
-    }
 
-    const { error } = await supabase.from("courses").update({ archived: false }).eq("id", course.id);
+    const { error } = await adminData.from("courses").update({ archived: false }).eq("id", course.id);
     if (error) {
       setToast("Error: " + error.message);
       return;
@@ -445,12 +317,8 @@ export default function CoursePanel() {
 
   async function deleteCourse(course) {
     if (!window.confirm(`Permanently delete "${course.name}"? This should only be used for test data or mistaken imports.`)) return;
-    if (!supabase) {
-      setToast("Supabase is not configured in local fallback mode.");
-      return;
-    }
 
-    const { error } = await supabase.from("courses").delete().eq("id", course.id);
+    const { error } = await adminData.from("courses").delete().eq("id", course.id);
     if (error) {
       setToast("Error: " + error.message);
       return;
@@ -465,9 +333,11 @@ export default function CoursePanel() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const rows = parseCourseCsv(ev.target.result);
-      setImportPreview(rows.slice(0,5));
-      setShowImport(true);
+      try {
+        const rows = parseCourseCsv(ev.target.result, {normalize:true});
+        validateCourseReferences(rows, courses.map(c=>c.id));
+        setImportPreview(rows.slice(0,5)); setShowImport(true);
+      } catch (error) { setShowImport(false); setToast(error.message); }
     };
     reader.readAsText(file);
   }
@@ -475,21 +345,20 @@ export default function CoursePanel() {
   async function confirmImport() {
     const file = fileRef.current.files[0];
     if (!file) return;
-    if (!supabase) {
-      setToast("Supabase is not configured in local fallback mode.");
-      return;
-    }
 
     setImporting(true);
-    const text = await file.text();
-    const rows = parseCourseCsv(text, { normalize: true });
+    let rows;
+    try {
+      rows = parseCourseCsv(await file.text(), {normalize:true});
+      validateCourseReferences(rows, courses.map(c=>c.id));
+    } catch (error) { setImporting(false); setToast(error.message); return; }
     if (rows.length === 0) {
       setImporting(false);
       setToast("No valid courses found in CSV");
       return;
     }
 
-    const { error } = await supabase.from("courses").upsert(rows, { onConflict:"id" });
+    const { error } = await adminData.from("courses").upsert(rows, { onConflict:"id" });
     setImporting(false);
     if (error) { setToast("❌ Import failed: " + error.message); return; }
     setToast(`✅ Imported ${rows.length} courses`);
@@ -852,7 +721,7 @@ export default function CoursePanel() {
                 <select value={form.credits} onChange={e=>setForm(f=>({
                     ...f,
                     credits: parseFloat(e.target.value),
-                    grad_credits: parseFloat(e.target.value),
+                    grad_credits: Math.min(f.grad_credits ?? 0, Number(e.target.value)),
                   }))}
                   style={{...inp.style, cursor:"pointer", background:"white"}}
                   onFocus={inp.onFocus} onBlur={inp.onBlur}>
@@ -935,7 +804,9 @@ export default function CoursePanel() {
 
             {/* Grad category */}
             <div style={{ marginBottom:"12px" }}>
-              {label("Graduation category", "uses the same credit value as Credits")}
+              {label("Graduation credits", "portion counted toward graduation")}
+              <input {...inp} aria-label="Graduation credits" type="number" min="0" max={form.credits} step="0.5" value={form.grad_credits ?? 0} onChange={e=>setForm(f=>({...f,grad_credits:Number(e.target.value)}))} />
+              {label("Graduation category")}
               <select value={form.grad_category||""}
                 onChange={e=>setForm(f=>({...f,grad_category:e.target.value||null}))}
                 style={{...inp.style, cursor:"pointer", background:"white"}}

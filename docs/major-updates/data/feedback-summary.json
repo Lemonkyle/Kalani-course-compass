@@ -1,0 +1,30 @@
+{
+  "responses": 99,
+  "helpfulness_avg": 4.02,
+  "ease_avg": 4.17,
+  "accuracy_avg": 4.16,
+  "recommend_yes": 86,
+  "recommend_pct": 86.9,
+  "grade_counts": {
+    "11th Grade (Junior)": 29,
+    "10th Grade (Sophomore)": 49,
+    "9th Grade (Freshman)": 16,
+    "12th Grade (Senior)": 4,
+    "Counselor": 1
+  },
+  "feature_counts": {
+    "Summer school / HOC course integration": 22,
+    "Dual credit course information": 26,
+    "Better 4-year planning suggestions": 10,
+    "Classroom room numbers": 9,
+    "Teacher ratings or reviews": 23,
+    "N/A": 1,
+    "all": 1,
+    "dedicated account planning with dashboard": 1,
+    "Student class reviews/rating": 1,
+    "Make it less obvious the website is AI generated": 1,
+    "I've never used it so I wont know what to Add...": 1,
+    "HOC, Dual Credit, Honors recognization": 1,
+    "totally all of those": 1
+  }
+}

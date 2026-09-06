@@ -15,7 +15,7 @@ export const GRAD_REQUIREMENTS = [
   { id:"science",  label:"Science",           required:3.0, color:"#D97706",
     breakdown:["Biology 1 (1.0)","Science electives (2.0)"] },
   { id:"wlfa",     label:"World Lang / Fine Arts / CTE", required:2.0, color:"#0891B2",
-    breakdown:["2 credits in one area: World Language, Fine Arts, or CTE pathway sequence"] },
+    breakdown:["2 credits in the same world language, Fine Arts, or one CTE pathway sequence"] },
   { id:"pe",       label:"Physical Education",required:1.0, color:"#10B981",
     breakdown:["PE Lifetime Fitness (0.5) — required","PE Lifetime Activities (0.5) — required"] },
   { id:"health",   label:"Health",            required:0.5, color:"#EC4899",

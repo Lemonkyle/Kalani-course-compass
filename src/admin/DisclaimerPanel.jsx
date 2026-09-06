@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../supabase.js";
-import { DEFAULT_DISCLAIMER_ITEMS } from "../data/disclaimerItems.js";
+import { adminData } from "./adminApi.js";
 
 const EMPTY_FORM = {
   id:"",
@@ -42,20 +41,8 @@ export default function DisclaimerPanel() {
 
   async function fetchAll() {
     setLoading(true);
-    if (!supabase) {
-      setItems(DEFAULT_DISCLAIMER_ITEMS.map(item => ({
-        id: item.id,
-        icon: item.icon,
-        label: item.label,
-        body: item.text,
-        sort_order: item.sortOrder,
-        visible: item.visible,
-      })));
-      setLoading(false);
-      return;
-    }
 
-    const { data, error } = await supabase
+    const { data, error } = await adminData
       .from("disclaimer_items")
       .select("id, icon, label, body, sort_order, visible, updated_at")
       .order("sort_order", { ascending:true });
@@ -82,10 +69,6 @@ export default function DisclaimerPanel() {
 
   async function saveForm() {
     if (!form.id.trim() || !form.label.trim() || !form.body.trim()) return;
-    if (!supabase) {
-      setToast("Supabase is not configured in local fallback mode.");
-      return;
-    }
 
     setSaving(true);
     const payload = {
@@ -100,9 +83,9 @@ export default function DisclaimerPanel() {
 
     let error;
     if (editItem) {
-      ({ error } = await supabase.from("disclaimer_items").update(payload).eq("id", editItem.id));
+      ({ error } = await adminData.from("disclaimer_items").update(payload).eq("id", editItem.id));
     } else {
-      ({ error } = await supabase.from("disclaimer_items").insert(payload));
+      ({ error } = await adminData.from("disclaimer_items").insert(payload));
     }
 
     setSaving(false);
@@ -116,8 +99,7 @@ export default function DisclaimerPanel() {
   }
 
   async function toggleVisible(item) {
-    if (!supabase) return;
-    const { error } = await supabase
+    const { error } = await adminData
       .from("disclaimer_items")
       .update({ visible: !item.visible, updated_at: new Date().toISOString() })
       .eq("id", item.id);
@@ -127,8 +109,7 @@ export default function DisclaimerPanel() {
 
   async function deleteItem(item) {
     if (!window.confirm(`Delete "${item.label}"?`)) return;
-    if (!supabase) return;
-    const { error } = await supabase.from("disclaimer_items").delete().eq("id", item.id);
+    const { error } = await adminData.from("disclaimer_items").delete().eq("id", item.id);
     if (error) {
       setToast("Error: " + error.message);
       return;

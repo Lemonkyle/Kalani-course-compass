@@ -1,3 +1,5 @@
+import { safeExternalUrl } from "../../lib/url.js";
+
 import { useState } from "react";
 
 import { AnimatePresence } from "framer-motion";
@@ -13,7 +15,7 @@ export function DataCitationFooter({
 } = {}) {
   const [open, setOpen] = useState(false);
   const sourceTitle = settings.catalog_source_title || DEFAULT_SITE_SETTINGS.catalog_source_title;
-  const sourceUrl = settings.catalog_source_url || DEFAULT_SITE_SETTINGS.catalog_source_url;
+  const sourceUrl = safeExternalUrl(settings.catalog_source_url) || DEFAULT_SITE_SETTINGS.catalog_source_url;
 
   return (
     <>

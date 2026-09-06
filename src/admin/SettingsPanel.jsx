@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_SITE_SETTINGS, normalizeSiteSettings } from "../data/siteSettings.js";
-import { supabase } from "../supabase.js";
+import { adminData } from "./adminApi.js";
 
 const SETTINGS_FIELDS = [
   { key:"catalog_year_label", label:"Catalog year label", hint:"Example: 2026-2027" },
@@ -25,12 +25,8 @@ export default function SettingsPanel() {
 
   async function fetchSettings() {
     setLoading(true);
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
 
-    const { data, error } = await supabase
+    const { data, error } = await adminData
       .from("site_settings")
       .select("key, value");
 
@@ -43,10 +39,6 @@ export default function SettingsPanel() {
   }
 
   async function saveSettings() {
-    if (!supabase) {
-      setToast("Supabase is not configured in local fallback mode.");
-      return;
-    }
 
     const sourceUrl = settings.catalog_source_url.trim();
     if (sourceUrl && !/^https?:\/\//i.test(sourceUrl)) {
@@ -60,7 +52,7 @@ export default function SettingsPanel() {
       value: String(settings[key] || "").trim(),
       updated_at: new Date().toISOString(),
     }));
-    const { error } = await supabase.from("site_settings").upsert(rows, { onConflict:"key" });
+    const { error } = await adminData.from("site_settings").upsert(rows, { onConflict:"key" });
     setSaving(false);
 
     if (error) {

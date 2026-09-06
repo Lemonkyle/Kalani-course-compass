@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../supabase.js";
+import { adminData } from "./adminApi.js";
 
 const PAGES = [
   { id:"home", label:"Home", desc:"Landing page, search, department links, and graduation overview" },
@@ -40,13 +40,8 @@ export default function MaintenancePanel() {
 
   async function fetchSettings() {
     setLoading(true);
-    if (!supabase) {
-      setSettings(Object.fromEntries(PAGES.map(page => [page.id, false])));
-      setLoading(false);
-      return;
-    }
 
-    const { data, error } = await supabase
+    const { data, error } = await adminData
       .from("page_maintenance")
       .select("page_id, enabled, updated_at")
       .order("page_id", { ascending:true });
@@ -67,16 +62,12 @@ export default function MaintenancePanel() {
   }
 
   async function togglePage(page) {
-    if (!supabase) {
-      setToast("Supabase is not configured in local fallback mode.");
-      return;
-    }
 
     const enabled = !settings[page.id];
     setSavingId(page.id);
     setSettings(prev => ({ ...prev, [page.id]: enabled }));
 
-    const { error } = await supabase
+    const { error } = await adminData
       .from("page_maintenance")
       .upsert({
         page_id: page.id,

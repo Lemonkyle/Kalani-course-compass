@@ -1,45 +1,8 @@
-import { useEffect, useState } from "react";
-
 import { DEFAULT_DISCLAIMER_ITEMS } from "../data/disclaimerItems.js";
-
-import { supabase } from "../supabase.js";
-
-
-
-function normalizeDisclaimerItem(row) {
-  return {
-    id: row.id,
-    icon: row.icon || "",
-    label: row.label || "",
-    text: row.body || row.text || "",
-    sortOrder: row.sort_order ?? row.sortOrder ?? 0,
-    visible: row.visible ?? true,
-  };
+import { usePublicQuery } from "./usePublicQuery.js";
+async function fetchItems(db) {
+  const {data,error}=await db.from("disclaimer_items").select("id,icon,label,body,sort_order,visible").eq("visible",true).order("sort_order",{ascending:true});
+  if(error) throw error;
+  return data.map(row=>({id:row.id,icon:row.icon||"",label:row.label||"",text:row.body||"",sortOrder:row.sort_order??0,visible:true}));
 }
-
-
-
-export function useDisclaimerItems() {
-  const [items, setItems] = useState(DEFAULT_DISCLAIMER_ITEMS.filter(item => item.visible));
-
-  useEffect(() => {
-    async function fetchDisclaimerItems() {
-      if (!supabase) return;
-
-      const { data, error } = await supabase
-        .from("disclaimer_items")
-        .select("id, icon, label, body, sort_order, visible")
-        .eq("visible", true)
-        .order("sort_order", { ascending:true });
-
-      if (!error && data && data.length > 0) {
-        setItems(data.map(normalizeDisclaimerItem));
-      } else if (error) {
-        console.error("[Kalani Compass] fetchDisclaimerItems error:", error.message);
-      }
-    }
-    fetchDisclaimerItems();
-  }, []);
-
-  return { items };
-}
+export function useDisclaimerItems(){const {data:items}=usePublicQuery(fetchItems,()=>DEFAULT_DISCLAIMER_ITEMS.filter(i=>i.visible));return {items};}

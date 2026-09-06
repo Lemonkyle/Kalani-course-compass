@@ -1,0 +1,4 @@
+local/
+rendered/
+*.docx
+*.pdf

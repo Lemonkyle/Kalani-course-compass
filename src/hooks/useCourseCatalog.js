@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { buildCourseSearchIndex, filterIndexedCourses } from "../lib/courseSearch.js";
 import {
   getCourseName as getCourseNameFromData,
@@ -6,7 +6,10 @@ import {
 } from "../lib/courseRules.js";
 import { getUnmetPrereqs } from "../lib/plannerRules.js";
 
-export function useCourseCatalog(liveCourses, customCourses) {
+import { COURSES } from "../data/courses.js";
+import { makeHistoricalCatalog, readSaved, validCustomCourses } from "../lib/plannerStorage.js";
+
+export function useCourseCatalog(liveCourses, customCourses, plan, catalogStatus) {
   const [searchQuery, setSearchQuery] = useState("");
   const [homeSearch, setHomeSearch] = useState("");
   const [homeSearchFocus, setHomeSearchFocus] = useState(false);
@@ -18,14 +21,19 @@ export function useCourseCatalog(liveCourses, customCourses) {
   const [gridKey, setGridKey] = useState(0);
   const [addSearch, setAddSearch] = useState("");
 
-  const allCourses = useMemo(
-    () => [...liveCourses, ...customCourses],
-    [liveCourses, customCourses]
-  );
-  const courseById = useMemo(
-    () => new Map(allCourses.map(course => [course.id, course])),
-    [allCourses]
-  );
+  const [snapshots, setSnapshots] = useState(() => readSaved(localStorage, "kalani-course-snapshots", {}, value => value && !Array.isArray(value) && validCustomCourses(Object.values(value))));
+  useEffect(() => {
+    if (catalogStatus !== "ready") return;
+    setSnapshots(previous => {
+      const next = {...previous}; let changed = false;
+      for (const course of liveCourses) {
+        if (JSON.stringify(next[course.id]) !== JSON.stringify(course)) { next[course.id] = course; changed = true; }
+      }
+      return changed ? next : previous;
+    });
+  }, [liveCourses, catalogStatus]);
+  useEffect(() => { try { localStorage.setItem("kalani-course-snapshots", JSON.stringify(snapshots)); } catch {} }, [snapshots]);
+  const courseById = useMemo(() => makeHistoricalCatalog(liveCourses, customCourses, snapshots, COURSES, plan), [liveCourses, customCourses, snapshots, plan]);
   const indexedCourses = useMemo(() => buildCourseSearchIndex(liveCourses), [liveCourses]);
 
   function getCourse(id) {

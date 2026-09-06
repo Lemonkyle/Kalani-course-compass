@@ -6,19 +6,7 @@ import { GRADE_MAX, getAllCoursesUpTo, getCoursesBeforeGrade } from "../lib/plan
 
 export function PlannerPage({ context }) {
   const {
-    page, maintenanceContent, navigate, selectedCourse, setSelectedCourse, searchQuery,
-    setSearchQuery, homeSearch, setHomeSearch, homeSearchFocus, setHomeSearchFocus, homeSearchResults,
-    filterDept, setFilterDept, filterCtePath, setFilterCtePath, filterFineArts, setFilterFineArts,
-    filterMisc, setFilterMisc, gridKey, setGridKey, filteredCourses, canUseHover,
-    getCourseName, deptColor, plan, showResetConfirm, setShowResetConfirm, setPlan,
-    priorCredits, setPriorCredits, alg1Anim, setAlg1Anim, customCourses, setCustomCourses,
-    setShowCustomModal, addTarget, setAddTarget, addSearch, setAddSearch, prereqWarn,
-    setPrereqWarn, addSearchResults, getCourse, gradeSlots, getUnmetPrereqsForCurrentCourses, getPrereqDisplay,
-    addCourseToPlan, forceAddCourse, removeCourse, ensureUids, canFitCourse, addCourseEntry,
-    setShakeGrade, showToast, shakeGrade, cats, total, honorsOpen,
-    setHonorsOpen, honorsProgress, planUids, matchSelected, setMatchSelected, applyConfirm,
-    setApplyConfirm, showCustomModal, customGradeTarget, setCustomGradeTarget, customForm, setCustomForm,
-    modalWarn, setModalWarn, getCoreConflict, liveCourses,
+    page, maintenanceContent, setSelectedCourse, canUseHover, deptColor, plan, showResetConfirm, setShowResetConfirm, setPlan, priorCredits, setPriorCredits, alg1Anim, setAlg1Anim, customCourses, setShowCustomModal, addTarget, setAddTarget, addSearch, setAddSearch, prereqWarn, setPrereqWarn, addSearchResults, getCourse, gradeSlots, getUnmetPrereqsForCurrentCourses, getPrereqDisplay, addCourseToPlan, forceAddCourse, removeCourse, canFitCourse, addCourseEntry, setShakeGrade, showToast, shakeGrade, cats, total, honorsOpen, setHonorsOpen, honorsProgress
   } = context;
   return renderPage(page==="planner","planner", maintenanceContent("planner",
           <div className="fade-in" style={{ maxWidth:"1180px", margin:"0 auto", padding:"32px 24px" }}>
@@ -122,7 +110,7 @@ export function PlannerPage({ context }) {
                       background:"#FFF8F8", color:"var(--red)", fontSize:"12px", fontWeight:700,
                       cursor:"pointer", fontFamily:"inherit", touchAction:"manipulation",
                       display:"flex", alignItems:"center", gap:"6px" }}>
-                    ＋ Add HOC / Summer / Custom Course
+                    ＋ Add Custom Course
                   </button>
                   {customCourses.length > 0 && (
                     <span style={{ fontSize:"11px", color:"var(--muted)" }}>
@@ -163,7 +151,7 @@ export function PlannerPage({ context }) {
                             const upTo = [...getAllCoursesUpTo(plan, grade), ...priorCredits];
                             const unmet = isOffCampus ? [] : getUnmetPrereqsForCurrentCourses(cid, before, upTo);
                             return (
-                              <motion.div key={ensureUids(grade)[idx] || cid+"-"+idx}
+                              <motion.div key={grade+"-"+cid+"-"+plan[grade].slice(0,idx).filter(id=>id===cid).length}
                                 layout
                                 variants={cardVariants}
                                 initial="hidden" animate="show" exit="exit"
@@ -213,6 +201,8 @@ export function PlannerPage({ context }) {
                                       <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                                         {isOffCampus?"🚗 Off Campus":c.name}
                                       </span>
+                                      {c.unavailable && <span style={{fontSize:10,color:"#92400E"}}>Unavailable · verify saved credits</span>}
+                                      {!c.unavailable && !c.gradeLevel?.map(Number).includes(grade) && <span style={{fontSize:10,color:"#B91C1C"}}>Check grade eligibility</span>}
                                       {c?.isCustom && (
                                         <span style={{ fontSize:"9px", fontWeight:800, flexShrink:0,
                                           background:"#EFF6FF", color:"#1D4ED8",
@@ -276,14 +266,10 @@ export function PlannerPage({ context }) {
                                 <div style={{ background:"#FEF9C3", border:"1.5px solid #EAB308", borderRadius:"8px",
                                   padding:"10px 12px", marginBottom:"6px" }}>
                                   <div style={{ fontWeight:700, fontSize:"12px", color:"#78350F", marginBottom:"5px" }}>
-                                    {prereqWarn.coreConflict ? "⚠️ Subject Conflict" : "⚠️ Missing Prerequisites"}
+                                    ⚠️ Missing Prerequisites
                                   </div>
                                   <div style={{ fontSize:"11px", color:"#78350F", marginBottom:"8px" }}>
-                                    {prereqWarn.coreConflict ? (
-                                      <span>Conflicts with <strong>{prereqWarn.coreConflict}</strong> already in this grade.</span>
-                                    ) : (
-                                      <span><strong>{getCourse(prereqWarn.courseId)?.name}</strong> needs: {prereqWarn.unmet.map(getPrereqDisplay).join(", ")}</span>
-                                    )}
+                                    <span><strong>{getCourse(prereqWarn.courseId)?.name}</strong> needs: {prereqWarn.unmet.map(getPrereqDisplay).join(", ")}</span>
                                   </div>
                                   <div style={{ display:"flex", gap:"6px" }}>
                                     <button onClick={()=>forceAddCourse(prereqWarn.courseId)}
@@ -308,7 +294,8 @@ export function PlannerPage({ context }) {
                                   const already = !c.repeatable && Object.values(plan).flat().includes(c.id);
                                   const courseSlots = getCourseSlots(c);
                                   const wouldExceed = gradeSlots(plan, grade) + courseSlots > GRADE_MAX;
-                                  const blocked = already || wouldExceed;
+                                  const wrongGrade = !(c.gradeLevel || []).map(Number).includes(grade);
+                                  const blocked = already || wouldExceed || wrongGrade;
                                   const completedBefore = [...getCoursesBeforeGrade(plan, grade), ...priorCredits];
                                   const completedUpTo = [...getAllCoursesUpTo(plan, grade), ...priorCredits];
                                   const unmet = c.id==="OFF_CAMPUS" ? [] : getUnmetPrereqsForCurrentCourses(c.id, completedBefore, completedUpTo);
@@ -330,7 +317,7 @@ export function PlannerPage({ context }) {
                                           {c.name}{c.isAP?" ⭐":""}
                                         </div>
                                         <div style={{ fontSize:"11px", color:hasWarn?"#D97706":"var(--muted)" }}>
-                                          {c.dept} · {c.credits}cr{hasWarn?" · ⚠️ needs: "+unmet.map(getPrereqDisplay).join(", "):""}
+                                          {c.dept} · {c.credits}cr{wrongGrade ? " · Not offered to this grade" : hasWarn?" · ⚠️ needs: "+unmet.map(getPrereqDisplay).join(", "):""}
                                         </div>
                                       </div>
                                       {already
@@ -409,7 +396,7 @@ export function PlannerPage({ context }) {
                     Honors Certificates
                   </div>
                   <p style={{ fontSize:"10px", color:"rgba(255,255,255,0.35)", marginBottom:"12px", lineHeight:1.5 }}>
-                    All require GPA 3.0+. Tap to track progress.
+                    GPA requirements vary by certificate. Tap to track progress.
                   </p>
 
                   {HONORS_DEFS.map(hdef=>{

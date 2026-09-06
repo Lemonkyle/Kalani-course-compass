@@ -5,8 +5,9 @@
 ## 快速开始
 
 ```bash
-npm install
+npm ci
 npm run dev
+npm test
 npm run build
 npm run preview
 ```
@@ -18,7 +19,7 @@ npm run preview
 - 本项目是非官方选课规划工具，不隶属于 Kalani High School 或 Hawaii DOE。
 - 学生个人规划只保存在浏览器 `localStorage`，不会上传服务器。
 - 本地开发可以不配置 Supabase，因为项目保留静态 fallback 数据。
-- 后台写入权限依赖 Supabase Auth 和 RLS 策略。
+- 后台修改通过 Vercel 登录会话验证，Supabase 浏览器角色仅可读取。
 - 课程 ID 必须稳定；Course Match 模板和学生已保存规划都会依赖这些 ID。
 
 ## 文件夹职责
