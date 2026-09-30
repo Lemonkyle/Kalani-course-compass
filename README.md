@@ -94,6 +94,16 @@ npm run preview
 
 ## 注意事项
 
+### Supabase 定时检查
+
+`.github/workflows/keep-alive.yml` 每天 UTC 02:17、10:17、18:17 查询一条公开课程记录，也支持在 Actions 中手动运行。HTTP 错误、无效响应或读取不到公开课程都会导致任务失败，最多尝试三次。它不会写入课程或学生数据。
+
+在 GitHub 仓库 Settings → Secrets and variables → Actions → Variables 配置 `SUPABASE_URL` 和 `SUPABASE_PUBLIC_KEY`。后者使用与学生网页相同的 publishable / anon 公钥，不能使用 service-role、管理员密码或其他私钥。轮换浏览器公钥时同步更新此变量。
+
+此检查产生真实数据库读取并验证公开目录可用，但不保证免费项目永不暂停。已暂停的项目仍需在 Supabase Dashboard 恢复。GitHub 公共仓库的定时任务也可能因长期无仓库活动而停用，请留意 Actions 失败通知与 Supabase 邮件。正式使用时应明确维护责任和托管方案。
+
+参考：[Supabase 项目暂停规则](https://supabase.com/docs/guides/platform/free-project-pausing)。
+
 - 本项目是非官方规划工具，不隶属于 Kalani High School 或 Hawaii DOE。
 - 学生规划保存在浏览器 `localStorage`，学生端不会上传这些规划。
 - 本地开发可以不配置 Supabase，因为项目包含静态 fallback 数据。
