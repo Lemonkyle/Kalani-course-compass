@@ -1,3 +1,4 @@
+import { isPendingExternal } from "./externalCourses.js";
 import { COURSES } from "../data/courses.js";
 
 import { DEPT_COLORS, DEPT_ORDER } from "../data/constants.js";
@@ -9,7 +10,7 @@ import { PREREQ_EQUIV } from "../data/requirements.js";
 // Course normalization, lookup, display, and sorting helpers.
 
 export function getCourseSlots(course) {
-  if (!course) return 0;
+  if (!course || isPendingExternal(course)) return 0;
   return course.isOffCampus || course.id === "OFF_CAMPUS" ? 1 : (course.credits || 0);
 }
 

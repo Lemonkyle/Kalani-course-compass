@@ -22,7 +22,7 @@ export function DataCitationFooter({
       <footer style={{ background:"#F1F5F9", borderTop:"1px solid #E2E8F0", padding:"14px 24px",
         display:"flex", alignItems:"center", justifyContent:"center", gap:"16px", flexWrap:"wrap" }}>
         <span style={{ fontSize:"12px", color:"#64748B", lineHeight:1.5 }}>
-          Course data sourced from <em>{sourceTitle}</em> and{" "}
+          Kalani catalog data sourced from <em>{sourceTitle}</em> and{" "}
           <em>Hawaii DOE Graduation Requirements (July 2023)</em>.
           {" "}For planning reference only.
         </span>

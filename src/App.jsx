@@ -1,3 +1,4 @@
+import { emptyExternalForm, externalForm } from "./lib/externalCourses.js";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { HomePage } from "./pages/HomePage.jsx";
@@ -85,6 +86,14 @@ export default function App() {
   } = useStartupDisclaimer();
   const { toast, showToast, shakeGrade, setShakeGrade } = useTransientUi();
 
+  const [courseSource, setCourseSource] = useState("Kalani");
+  const [editingExternalId, setEditingExternalId] = useState(null);
+  function openExternalCourse(source = "HOC", program = "", course = null, grade = 9) {
+    setEditingExternalId(course?.id || null);
+    setCustomForm(course ? externalForm(course) : emptyExternalForm(source, program));
+    setCustomGradeTarget(grade);
+    setShowCustomModal(true);
+  }
   const [page, setPage] = useState("home");
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [dismissedAnns, setDismissedAnns] = useState([]);
@@ -182,6 +191,7 @@ export default function App() {
   }
 
   const pageContext = {
+    courseSource, setCourseSource, editingExternalId, openExternalCourse,
     page,
     maintenanceContent,
     navigate,

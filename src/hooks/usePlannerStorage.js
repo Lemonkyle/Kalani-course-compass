@@ -1,3 +1,4 @@
+import { migrateExternalCourses, emptyExternalForm } from "../lib/externalCourses.js";
 import { useEffect, useState } from "react";
 import { DEFAULT_PLAN } from "../data/requirements.js";
 
@@ -6,17 +7,11 @@ import { readSaved, validPlan, validCustomCourses } from "../lib/plannerStorage.
 export function usePlannerStorage() {
   const [plan, setPlan] = useState(() => readSaved(localStorage, "kalani-compass-plan", DEFAULT_PLAN, validPlan));
   const [priorCredits, setPriorCredits] = useState(() => readSaved(localStorage, "kalani-prior-credits", [], value => Array.isArray(value) && value.every(id => typeof id === "string")));
-  const [customCourses, setCustomCourses] = useState(() => readSaved(localStorage, "kalani-custom-courses", [], validCustomCourses));
+  const [customCourses, setCustomCourses] = useState(() => migrateExternalCourses(readSaved(localStorage, "kalani-custom-courses", [], validCustomCourses)));
   const [alg1Anim, setAlg1Anim] = useState("idle");
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customGradeTarget, setCustomGradeTarget] = useState(9);
-  const [customForm, setCustomForm] = useState({
-    name: "",
-    dept: "Mathematics",
-    credits: 0.5,
-    isAP: false,
-    language: "",
-  });
+  const [customForm, setCustomForm] = useState(emptyExternalForm());
 
   useEffect(() => {
     try {

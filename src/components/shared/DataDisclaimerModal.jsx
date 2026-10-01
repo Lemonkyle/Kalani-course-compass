@@ -30,6 +30,7 @@ export function DataDisclaimerModal({ onClose, items = DEFAULT_DISCLAIMER_ITEMS.
         </div>
         <div style={{ padding:"22px 26px", display:"flex", flexDirection:"column", gap:"16px",
           overflowY:"auto", flex:"1 1 auto", minHeight:0 }}>
+          <p style={{fontSize:13,lineHeight:1.6,padding:12,background:'#EFF6FF',borderRadius:8}}><strong>Scope:</strong> Catalog source statements below apply to Kalani courses. HOC and Dual Credit cards are program introductions linked to their official sites. External planner entries are entered by students; unverified credits are excluded. “Confirmed by you” records the student’s confirmation with school staff, not approval issued by this website.</p>
           {items.map(({icon,label,text}, i)=>(
             <motion.div key={label}
               initial={{ opacity:0, y:12 }}

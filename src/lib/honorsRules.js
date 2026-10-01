@@ -8,7 +8,7 @@ import { getCourse } from "./courseRules.js";
 
 export function computeHonorsProgress(plan, getCourseForId = getCourse) {
   const allIds = Object.values(plan).flat();
-  const allCourses = allIds.map(getCourseForId).filter(Boolean);
+  const allCourses = allIds.map(getCourseForId).filter(c => c && !c.isExternal);
 
   const mathCredits = allCourses.filter(c=>c.dept==="Mathematics").reduce((s,c)=>s+c.credits,0);
   const sciCredits  = allCourses.filter(c=>c.dept==="Science").reduce((s,c)=>s+c.credits,0);

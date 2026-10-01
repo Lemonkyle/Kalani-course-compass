@@ -1,3 +1,4 @@
+import { isPendingExternal } from "./externalCourses.js";
 import { GRAD_REQUIREMENTS } from "../data/constants.js";
 
 import { PREREQ_EQUIV } from "../data/requirements.js";
@@ -21,7 +22,7 @@ const CORE_DEPARTMENTS = ["English", "Mathematics", "Social Studies", "Science"]
 // Two semester courses make one year-long load, regardless of catalog titles.
 export function getCoreLoadWarnings(courses, grade) {
   return CORE_DEPARTMENTS.flatMap(dept => {
-    const credits = courses.filter(course => course?.dept === dept)
+    const credits = courses.filter(course => course?.dept === dept && !isPendingExternal(course))
       .reduce((total, course) => total + (course.credits || 0), 0);
     return credits > 1 + 1e-8 ? [{
       code: "workload", dept,
@@ -91,7 +92,7 @@ export function calcWlfa(plan, getCourseForId = getCourse) {
   // WLFA requires 2 credits in ONE of: same World Language, any Fine Arts, same CTE pathway
   // Returns { earned, overflow } where overflow flows to electives
   const allIds = Object.values(plan).flat();
-  const allCourses = allIds.map(getCourseForId).filter(Boolean);
+  const allCourses = allIds.map(getCourseForId).filter(c => c && !isPendingExternal(c));
   const wlfaCourses = allCourses.filter(c => c.gradCategory === "wlfa");
 
   // Only the strongest single-language sequence counts toward this requirement.
@@ -136,7 +137,7 @@ export function calcPlannerCredits(plan, getCourseForId = getCourse) {
   Object.values(plan).forEach(courses => {
     courses.forEach(cid => {
       const c = getCourseForId(cid);
-      if (!c) return;
+      if (!c || isPendingExternal(c)) return;
       total += c.credits;
       if (!c.gradCategory || c.gradCredits == null) return;
       if (c.gradCategory === "wlfa") return; // handled separately

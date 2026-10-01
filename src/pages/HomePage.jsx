@@ -3,7 +3,7 @@ import { DEPTS, GRAD_REQUIREMENTS } from "../data/index.js";
 
 export function HomePage({ context }) {
   const {
-    page, maintenanceContent, navigate, setSelectedCourse, setSearchQuery, homeSearch, setHomeSearch, homeSearchFocus, setHomeSearchFocus, homeSearchResults, setFilterDept, setFilterCtePath, setFilterFineArts, setFilterMisc, deptColor, plan, total, liveCourses
+    setCourseSource, page, maintenanceContent, navigate, setSelectedCourse, setSearchQuery, homeSearch, setHomeSearch, homeSearchFocus, setHomeSearchFocus, homeSearchResults, setFilterDept, setFilterCtePath, setFilterFineArts, setFilterMisc, deptColor, plan, total, liveCourses
   } = context;
   return renderPage(page==="home","home", maintenanceContent("home",
           <div className="fade-in">
@@ -23,14 +23,14 @@ export function HomePage({ context }) {
                 </h1>
                 <p style={{ color:"rgba(255,255,255,0.72)", fontSize:"16px", maxWidth:"460px",
                   margin:"0 auto 36px", lineHeight:1.7 }}>
-                  Explore every course, understand prerequisites, and build a graduation plan before you register.
+                  Start exploring Kalani courses, understand prerequisites, and prepare questions for your counselor. Especially helpful for freshmen and transfer students.
                 </p>
                 <div className="hero-btns" style={{ display:"flex", gap:"12px", justifyContent:"center", flexWrap:"wrap" }}>
-                  <button onClick={()=>navigate("catalog")}
+                  <button onClick={()=>{setCourseSource("Kalani"); navigate("catalog");}}
                     style={{ background:"white", color:"var(--red)", border:"none", borderRadius:"10px",
                       padding:"13px 26px", fontSize:"14px", fontWeight:800, cursor:"pointer",
                       boxShadow:"0 4px 20px rgba(0,0,0,0.2)", fontFamily:"inherit" }}>
-                    Browse All Courses →
+                    Explore Course Options →
                   </button>
                   <button onClick={()=>navigate("planner")}
                     style={{ background:"rgba(255,255,255,0.1)", color:"white",
@@ -43,6 +43,11 @@ export function HomePage({ context }) {
               </div>
             </div>
 
+            <aside style={{padding:'20px 24px 40px',maxWidth:1000,margin:'0 auto',textAlign:'center',lineHeight:1.7}}>
+              <strong>Kalani on-campus courses are not your only options.</strong>
+              <p>Learn about online and college-credit programs. Availability and high-school credits need school confirmation.</p>
+              {['HOC','Dual Credit'].map(source=><button key={source} className="dept-btn" style={{margin:6}} onClick={()=>{setCourseSource(source);navigate('catalog');}}>Explore {source} →</button>)}
+            </aside>
             {/* Search */}
             <div style={{ maxWidth:"580px", margin:"-26px auto 0", padding:"0 24px", position:"relative", zIndex:10 }}>
               <input className="si" placeholder="🔍  Search — try 'AP Calculus', 'Computer Science', 'Marine Science'…"
@@ -54,7 +59,7 @@ export function HomePage({ context }) {
                   if(e.key==="Enter" && homeSearch.trim()) {
                     setSearchQuery(homeSearch);
                     setHomeSearchFocus(false);
-                    navigate("catalog");
+                    setCourseSource("Kalani"); navigate("catalog");
                   }
                   if(e.key==="Escape") { setHomeSearchFocus(false); setHomeSearch(""); }
                 }}
@@ -74,7 +79,7 @@ export function HomePage({ context }) {
                           setSelectedCourse(c);
                           setHomeSearchFocus(false);
                           setSearchQuery(homeSearch);
-                          navigate("catalog");
+                          setCourseSource("Kalani"); navigate("catalog");
                         }}
                         style={{ display:"flex", alignItems:"center", gap:"12px", padding:"11px 16px",
                           cursor:"pointer", borderBottom:"1px solid var(--border)", transition:"background 0.1s" }}
@@ -97,7 +102,7 @@ export function HomePage({ context }) {
                     );
                   })}
                   <div
-                    onMouseDown={()=>{ setSearchQuery(homeSearch); setHomeSearchFocus(false); navigate("catalog"); }}
+                    onMouseDown={()=>{ setSearchQuery(homeSearch); setHomeSearchFocus(false); setCourseSource("Kalani"); navigate("catalog"); }}
                     style={{ padding:"10px 16px", fontSize:"12px", fontWeight:700,
                       color:"var(--red)", cursor:"pointer", textAlign:"center",
                       background:"#FFF8F8", transition:"background 0.1s" }}
@@ -112,7 +117,7 @@ export function HomePage({ context }) {
             {/* Stats */}
             <div className="stat-grid" style={{ maxWidth:"840px", margin:"44px auto 0", padding:"0 24px",
               display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:"14px" }}>
-              {[{n:"24",l:"Credits to graduate",i:"🎓",c:"#B00804"},{n:String(liveCourses.length),l:"Courses in catalog",i:"📚",c:"#0369A1"},
+              {[{n:"24",l:"Credits to graduate",i:"🎓",c:"#B00804"},{n:String(liveCourses.length),l:"Kalani catalog courses",i:"📚",c:"#0369A1"},
                 {n:String(liveCourses.filter(c=>c.isAP).length),l:"AP courses offered",i:"⭐",c:"#7C3AED"},{n:String(new Set(liveCourses.filter(c=>c.dept==="CTE" && c.ctePath).map(c=>c.ctePath)).size),l:"CTE career pathways",i:"🛠",c:"#0F766E"}].map(s=>(
                 <div key={s.l} style={{ background:"white", borderRadius:"14px", padding:"22px",
                   textAlign:"center", border:"1px solid var(--border)", boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
@@ -130,7 +135,7 @@ export function HomePage({ context }) {
                 marginBottom:"14px" }}>Browse by Department</h2>
               <div style={{ display:"flex", flexWrap:"wrap", gap:"8px" }}>
                 {DEPTS.filter(d=>d!=="All").map(d=>(
-                  <div key={d} onClick={()=>{ setFilterDept(d); setFilterCtePath("All CTE"); setFilterFineArts("All Fine Arts"); setFilterMisc("All Miscellaneous"); navigate("catalog"); }}
+                  <div key={d} onClick={()=>{ setFilterDept(d); setFilterCtePath("All CTE"); setFilterFineArts("All Fine Arts"); setFilterMisc("All Miscellaneous"); setCourseSource("Kalani"); navigate("catalog"); }}
                     style={{ padding:"7px 15px", borderRadius:"8px", cursor:"pointer",
                       background:deptColor(d)+"14", border:`1.5px solid ${deptColor(d)}35`,
                       color:deptColor(d), fontWeight:700, fontSize:"13px", transition:"all 0.2s" }}
