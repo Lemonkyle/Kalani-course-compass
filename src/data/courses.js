@@ -472,7 +472,7 @@ export const COURSES = [
     tips:"⚠️ Assigned by administration. Repeatable for credit. Counts as elective credit toward graduation." },
 
   // ── OFF CAMPUS ──────────────────────────────────────────────────────────────
-  { id:"OFF_CAMPUS", code:"", name:"Off Campus Period", dept:"Off Campus", credits:0, gradeLevel:[12], prereqs:[],
+  { id:"OFF_CAMPUS", code:"", name:"Off Campus Period", dept:"Miscellaneous", miscType:"Off Campus", credits:0, gradeLevel:[12], prereqs:[],
     gradCategory:null, gradCredits:0, repeatable:true, isOffCampus:true,
     eligibility:[
       "Met ALL graduation requirements (except ELA 12 & Social Studies)",

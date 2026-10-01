@@ -42,7 +42,7 @@ export function PlannerPage({ context }) {
                   )}
                 </div>
                 <p className="planner-hint" style={{ fontSize:"13px", color:"var(--muted)", marginBottom:"12px" }}>
-                  Click a course name to view details · ⚠️ = missing prereq · Click × to remove
+                  Click a course name to view details. Planning reminders appear below courses and grade headings. Click × to remove.
                 </p>
 
                 {/* Middle-school ALG1 toggle */}
@@ -142,11 +142,11 @@ export function PlannerPage({ context }) {
                           </span>
                         </div>
                         <div style={{ padding:"12px 14px 0", display:"flex", flexDirection:"column", flex:1 }}>
-                        {loadWarnings.length > 0 && <details style={{fontSize:11,color:"#92400E",background:"#FFFBEB",borderRadius:8,padding:"8px 10px",marginBottom:10}}>
-                          <summary style={{cursor:"pointer",fontWeight:700}}>⚠ Extra coursework · review your plan</summary>
+                        {loadWarnings.length > 0 && <div style={{fontSize:12,lineHeight:1.5,color:"#92400E",background:"#FFFBEB",borderRadius:8,padding:"8px 10px",marginBottom:10}}>
+                          <strong>⚠ Subject load reminder</strong>
                           {loadWarnings.map(warning => <p key={warning.dept} style={{margin:"6px 0"}}>{warning.message}</p>)}
                           <p style={{margin:"6px 0 0"}}>Exceptions are allowed. Check your plan with your counselor.</p>
-                        </details>}
+                        </div>}
                         <AnimatePresence initial={false}>
                           {plan[grade].map((cid,idx)=>{
                             const c=getCourse(cid);
@@ -194,10 +194,6 @@ export function PlannerPage({ context }) {
                                       <span style={{ fontSize:"9px", fontWeight:800, color:"#94A3B8",
                                         background:"#F1F5F9", padding:"2px 5px", borderRadius:"4px", flexShrink:0 }}>{c.credits}cr</span>
                                       {c.isAP ? <span className="tag-ap" style={{fontSize:"9px"}}>AP</span> : null}
-                                      {unmet.length>0 ? (
-                                        <span title={"Missing prereqs: "+unmet.map(getPrereqDisplay).join(", ")}
-                                          style={{ fontSize:"11px", cursor:"help", flexShrink:0 }}>⚠️</span>
-                                      ) : null}
                                     </div>
                                     <span style={{ fontSize:"13px", fontWeight:700,
                                       color:isOffCampus?"#475569":"#0F172A", letterSpacing:"-0.01em",
@@ -208,7 +204,6 @@ export function PlannerPage({ context }) {
                                         {isOffCampus?"🚗 Off Campus":c.name}
                                       </span>
                                       {c.unavailable && <span style={{fontSize:10,color:"#92400E"}}>Unavailable · verify saved credits</span>}
-                                      {!c.unavailable && !c.gradeLevel?.map(Number).includes(grade) && <span style={{fontSize:10,color:"#92400E"}}>Outside usual grade</span>}
                                       {c?.isCustom && (
                                         <span style={{ fontSize:"9px", fontWeight:800, flexShrink:0,
                                           background:"#EFF6FF", color:"#1D4ED8",
@@ -216,6 +211,12 @@ export function PlannerPage({ context }) {
                                           padding:"1px 5px" }}>Custom</span>
                                       )}
                                     </span>
+                                    {unmet.length > 0 && <p style={{margin:"7px 0 0",padding:"6px 8px",borderRadius:6,background:"#FFFBEB",color:"#92400E",fontSize:12,lineHeight:1.5,overflowWrap:"anywhere"}}>
+                                      <strong>⚠ Prerequisite reminder:</strong> Not yet recorded in your plan: {unmet.map(getPrereqDisplay).join(", ")}. Confirm prior credit or exceptions with your counselor.
+                                    </p>}
+                                    {!c.unavailable && c.gradeLevel?.length > 0 && !c.gradeLevel.map(Number).includes(grade) && <p style={{margin:"7px 0 0",color:"#92400E",fontSize:12,lineHeight:1.5}}>
+                                      <strong>⚠ Grade reminder:</strong> Usually listed for Grade {c.gradeLevel.join("/")}. Transfer or make-up coursework may be an exception.
+                                    </p>}
                                   </div>
                                   {/* Delete button - hover reveal */}
                                   <div className="delete-reveal" style={{ padding:"0 10px", flexShrink:0, zIndex:1 }}>

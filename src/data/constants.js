@@ -2,7 +2,7 @@
 
 export const DEPT_ORDER = [
   "English","Social Studies","Mathematics","Science",
-  "Health & PE","CTE","World Language","Fine Arts","Miscellaneous","Off Campus"
+  "Health & PE","CTE","World Language","Fine Arts","Miscellaneous"
 ];
 
 export const GRAD_REQUIREMENTS = [
@@ -28,14 +28,14 @@ export const GRAD_REQUIREMENTS = [
 
 export const DEPTS = [
   "All","English","Social Studies","Mathematics","Science",
-  "Health & PE","CTE","World Language","Fine Arts","Miscellaneous","Off Campus"
+  "Health & PE","CTE","World Language","Fine Arts","Miscellaneous"
 ];
 
 export const CTE_PATHS = ["All CTE","AFNR","Business","Arts & Media","Engineering","Health Services","Culinary Arts","Computer Science","JROTC"];
 
 export const FINE_ARTS_TYPES = ["All Fine Arts","Performing","Visual"];
 
-export const MISC_TYPES = ["All Miscellaneous","General","Journalism","ESOL"];
+export const MISC_TYPES = ["All Miscellaneous","General","Journalism","ESOL","Off Campus"];
 
 export const DEPT_COLORS = {
   "English":"#C84B31","Social Studies":"#7C3AED","Mathematics":"#059669",

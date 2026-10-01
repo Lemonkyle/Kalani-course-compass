@@ -1,5 +1,5 @@
 import { COURSES } from "../data/courses.js";
-import { normalizeCourse, sortCourses } from "../lib/courseRules.js";
+import { normalizeCourse, normalizeCourseCategory, sortCourses } from "../lib/courseRules.js";
 import { usePublicQuery } from "./usePublicQuery.js";
 async function fetchCourses(db) {
   const rows = [];
@@ -14,7 +14,7 @@ async function fetchCourses(db) {
   return courses;
 }
 function initialCourses() {
-  try { const cached = JSON.parse(localStorage.getItem("kalani-catalog-cache")); if (Array.isArray(cached) && cached.every(c=>c && typeof c.id==="string" && Array.isArray(c.gradeLevel) && Number.isFinite(c.credits))) return cached; } catch {}
+  try { const cached = JSON.parse(localStorage.getItem("kalani-catalog-cache")); if (Array.isArray(cached) && cached.every(c=>c && typeof c.id==="string" && Array.isArray(c.gradeLevel) && Number.isFinite(c.credits))) return sortCourses(cached.map(normalizeCourseCategory)); } catch {}
   return sortCourses(COURSES);
 }
 export function useCourseData() { const {data:courses,status}=usePublicQuery(fetchCourses,initialCourses); return {courses,status}; }

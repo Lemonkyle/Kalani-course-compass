@@ -15,6 +15,11 @@ export function getCourseSlots(course) {
 
 export function getCourse(id) { return COURSES.find(c => c.id === id); }
 
+// Keep catalogs saved before the category move usable while offline.
+export function normalizeCourseCategory(course) {
+  return course.dept === "Off Campus" ? {...course, dept:"Miscellaneous", miscType:"Off Campus"} : course;
+}
+
 export function normalizeCourse(row) {
   // Convert Supabase row (snake_case, pg arrays) back to the shape the app expects
   return {
@@ -22,11 +27,11 @@ export function normalizeCourse(row) {
     code:                row.code || "",
     name:                row.name,
     subtitle:            row.subtitle || "",
-    dept:                row.dept,
+    dept:                row.dept === "Off Campus" ? "Miscellaneous" : row.dept,
     language:            row.language || "",
     ctePath:             row.cte_path || "",
     fineArtsType:        row.fine_arts_type || "",
-    miscType:            row.misc_type || "",
+    miscType:            row.dept === "Off Campus" ? "Off Campus" : row.misc_type || "",
     credits:             row.credits,
     gradeLevel:          row.grade_level || [],
     prereqs:             row.prereqs || [],

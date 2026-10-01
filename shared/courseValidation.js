@@ -1,4 +1,4 @@
-export const COURSE_DEPARTMENTS = ["English", "Social Studies", "Mathematics", "Science", "Health & PE", "CTE", "World Language", "Fine Arts", "Miscellaneous", "Off Campus"];
+export const COURSE_DEPARTMENTS = ["English", "Social Studies", "Mathematics", "Science", "Health & PE", "CTE", "World Language", "Fine Arts", "Miscellaneous"];
 export const GRAD_CATEGORIES = ["english", "ss", "math", "science", "wlfa", "pe", "health", "ptp", "electives"];
 export function validateCourse(row) {
   if (!row || typeof row !== "object" || Array.isArray(row)) throw new Error("Invalid course record");

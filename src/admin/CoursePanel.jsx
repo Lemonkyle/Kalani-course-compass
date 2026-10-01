@@ -6,7 +6,7 @@ import { parseCourseCsv } from "../../shared/courseCsv.js";
 import { validateCourseReferences } from "../../shared/courseValidation.js";
 
 const DEPTS = ["All","English","Mathematics","Social Studies","Science",
-  "Health & PE","CTE","World Language","Fine Arts","Miscellaneous","Off Campus"];
+  "Health & PE","CTE","World Language","Fine Arts","Miscellaneous"];
 
 const DEPT_COLORS = {
   "English":"#C84B31","Mathematics":"#059669","Social Studies":"#7C3AED",
@@ -19,7 +19,7 @@ const GRAD_CATEGORIES = ["english","ss","math","science","wlfa","pe","health","p
 
 const CTE_PATHS       = ["AFNR","Business","Arts & Media","Engineering","Health Services","Culinary Arts","Computer Science","JROTC"];
 const FINE_ARTS_TYPES = ["Performing","Visual"];
-const MISC_TYPES      = ["General","Journalism","ESOL"];
+const MISC_TYPES      = ["General","Journalism","ESOL","Off Campus"];
 
 const EMPTY_FORM = {
   id:"", code:"", name:"", subtitle:"", dept:"English",
