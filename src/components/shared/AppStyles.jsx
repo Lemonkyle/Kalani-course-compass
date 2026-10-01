@@ -6,12 +6,15 @@ export function AppStyles() {
         ${FONTS}
         @keyframes cardIn{from{opacity:0;transform:translateY(24px) scale(0.97);}to{opacity:1;transform:translateY(0) scale(1);}}
         @keyframes annSlideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
-        .planning-hint-trigger{display:flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;margin-top:2px;background:none;border:0;border-radius:6px;color:#B77916;font:inherit;font-size:14px;cursor:pointer;}
-        .planning-hint-trigger:hover,.planning-hint-trigger:focus-visible{background:#FEF3C7;outline:2px solid #FDE68A;outline-offset:1px;}
-        .planning-hint-popup{position:fixed;z-index:1100;width:min(300px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;filter:drop-shadow(0 8px 16px rgba(55,35,10,.16));}
-        .planning-hint-surface{padding:12px 15px;background:#FFFBEB;border:1px solid #F3D89D;border-radius:12px;color:#78350F;}
-        .planning-hint-surface strong{font-size:12px;font-weight:800;}
-        .planning-hint-surface p{margin:7px 0 0;font-size:12px;line-height:1.6;overflow-wrap:anywhere;}
+        .planning-hint-row{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:start;gap:4px;margin-top:5px;min-width:0;}
+        .planning-hint-trigger{display:flex;align-items:center;justify-content:center;width:20px;height:26px;padding:0;background:none;border:0;border-radius:5px;color:#B77916;font:inherit;font-size:14px;cursor:pointer;}
+        .planning-hint-trigger:focus-visible{background:#FEF3C7;outline:2px solid #FDE68A;outline-offset:1px;}
+        /* Keep the panel in flow, including while hidden: the hover boundary
+           never moves underneath a stationary pointer. Only paint animates. */
+        .planning-hint-panel{min-width:0;padding:6px 8px;background:#FFFBEB;border:1px solid #F3D89D;border-radius:7px;color:#78350F;opacity:0;clip-path:inset(0 100% 0 0 round 7px);transform:translateX(-4px);pointer-events:none;transition:clip-path .26s cubic-bezier(.22,1,.36,1),transform .26s cubic-bezier(.22,1,.36,1),opacity .18s ease;}
+        .planning-hint-row.is-open .planning-hint-panel{opacity:1;clip-path:inset(0 0 0 0 round 7px);transform:translateX(0);pointer-events:auto;}
+        .planning-hint-panel p{margin:0;font-size:11px;line-height:1.5;overflow-wrap:anywhere;}
+        .planning-hint-panel p+p{margin-top:5px;}
         .external-program{padding:28px;border-radius:18px;background:linear-gradient(120deg,#FFF7F5,white 65%);border:1px solid #EAD9D5;box-shadow:0 4px 18px #65120A08;}
         .external-program h2{font-family:'Playfair Display',serif;font-size:28px;color:var(--red-dark);margin:10px 0;}
         .external-program p{font-size:13px;line-height:1.7;color:var(--muted);max-width:800px;}

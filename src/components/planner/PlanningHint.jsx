@@ -1,91 +1,49 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { motion, useReducedMotion } from 'framer-motion';
+import { useEffect, useId, useRef, useState } from 'react';
 
 export function PlanningHint({messages = ['Credit not confirmed — not counted']}) {
   const [open,setOpen] = useState(false);
-  const [position,setPosition] = useState(null);
   const trigger = useRef(null);
-  const popup = useRef(null);
-  const timer = useRef(null);
+  const hovering = useRef(false);
   const id = useId();
-  const reducedMotion = useReducedMotion();
-  const cancelClose = () => clearTimeout(timer.current);
-  const show = () => { cancelClose(); setOpen(true); };
-  const close = () => { cancelClose(); setOpen(false); setPosition(null); };
-  const delayClose = () => { cancelClose(); timer.current = setTimeout(close,140); };
 
   useEffect(() => {
     const card = trigger.current?.closest('.card-hover-group');
     if (!card) return;
-    const enter = event => { if (event.pointerType !== 'touch') show(); };
-    const leave = event => { if (event.pointerType !== 'touch') delayClose(); };
+    // Listen only at the card boundary. Moving between its children does not
+    // restart the reveal, and the panel never mounts outside this boundary.
+    const enter = event => {
+      if (event.pointerType === 'touch') return;
+      hovering.current = true;
+      setOpen(true);
+    };
+    const leave = event => {
+      if (event.pointerType === 'touch') return;
+      hovering.current = false;
+      setOpen(false);
+    };
+    const outside = event => { if (!card.contains(event.target)) setOpen(false); };
+    const escape = event => { if (event.key === 'Escape') setOpen(false); };
     card.addEventListener('pointerenter',enter);
     card.addEventListener('pointerleave',leave);
+    document.addEventListener('pointerdown',outside);
+    document.addEventListener('keydown',escape);
     return () => {
-      cancelClose();
       card.removeEventListener('pointerenter',enter);
       card.removeEventListener('pointerleave',leave);
+      document.removeEventListener('pointerdown',outside);
+      document.removeEventListener('keydown',escape);
     };
   },[]);
 
-  useLayoutEffect(() => {
-    if (!open) return;
-    const place = () => {
-      if (!trigger.current || !popup.current) return;
-      const anchor = trigger.current.getBoundingClientRect();
-      if (anchor.bottom < 0 || anchor.top > window.innerHeight || anchor.right < 0 || anchor.left > window.innerWidth) { close(); return; }
-      const box = popup.current.getBoundingClientRect();
-      const margin = 12;
-      const right = anchor.right + 10;
-      const left = right + box.width <= window.innerWidth - margin ? right : Math.max(margin,anchor.left - box.width - 10);
-      const top = Math.max(margin,Math.min(anchor.top - 8,window.innerHeight - box.height - margin));
-      setPosition({left,top});
-    };
-    place();
-    window.addEventListener('resize',place);
-    window.addEventListener('scroll',place,true);
-    const observer = new ResizeObserver(place);
-    observer.observe(popup.current);
-    return () => {
-      window.removeEventListener('resize',place);
-      window.removeEventListener('scroll',place,true);
-      observer.disconnect();
-    };
-  },[open,messages.join('\n')]);
-
-  useEffect(() => {
-    if (!open) return;
-    const dismiss = event => {
-      if (!trigger.current?.contains(event.target) && !popup.current?.contains(event.target)) close();
-    };
-    const escape = event => { if (event.key === 'Escape') close(); };
-    document.addEventListener('pointerdown',dismiss);
-    document.addEventListener('keydown',escape);
-    return () => {
-      document.removeEventListener('pointerdown',dismiss);
-      document.removeEventListener('keydown',escape);
-    };
-  },[open]);
-
-  return <>
+  return <div className={'planning-hint-row'+(open?' is-open':'')}>
     <button ref={trigger} type="button" className="planning-hint-trigger"
-      aria-label={messages.join('. ')} aria-expanded={open} aria-controls={open?id:undefined}
-      aria-describedby={open?id:undefined}
-      onFocus={show} onBlur={delayClose}
-      onClick={e=>{e.stopPropagation(); show();}}>
+      aria-label={messages.join('. ')} aria-expanded={open} aria-controls={id}
+      onFocus={()=>setOpen(true)} onBlur={()=>{if (!hovering.current) setOpen(false);}}
+      onClick={e=>{e.stopPropagation();setOpen(true);}}>
       <span aria-hidden="true">⚠</span>
     </button>
-    {open && createPortal(
-      <div ref={popup} id={id} role="tooltip" className="planning-hint-popup"
-        style={{left:position?.left ?? 0,top:position?.top ?? 0,visibility:position?'visible':'hidden'}}
-        onPointerEnter={cancelClose} onPointerLeave={delayClose} onClick={e=>e.stopPropagation()}>
-        <motion.div className="planning-hint-surface" initial={{opacity:0,x:reducedMotion?0:-5}}
-          animate={{opacity:1,x:0}} transition={{duration:reducedMotion?0:0.16,ease:'easeOut'}}>
-          <strong>Planning reminder</strong>
-          {messages.map(message=><p key={message}>{message}</p>)}
-        </motion.div>
-      </div>,document.body
-    )}
-  </>;
+    <div id={id} className="planning-hint-panel" aria-hidden={!open}>
+      {messages.map(message=><p key={message}>{message}</p>)}
+    </div>
+  </div>;
 }
