@@ -37,3 +37,5 @@ both the saved record and all planner references after an inline confirmation.
 Removing a course only from the planner retains its saved course record.
 
 Planner prerequisite, grade-level, subject-load and pending-credit reminders share one expandable triangle per course. Subject-load reminders remain based on credits, so two half-credit courses do not exceed the typical one-credit annual load.
+
+Reminder details now use a fixed, portal-rendered tooltip with a short fade/slide animation. This keeps card height unchanged and avoids clipping by planner containers. It opens on card hover or trigger focus/tap, stays open while the pointer is over the tooltip, and dismisses on pointer leave, outside press, Escape, or scrolling the trigger out of view. Viewport bounds determine tooltip placement.

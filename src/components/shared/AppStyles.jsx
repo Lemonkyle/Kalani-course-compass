@@ -6,9 +6,12 @@ export function AppStyles() {
         ${FONTS}
         @keyframes cardIn{from{opacity:0;transform:translateY(24px) scale(0.97);}to{opacity:1;transform:translateY(0) scale(1);}}
         @keyframes annSlideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
-        .external-credit-hint{display:flex;align-items:flex-start;gap:5px;max-width:100%;background:none;border:0;padding:3px 0 0;color:#B77916;font:inherit;font-size:12px;cursor:pointer;text-align:left;}
-        .external-credit-message{max-width:0;max-height:0;opacity:0;overflow:hidden;white-space:normal;overflow-wrap:anywhere;transform:translateX(-6px);transition:max-width .28s ease,max-height .28s ease,opacity .2s ease,transform .28s ease;font-size:11px;line-height:1.5;text-align:left;}
-        .card-hover-group:hover .external-credit-message,.card-hover-group:focus-within .external-credit-message,.external-credit-hint.is-open .external-credit-message{max-width:100%;max-height:300px;opacity:1;transform:translateX(0);}
+        .planning-hint-trigger{display:flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;margin-top:2px;background:none;border:0;border-radius:6px;color:#B77916;font:inherit;font-size:14px;cursor:pointer;}
+        .planning-hint-trigger:hover,.planning-hint-trigger:focus-visible{background:#FEF3C7;outline:2px solid #FDE68A;outline-offset:1px;}
+        .planning-hint-popup{position:fixed;z-index:1100;width:min(300px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;filter:drop-shadow(0 8px 16px rgba(55,35,10,.16));}
+        .planning-hint-surface{padding:12px 15px;background:#FFFBEB;border:1px solid #F3D89D;border-radius:12px;color:#78350F;}
+        .planning-hint-surface strong{font-size:12px;font-weight:800;}
+        .planning-hint-surface p{margin:7px 0 0;font-size:12px;line-height:1.6;overflow-wrap:anywhere;}
         .external-program{padding:28px;border-radius:18px;background:linear-gradient(120deg,#FFF7F5,white 65%);border:1px solid #EAD9D5;box-shadow:0 4px 18px #65120A08;}
         .external-program h2{font-family:'Playfair Display',serif;font-size:28px;color:var(--red-dark);margin:10px 0;}
         .external-program p{font-size:13px;line-height:1.7;color:var(--muted);max-width:800px;}
