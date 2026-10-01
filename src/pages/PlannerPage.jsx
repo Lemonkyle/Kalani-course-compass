@@ -159,14 +159,14 @@ export function PlannerPage({ context }) {
                                 layout
                                 variants={cardVariants}
                                 initial="hidden" animate="show" exit="exit"
-                                style={{ overflow:"hidden" }}>
+                                style={{ overflow:"clip" }}>
                                 <motion.div
                                   variants={contentVariants}
                                   className="card-hover-group"
                                   style={{ display:"flex", alignItems:"center",
                                     background:isOffCampus?"#F8FAFC":"white",
                                     border:"1px solid "+(isOffCampus?"#CBD5E1":col+"28"),
-                                    borderRadius:"12px", overflow:"hidden", position:"relative" }}>
+                                    borderRadius:"12px", overflow:"clip", position:"relative" }}>
                                   {/* Left color bar */}
                                   <div style={{ width:"4px", alignSelf:"stretch",
                                     background:isOffCampus?"#475569":col, flexShrink:0 }}/>
