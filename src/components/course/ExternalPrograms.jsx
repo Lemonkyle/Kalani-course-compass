@@ -1,28 +1,43 @@
-export const PROGRAM_LINKS = {
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { isPendingExternal } from '../../lib/externalCourses.js';
+import { ExternalCreditHint } from '../planner/ExternalCreditHint.jsx';
+const PROGRAM_LINKS = {
   HOC:'https://sites.google.com/k12.hi.us/hoc',
   'Dual Credit':'https://sites.google.com/k12.hi.us/kalanicounselorscorner/dual-credit',
 };
-const programs = {
-  HOC:[{name:'Hawaiʻi Online Courses',description:'Teacher-led online learning that supplements school offerings for HIDOE secondary students. Registration is submitted through your School Site Facilitator.'}],
-  'Dual Credit':[
-    {name:'Early College',description:'College coursework offered at Kalani through a partnership with Kapiʻolani Community College.'},
-    {name:'Running Start',description:'An opportunity for eligible high-school students to take college classes at Kapiʻolani Community College.'},
-    {name:'UH Mānoa Early College Scholars',description:'Selected UH Mānoa Outreach College courses through Kalani’s dual-credit options.'},
-  ],
-};
-export function ExternalPrograms({source,openExternalCourse}) {
+export function ExternalPrograms({source,context}) {
+  const {openExternalCourse,customCourses,plan,deleteExternalCourse} = context;
+  const [deleting,setDeleting] = useState(null);
+  const courses = customCourses.filter(c=>c.source===source);
   return <section>
-    <h2 style={{marginBottom:10}}>{source === 'HOC' ? 'Hawaiʻi Online Courses (HOC)' : 'Dual Credit opportunities'}</h2>
-    <p style={{lineHeight:1.7,marginBottom:12}}>{source === 'Dual Credit' ? 'Eligible students may earn both high-school and college credit. The high-school credit amount and graduation category must be confirmed with school staff.' : 'Online courses can expand your choices beyond the on-campus catalog. Ask your school which options fit your plan.'}</p>
-    <p style={{lineHeight:1.7,marginBottom:20}}>These cards introduce programs, not a complete course catalog. Check the official site for current offerings, eligibility, costs and deadlines. Discuss registration and high-school credit with your counselor or program coordinator.</p>
-    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:16}}>
-      {programs[source].map(p=><article key={p.name} className="c-card" style={{cursor:'default',gap:12}}>
-        <span className="badge">Program overview · {source}</span><h3>{p.name}</h3>
-        <p style={{fontSize:14,lineHeight:1.7}}>{p.description}</p>
-        <a href={PROGRAM_LINKS[source]} target="_blank" rel="noopener noreferrer">For more information ↗</a>
-        <button className="dept-btn" onClick={()=>openExternalCourse(source,p.name)}>Record a course in planner</button>
-        <small>Find a specific course first. Save it as unverified if its high-school credit is unknown.</small>
-      </article>)}
-    </div>
+    <motion.article key={source} className="external-program" initial={{opacity:0,y:12}} animate={{opacity:1,y:0}}>
+      <span className="badge" style={{background:'#B008040D',color:'var(--red)'}}>Explore beyond Kalani</span>
+      <h2>{source==='HOC'?'Hawaiʻi Online Courses':'Dual Credit'}</h2>
+      <p>{source==='HOC'?'Teacher-led online courses. Register through your School Site Facilitator.':'Earn high-school and college credit through Early College, Running Start, or UH Mānoa Early College Scholars.'}</p>
+      <p style={{marginTop:12}}>Course availability, eligibility, and high-school credit equivalency vary. Review the official information and confirm your plan with your counselor or {source==='HOC'?'HOC coordinator':'Dual Credit Coordinator'} before adding a course.</p>
+      <div className="external-actions">
+        <a className="dept-btn" href={PROGRAM_LINKS[source]} target="_blank" rel="noopener noreferrer"><span>For more information ↗</span></a>
+        <motion.button className="dept-btn active" whileTap={{scale:0.94}} onClick={()=>openExternalCourse(source)}><span>＋ Record a course</span></motion.button>
+      </div>
+    </motion.article>
+    <h3 style={{fontSize:17,margin:'28px 0 14px'}}>Your {source} courses</h3>
+    {courses.length===0 ? <p style={{fontSize:13,color:'var(--muted)'}}>Courses you add will appear here.</p> :
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(min(100%,270px),1fr))',gap:14}}>
+        {courses.map(c=>{
+          const grades=Object.entries(plan).filter(([,ids])=>ids.includes(c.id)).map(([g])=>g);
+          return <motion.article key={c.id} className="c-card card-hover-group" style={{cursor:'default'}} initial={{opacity:0,y:15}} animate={{opacity:1,y:0}}>
+            <div style={{display:'flex',justifyContent:'space-between',gap:8}}><span className="badge" style={{background:'#EFF6FF',color:'#1D4ED8'}}>{source}</span><span style={{fontSize:12,color:'var(--muted)'}}>{isPendingExternal(c)?'Pending':`${c.credits} HS cr`}</span></div>
+            <h4 style={{fontSize:15,margin:'12px 0 6px',overflowWrap:'anywhere'}}>{c.name}</h4>
+            <p style={{fontSize:12,color:'var(--muted)'}}>{grades.length?`Grade ${grades.join(' / ')}`:'Not in planner'}{!isPendingExternal(c)?` · ${c.dept}`:''}</p>
+            {isPendingExternal(c) && <ExternalCreditHint/>}
+            <div style={{display:'flex',gap:8,marginTop:16}}>
+              <motion.button className="dept-btn" whileTap={{scale:0.94}} onClick={()=>openExternalCourse(c.source,'',c,Number(grades[0]||9))}><span>{isPendingExternal(c)?'Review / confirm':'Edit course'}</span></motion.button>
+              <button className="dept-btn" aria-label={`Delete ${c.name}`} onClick={()=>setDeleting(c.id)}><span>Delete</span></button>
+            </div>
+            {deleting===c.id && <div style={{marginTop:12,fontSize:12}}><p>Delete this course from your saved courses and planner?</p><div style={{display:'flex',gap:8,marginTop:8}}><button className="dept-btn" onClick={()=>{deleteExternalCourse(c.id);setDeleting(null);}}><span>Delete course</span></button><button className="dept-btn" onClick={()=>setDeleting(null)}><span>Cancel</span></button></div></div>}
+          </motion.article>;
+        })}
+      </div>}
   </section>;
 }

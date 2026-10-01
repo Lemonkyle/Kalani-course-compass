@@ -1,3 +1,4 @@
+import { ExternalCreditHint } from "../components/planner/ExternalCreditHint.jsx";
 import { isPendingExternal } from "../lib/externalCourses.js";
 import { AnimatePresence, motion } from "framer-motion";
 import { AnimatedProgressBar, cardVariants, contentVariants, renderPage, shakeAnim } from "../components/shared/index.js";
@@ -7,7 +8,7 @@ import { PlanningNotice } from "../components/shared/PlanningNotice.jsx";
 
 export function PlannerPage({ context }) {
   const {
-    openExternalCourse, page, maintenanceContent, setSelectedCourse, canUseHover, deptColor, plan, showResetConfirm, setShowResetConfirm, setPlan, priorCredits, setPriorCredits, alg1Anim, setAlg1Anim, customCourses, setShowCustomModal, addTarget, setAddTarget, addSearch, setAddSearch, prereqWarn, setPrereqWarn, addSearchResults, getCourse, gradeSlots, getUnmetPrereqsForCurrentCourses, getPrereqDisplay, addCourseToPlan, forceAddCourse, removeCourse, canFitCourse, addCourseEntry, setShakeGrade, showToast, shakeGrade, cats, total, honorsOpen, setHonorsOpen, honorsProgress
+    openExternalCourse, page, maintenanceContent, setSelectedCourse, canUseHover, deptColor, plan, showResetConfirm, setShowResetConfirm, setPlan, priorCredits, setPriorCredits, alg1Anim, setAlg1Anim, addTarget, setAddTarget, addSearch, setAddSearch, prereqWarn, setPrereqWarn, addSearchResults, getCourse, gradeSlots, getUnmetPrereqsForCurrentCourses, getPrereqDisplay, addCourseToPlan, forceAddCourse, removeCourse, canFitCourse, addCourseEntry, setShakeGrade, showToast, shakeGrade, cats, total, honorsOpen, setHonorsOpen, honorsProgress
   } = context;
   return renderPage(page==="planner","planner", maintenanceContent("planner",
           <div className="fade-in" style={{ maxWidth:"1180px", margin:"0 auto", padding:"32px 24px" }}>
@@ -104,7 +105,6 @@ export function PlannerPage({ context }) {
                   );
                 })()}
 
-                <p style={{fontSize:12,lineHeight:1.6,margin:'12px 0'}}>External courses: unverified entries do not count toward credits or reserve schedule space. Confirmed entries count toward the category you record; prerequisite equivalencies and Honors need separate counselor review.</p>
                 {/* External course button */}
                 <div style={{ marginBottom:"18px", display:"flex", alignItems:"center", gap:"10px" }}>
                   <button onClick={()=>openExternalCourse()}
@@ -114,11 +114,7 @@ export function PlannerPage({ context }) {
                       display:"flex", alignItems:"center", gap:"6px" }}>
                     ＋ Add External Course
                   </button>
-                  {customCourses.length > 0 && (
-                    <span style={{ fontSize:"11px", color:"var(--muted)" }}>
-                      External entries are saved in this browser. Unverified credits are not counted.
-                    </span>
-                  )}
+
                 </div>
 
                 <div className="plan-grid" style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gridAutoRows:"1fr", gap:"16px", marginBottom:"8px", alignItems:"stretch" }}>
@@ -194,7 +190,7 @@ export function PlannerPage({ context }) {
                                         {isOffCampus?"Off Campus":c.isExternal?c.source:c.dept}
                                       </span>
                                       <span style={{ fontSize:"9px", fontWeight:800, color:"#94A3B8",
-                                        background:"#F1F5F9", padding:"2px 5px", borderRadius:"4px", flexShrink:0 }}>{isPendingExternal(c)?"Unverified":`${c.credits}${c.isExternal?" HS":""}cr`}</span>
+                                        background:"#F1F5F9", padding:"2px 5px", borderRadius:"4px", flexShrink:0 }}>{isPendingExternal(c)?"Pending":`${c.credits}${c.isExternal?" HS":""}cr`}</span>
                                       {c.isAP ? <span className="tag-ap" style={{fontSize:"9px"}}>AP</span> : null}
                                     </div>
                                     <span style={{ fontSize:"13px", fontWeight:700,
@@ -213,10 +209,7 @@ export function PlannerPage({ context }) {
                                           padding:"1px 5px" }}>External</span>
                                       )}
                                     </span>
-                                    {c.isExternal && <div style={{marginTop:8,fontSize:12,lineHeight:1.5,color:isPendingExternal(c)?'#92400E':'#166534'}}>
-                                      <p>{isPendingExternal(c)?'Unverified — credits and category not counted.':'Confirmed by you — '+c.dept+'. Not school approval.'}</p>
-                                      <button className="dept-btn" style={{marginTop:6,fontSize:11}} onClick={()=>openExternalCourse(c.source,'',c,grade)}>Review / edit external course</button>
-                                    </div>}
+                                    {isPendingExternal(c) && <ExternalCreditHint/>}
                                     {unmet.length > 0 && <p style={{margin:"7px 0 0",padding:"6px 8px",borderRadius:6,background:"#FFFBEB",color:"#92400E",fontSize:12,lineHeight:1.5,overflowWrap:"anywhere"}}>
                                       <strong>⚠ Prerequisite reminder:</strong> Not yet recorded in your plan: {unmet.map(getPrereqDisplay).join(", ")}. Confirm prior credit or exceptions with your counselor.
                                     </p>}

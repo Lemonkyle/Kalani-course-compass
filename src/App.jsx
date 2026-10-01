@@ -190,8 +190,13 @@ export default function App() {
     return gradeSlots(plan, grade) + getCourseSlots(course) <= GRADE_MAX;
   }
 
+  function deleteExternalCourse(id) {
+    setPlan(old => Object.fromEntries(Object.entries(old).map(([grade, ids]) => [grade, ids.filter(cid => cid !== id)])));
+    setCustomCourses(old => old.filter(course => course.id !== id));
+    showToast("External course deleted");
+  }
   const pageContext = {
-    courseSource, setCourseSource, editingExternalId, openExternalCourse,
+    courseSource, setCourseSource, editingExternalId, openExternalCourse, deleteExternalCourse,
     page,
     maintenanceContent,
     navigate,

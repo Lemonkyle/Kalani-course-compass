@@ -6,6 +6,18 @@ export function AppStyles() {
         ${FONTS}
         @keyframes cardIn{from{opacity:0;transform:translateY(24px) scale(0.97);}to{opacity:1;transform:translateY(0) scale(1);}}
         @keyframes annSlideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+        .external-credit-hint{display:flex;align-items:center;gap:5px;max-width:100%;background:none;border:0;padding:3px 0 0;color:#B77916;font:inherit;font-size:12px;cursor:pointer;text-align:left;}
+        .external-credit-message{max-width:0;opacity:0;overflow:hidden;white-space:nowrap;transform:translateX(-6px);transition:max-width .28s ease,opacity .2s ease,transform .28s ease;font-size:10px;}
+        .card-hover-group:hover .external-credit-message,.card-hover-group:focus-within .external-credit-message,.external-credit-hint.is-open .external-credit-message{max-width:240px;opacity:1;transform:translateX(0);}
+        .external-program{padding:28px;border-radius:18px;background:linear-gradient(120deg,#FFF7F5,white 65%);border:1px solid #EAD9D5;box-shadow:0 4px 18px #65120A08;}
+        .external-program h2{font-family:'Playfair Display',serif;font-size:28px;color:var(--red-dark);margin:10px 0;}
+        .external-program p{font-size:13px;line-height:1.7;color:var(--muted);max-width:800px;}
+        .external-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;}
+        .external-actions .dept-btn{padding:10px 16px;text-decoration:none;font-size:12px;}
+        .external-form label{display:grid;gap:6px;font-size:12px;font-weight:700;color:var(--text);}
+        .external-form .si{font-size:13px;padding:10px 12px;}
+        .external-form fieldset{min-width:0;border:1px solid var(--border);border-radius:12px;padding:14px;display:grid;gap:12px;background:#FAFBFC;}
+        .external-form legend{font-size:12px;font-weight:800;padding:0 5px;}
         /* Planner card animations */
         @keyframes planCardIn{
           0%{opacity:0;transform:translateX(50px) scale(0.95);max-height:0;margin-bottom:0;}

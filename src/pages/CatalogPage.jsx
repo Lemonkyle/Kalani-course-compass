@@ -6,18 +6,18 @@ import { PREREQ_EQUIV } from "../data/requirements.js";
 
 export function CatalogPage({ context }) {
   const {
-    courseSource, setCourseSource, openExternalCourse, page, maintenanceContent, setSelectedCourse, searchQuery, setSearchQuery, filterGrade, setFilterGrade, filterDept, setFilterDept, filterCtePath, setFilterCtePath, filterFineArts, setFilterFineArts, filterMisc, setFilterMisc, gridKey, setGridKey, filteredCourses, canUseHover, getCourseName, deptColor, plan
+    courseSource, setCourseSource, page, maintenanceContent, setSelectedCourse, searchQuery, setSearchQuery, filterGrade, setFilterGrade, filterDept, setFilterDept, filterCtePath, setFilterCtePath, filterFineArts, setFilterFineArts, filterMisc, setFilterMisc, gridKey, setGridKey, filteredCourses, canUseHover, getCourseName, deptColor, plan
   } = context;
   const gradeFilters = ["All Grades", 9, 10, 11, 12];
   return renderPage(page==="catalog","catalog", maintenanceContent("catalog",
           <div className="fade-in" style={{ maxWidth:"1200px", margin:"0 auto", padding:"32px 24px" }}>
             <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"30px", color:"var(--red-dark)",
               marginBottom:"22px" }}>Course Catalog</h1>
-            <p style={{lineHeight:1.7,marginBottom:16}}><strong>Kalani on-campus courses are not your only options.</strong> Explore HOC and Dual Credit, then bring your questions to your counselor.</p>
+            <p style={{lineHeight:1.7,marginBottom:16}}><strong>Kalani on-campus courses are not your only options.</strong></p>
             <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:24}} aria-label="Course sources">
               {['Kalani','HOC','Dual Credit'].map(source=><button key={source} className={'dept-btn'+(courseSource===source?' active':'')} aria-pressed={courseSource===source} onClick={()=>setCourseSource(source)}><span>{source==='Kalani'?'Kalani on-campus':source}</span></button>)}
             </div>
-            {courseSource !== 'Kalani' ? <ExternalPrograms source={courseSource} openExternalCourse={openExternalCourse}/> : <>
+            {courseSource !== 'Kalani' ? <ExternalPrograms source={courseSource} context={context}/> : <>
             <div className="catalog-search-row" style={{ display:"flex", gap:"12px", marginBottom:"20px", flexWrap:"wrap", alignItems:"center" }}>
               <input className="si" placeholder="🔍 Search courses…" value={searchQuery}
                 onChange={e=>setSearchQuery(e.target.value)}

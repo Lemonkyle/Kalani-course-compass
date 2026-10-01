@@ -25,3 +25,13 @@ Students can edit or revoke confirmation without deleting the entry.
 
 Validation: npm test; npm run build; browser flow for program navigation, pending add,
 confirmation, reload persistence, revocation, and credit total changes.
+
+## Interface refinement
+
+Each external source has one overview card and a list of the student's saved courses.
+The form shows only name, source, grade (on creation), and credit confirmation fields.
+Existing optional metadata is retained for compatibility but is not shown in the form.
+Pending credit warnings expand from a triangle on card hover, keyboard focus, or tap.
+Courses-page edits update the same record used by the planner. Deletion there removes
+both the saved record and all planner references after an inline confirmation.
+Removing a course only from the planner retains its saved course record.
