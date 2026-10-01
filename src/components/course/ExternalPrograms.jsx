@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { isPendingExternal } from '../../lib/externalCourses.js';
-import { ExternalCreditHint } from '../planner/ExternalCreditHint.jsx';
+import { PlanningHint } from '../planner/PlanningHint.jsx';
 const PROGRAM_LINKS = {
   HOC:'https://sites.google.com/k12.hi.us/hoc',
   'Dual Credit':'https://sites.google.com/k12.hi.us/kalanicounselorscorner/dual-credit',
@@ -30,7 +30,7 @@ export function ExternalPrograms({source,context}) {
             <div style={{display:'flex',justifyContent:'space-between',gap:8}}><span className="badge" style={{background:'#EFF6FF',color:'#1D4ED8'}}>{source}</span><span style={{fontSize:12,color:'var(--muted)'}}>{isPendingExternal(c)?'Pending':`${c.credits} HS cr`}</span></div>
             <h4 style={{fontSize:15,margin:'12px 0 6px',overflowWrap:'anywhere'}}>{c.name}</h4>
             <p style={{fontSize:12,color:'var(--muted)'}}>{grades.length?`Grade ${grades.join(' / ')}`:'Not in planner'}{!isPendingExternal(c)?` · ${c.dept}`:''}</p>
-            {isPendingExternal(c) && <ExternalCreditHint/>}
+            {isPendingExternal(c) && <PlanningHint/>}
             <div style={{display:'flex',gap:8,marginTop:16}}>
               <motion.button className="dept-btn" whileTap={{scale:0.94}} onClick={()=>openExternalCourse(c.source,'',c,Number(grades[0]||9))}><span>{isPendingExternal(c)?'Review / confirm':'Edit course'}</span></motion.button>
               <button className="dept-btn" aria-label={`Delete ${c.name}`} onClick={()=>setDeleting(c.id)}><span>Delete</span></button>

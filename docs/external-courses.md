@@ -35,3 +35,5 @@ Pending credit warnings expand from a triangle on card hover, keyboard focus, or
 Courses-page edits update the same record used by the planner. Deletion there removes
 both the saved record and all planner references after an inline confirmation.
 Removing a course only from the planner retains its saved course record.
+
+Planner prerequisite, grade-level, subject-load and pending-credit reminders share one expandable triangle per course. Subject-load reminders remain based on credits, so two half-credit courses do not exceed the typical one-credit annual load.

@@ -1,4 +1,4 @@
-import { ExternalCreditHint } from "../components/planner/ExternalCreditHint.jsx";
+import { PlanningHint } from "../components/planner/PlanningHint.jsx";
 import { isPendingExternal } from "../lib/externalCourses.js";
 import { AnimatePresence, motion } from "framer-motion";
 import { AnimatedProgressBar, cardVariants, contentVariants, renderPage, shakeAnim } from "../components/shared/index.js";
@@ -44,7 +44,7 @@ export function PlannerPage({ context }) {
                   )}
                 </div>
                 <p className="planner-hint" style={{ fontSize:"13px", color:"var(--muted)", marginBottom:"12px" }}>
-                  Click a course name to view details. Planning reminders appear below courses and grade headings. Click × to remove.
+                  Click a course name to view details. Hover a card or tap ⚠ for reminders. Click × to remove.
                 </p>
 
                 {/* Middle-school ALG1 toggle */}
@@ -140,11 +140,6 @@ export function PlannerPage({ context }) {
                           </span>
                         </div>
                         <div style={{ padding:"12px 14px 0", display:"flex", flexDirection:"column", flex:1 }}>
-                        {loadWarnings.length > 0 && <div style={{fontSize:12,lineHeight:1.5,color:"#92400E",background:"#FFFBEB",borderRadius:8,padding:"8px 10px",marginBottom:10}}>
-                          <strong>⚠ Subject load reminder</strong>
-                          {loadWarnings.map(warning => <p key={warning.dept} style={{margin:"6px 0"}}>{warning.message}</p>)}
-                          <p style={{margin:"6px 0 0"}}>Exceptions are allowed. Check your plan with your counselor.</p>
-                        </div>}
                         <AnimatePresence initial={false}>
                           {plan[grade].map((cid,idx)=>{
                             const c=getCourse(cid);
@@ -154,6 +149,11 @@ export function PlannerPage({ context }) {
                             const before = [...getCoursesBeforeGrade(plan, grade), ...priorCredits];
                             const upTo = [...getAllCoursesUpTo(plan, grade), ...priorCredits];
                             const unmet = isOffCampus ? [] : getUnmetPrereqsForCurrentCourses(cid, before, upTo);
+                            const reminders = [];
+                            if (isPendingExternal(c)) reminders.push('Credit not confirmed — not counted');
+                            if (unmet.length) reminders.push(`Prerequisite not recorded: ${unmet.map(getPrereqDisplay).join(', ')}`);
+                            if (!c.unavailable && c.gradeLevel?.length && !c.gradeLevel.map(Number).includes(grade)) reminders.push(`Usually Grade ${c.gradeLevel.join('/')} — check with your counselor`);
+                            if (!isPendingExternal(c) && loadWarnings.some(w => w.dept === c.dept)) reminders.push(`More than 1 ${c.dept} credit this year — check with your counselor`);
                             return (
                               <motion.div key={grade+"-"+cid+"-"+plan[grade].slice(0,idx).filter(id=>id===cid).length}
                                 layout
@@ -209,13 +209,7 @@ export function PlannerPage({ context }) {
                                           padding:"1px 5px" }}>External</span>
                                       )}
                                     </span>
-                                    {isPendingExternal(c) && <ExternalCreditHint/>}
-                                    {unmet.length > 0 && <p style={{margin:"7px 0 0",padding:"6px 8px",borderRadius:6,background:"#FFFBEB",color:"#92400E",fontSize:12,lineHeight:1.5,overflowWrap:"anywhere"}}>
-                                      <strong>⚠ Prerequisite reminder:</strong> Not yet recorded in your plan: {unmet.map(getPrereqDisplay).join(", ")}. Confirm prior credit or exceptions with your counselor.
-                                    </p>}
-                                    {!c.unavailable && c.gradeLevel?.length > 0 && !c.gradeLevel.map(Number).includes(grade) && <p style={{margin:"7px 0 0",color:"#92400E",fontSize:12,lineHeight:1.5}}>
-                                      <strong>⚠ Grade reminder:</strong> Usually listed for Grade {c.gradeLevel.join("/")}. Transfer or make-up coursework may be an exception.
-                                    </p>}
+                                    {reminders.length > 0 && <PlanningHint messages={reminders}/>}
                                   </div>
                                   {/* Delete button - hover reveal */}
                                   <div className="delete-reveal" style={{ padding:"0 10px", flexShrink:0, zIndex:1 }}>
