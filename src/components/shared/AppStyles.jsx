@@ -7,10 +7,11 @@ export function AppStyles() {
         @keyframes cardIn{from{opacity:0;transform:translateY(24px) scale(0.97);}to{opacity:1;transform:translateY(0) scale(1);}}
         @keyframes annSlideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
         .planning-hint-row{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:start;gap:4px;margin-top:5px;min-width:0;}
-        .planning-hint-trigger{display:flex;align-items:center;justify-content:center;width:20px;height:26px;padding:0;background:none;border:0;border-radius:5px;color:#B77916;font:inherit;font-size:14px;cursor:pointer;}
+        .planning-hint-trigger{display:flex;align-items:center;justify-content:center;width:20px;height:18px;padding:0;background:none;border:0;border-radius:5px;color:#B77916;font:inherit;font-size:14px;cursor:pointer;}
         .planning-hint-trigger:focus-visible{background:#FEF3C7;outline:2px solid #FDE68A;outline-offset:1px;}
-        /* Keep the panel in flow, including while hidden: the hover boundary
-           never moves underneath a stationary pointer. Only paint animates. */
+        .planning-hint-reveal{display:grid;grid-template-rows:0fr;min-width:0;transition:grid-template-rows .26s cubic-bezier(.22,1,.36,1);}
+        .planning-hint-row.is-open .planning-hint-reveal{grid-template-rows:1fr;}
+        .planning-hint-clip{min-height:0;overflow:clip;}
         .planning-hint-panel{min-width:0;padding:6px 8px;background:#FFFBEB;border:1px solid #F3D89D;border-radius:7px;color:#78350F;opacity:0;clip-path:inset(0 100% 0 0 round 7px);transform:translateX(-4px);pointer-events:none;transition:clip-path .26s cubic-bezier(.22,1,.36,1),transform .26s cubic-bezier(.22,1,.36,1),opacity .18s ease;}
         .planning-hint-row.is-open .planning-hint-panel{opacity:1;clip-path:inset(0 0 0 0 round 7px);transform:translateX(0);pointer-events:auto;}
         .planning-hint-panel p{margin:0;font-size:11px;line-height:1.5;overflow-wrap:anywhere;}

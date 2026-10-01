@@ -11,13 +11,16 @@ export function PlanningHint({messages = ['Credit not confirmed — not counted'
     if (!card) return;
     // Listen only at the card boundary. Moving between its children does not
     // restart the reveal, and the panel never mounts outside this boundary.
+    let lastLeave = null;
     const enter = event => {
       if (event.pointerType === 'touch') return;
+      if (lastLeave && event.clientX === lastLeave.x && event.clientY === lastLeave.y) return;
       hovering.current = true;
       setOpen(true);
     };
     const leave = event => {
       if (event.pointerType === 'touch') return;
+      lastLeave = {x:event.clientX,y:event.clientY};
       hovering.current = false;
       setOpen(false);
     };
@@ -25,11 +28,14 @@ export function PlanningHint({messages = ['Credit not confirmed — not counted'
     const escape = event => { if (event.key === 'Escape') setOpen(false); };
     card.addEventListener('pointerenter',enter);
     card.addEventListener('pointerleave',leave);
+    const move = event => { if (!hovering.current) enter(event); };
+    card.addEventListener('pointermove',move);
     document.addEventListener('pointerdown',outside);
     document.addEventListener('keydown',escape);
     return () => {
       card.removeEventListener('pointerenter',enter);
       card.removeEventListener('pointerleave',leave);
+      card.removeEventListener('pointermove',move);
       document.removeEventListener('pointerdown',outside);
       document.removeEventListener('keydown',escape);
     };
@@ -42,8 +48,8 @@ export function PlanningHint({messages = ['Credit not confirmed — not counted'
       onClick={e=>{e.stopPropagation();setOpen(true);}}>
       <span aria-hidden="true">⚠</span>
     </button>
-    <div id={id} className="planning-hint-panel" aria-hidden={!open}>
+    <div className="planning-hint-reveal"><div className="planning-hint-clip"><div id={id} className="planning-hint-panel" aria-hidden={!open}>
       {messages.map(message=><p key={message}>{message}</p>)}
-    </div>
+    </div></div></div>
   </div>;
 }

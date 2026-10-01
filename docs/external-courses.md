@@ -38,8 +38,8 @@ Removing a course only from the planner retains its saved course record.
 
 Planner prerequisite, grade-level, subject-load and pending-credit reminders share one expandable triangle per course. Subject-load reminders remain based on credits, so two half-credit courses do not exceed the typical one-credit annual load.
 
-Reminder details stay mounted inside each course card. Space is reserved for the
-panel so opening it cannot move the card's hover boundary. Only clipping, opacity,
-and a small horizontal translation animate. Card pointerenter opens the panel;
-pointerleave closes it. Moving among card children does not restart the animation.
-Keyboard focus and tapping the triangle also open it; Escape or an outside press closes it.
+Reminder details stay mounted inside each course card. A grid reveal animates
+between collapsed and natural height while the panel slides right from the triangle.
+Pointer events are handled at the card boundary. A stationary pointer cannot
+reopen a card merely because collapsing layout moved underneath it; actual pointer
+movement or keyboard/touch activation can reopen it.
